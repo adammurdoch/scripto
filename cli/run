@@ -1,0 +1,1 @@
+./gradlew cli:dist && ./cli/build/dist/scripto "$@"

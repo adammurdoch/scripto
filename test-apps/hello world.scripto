@@ -1,0 +1,6 @@
+println()
+println("------------")
+val message = "hello world!"
+println(message)
+println("------------")
+println()
