@@ -1,4 +1,6 @@
 
+A strongly typed scripting language that compiles to C, JVM byte code, Bash and PowerShell.
+
 Language
 ----
 
