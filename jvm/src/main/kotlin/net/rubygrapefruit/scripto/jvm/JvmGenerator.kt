@@ -111,6 +111,7 @@ class JvmGenerator {
             is VariableReference -> convertToString(expression, JvmVariableReference(expression))
             is InfixFunctionCall -> convertToString(expression, mapInfix(expression))
             is FunctionCallExpression -> convertToString(expression, mapFunctionCall(expression))
+            is ReceiverFunctionCallExpression -> convertToString(expression, mapFunctionCall(expression))
         }
     }
 
@@ -138,6 +139,7 @@ class JvmGenerator {
             is VariableReference -> JvmVariableReference(expression)
             is InfixFunctionCall -> mapInfix(expression)
             is FunctionCallExpression -> mapFunctionCall(expression)
+            is ReceiverFunctionCallExpression -> mapFunctionCall(expression)
         }
     }
 
@@ -147,6 +149,14 @@ class JvmGenerator {
             StaticMethodCall(files, "readString", pathToStringMethod, listOf(asPath))
         } else if (expression.target == StandardLibrary.fileConstructor) {
             toExpression(expression.args.first())
+        } else {
+            throw IllegalArgumentException("Unknown function '${expression.target.name}'")
+        }
+    }
+
+    private fun mapFunctionCall(expression: ReceiverFunctionCallExpression): JvmExpression {
+        return if (expression.target == StandardLibrary.stringToString) {
+            toExpression(expression.receiver)
         } else {
             throw IllegalArgumentException("Unknown function '${expression.target.name}'")
         }

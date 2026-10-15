@@ -74,8 +74,9 @@ class Compiler {
         val argsList = surrounded(argsPrefix, zeroOrMore(expression, separator = argSeparator), argsSuffix)
 
         val functionCall = sequence(identifier, argsList) { name, args -> FunctionCallTree(name, args) }
+        val receiverFunctionCall = separated(additionArgument, literal('.'), functionCall) { receiver, target -> ReceiverFunctionCallTree(receiver, target) }
 
-        expression.parser(oneOf(infixFunctionCall, intLiteral, stringLiteral, trueLiteral, falseLiteral, functionCall, variableReference))
+        expression.parser(oneOf(infixFunctionCall, receiverFunctionCall, intLiteral, stringLiteral, trueLiteral, falseLiteral, functionCall, variableReference))
 
         val assignmentSeparator = sequence(optionalWhitespace, literal("="), optionalWhitespace)
         val variableDeclarationPrefix = sequence(literal("val"), whitespace)

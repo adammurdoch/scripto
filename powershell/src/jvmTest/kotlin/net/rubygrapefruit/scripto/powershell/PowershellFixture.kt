@@ -10,8 +10,9 @@ class PowershellFixture(workDir: Directory) : AppFixture(workDir) {
         val outputScript = workDir.file("app.ps")
         generator.generate(program, outputScript)
 
-        println("Generated source:")
-        println(outputScript.readText())
+        section("Generated source") {
+            println(outputScript.readText())
+        }
 
         return run(listOf("/usr/local/microsoft/powershell/7/pwsh", outputScript.absolutePath))
     }

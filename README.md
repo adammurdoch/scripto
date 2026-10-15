@@ -10,7 +10,7 @@ comment = `//` (not end-of-line)* end-of-line
 
 statement = function call | variable declaration
 
-function call = name `(` expression (`,` expression)* `)`
+function call = identifier `(` expression (`,` expression)* `)`
 
 expression = literal | variable reference | infix | function call
 
@@ -28,11 +28,11 @@ equality = expression `==` expression
 
 addition = expression `+` expression
 
-variable reference = name
+variable reference = identifier
 
-variable declaration = `val` name `=` expression
+variable declaration = `val` identifier `=` expression
 
-name = (`a`-`z` | `A`-`Z`) (`a`-`z` | `A`-`Z` | `0`-`9`)*
+identifier = (`a`-`z` | `A`-`Z`) (`a`-`z` | `A`-`Z` | `0`-`9`)*
 
 Standard library
 ----

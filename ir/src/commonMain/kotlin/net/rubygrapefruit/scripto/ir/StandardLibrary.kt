@@ -10,6 +10,14 @@ class StandardLibrary {
         }
     }
 
+    fun definitions(receiver: Type, name: String): List<FunctionDefinition> {
+        return if (receiver == Type.String && name == "toString") {
+            listOf(stringToString)
+        } else {
+            emptyList()
+        }
+    }
+
     fun operator(name: String): List<OperatorDefinition> {
         return if (name == "+") {
             listOf(intAddition, stringConcatenation)
@@ -26,6 +34,7 @@ class StandardLibrary {
         val fileConstructor = TypedFunctionDefinition("File", Type.String, listOf(Type.String))
         val readText = TypedFunctionDefinition("readText", Type.String, listOf(Type.String))
         val intAddition = OperatorDefinition(Operator.Plus, Type.Int, listOf(Type.Int, Type.Int))
+        val stringToString = TypedFunctionDefinition("toString", Type.String, emptyList())
         val stringConcatenation = OperatorDefinition(Operator.Plus, Type.String, listOf(Type.String, Type.String))
         val stringEquality = OperatorDefinition(Operator.Equality, Type.Boolean, listOf(Type.String, Type.String))
         val intEquality = OperatorDefinition(Operator.Equality, Type.Boolean, listOf(Type.Int, Type.Int))

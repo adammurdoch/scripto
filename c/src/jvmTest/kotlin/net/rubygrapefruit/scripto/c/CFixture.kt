@@ -12,8 +12,9 @@ class CFixture(workDir: Directory) : AppFixture(workDir) {
         val cSource = workDir.file("app.c")
         generator.generate(program, cSource)
 
-        println("Generated source:")
-        println(cSource.readText())
+        section("Generated source") {
+            println(cSource.readText())
+        }
 
         val exe = workDir.file("app")
         CCompiler().compile(cSource, exe)

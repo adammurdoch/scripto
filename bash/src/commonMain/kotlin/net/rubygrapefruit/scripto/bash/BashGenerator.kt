@@ -56,6 +56,14 @@ class BashGenerator {
                     throw IllegalArgumentException("Unknown function '${expression.target}'")
                 }
             }
+
+            is ReceiverFunctionCallExpression -> {
+                if (expression.target == StandardLibrary.stringToString) {
+                    toExpression(expression.receiver)
+                } else {
+                    throw IllegalArgumentException("Unknown function '${expression.receiver}.${expression.target}'")
+                }
+            }
         }
     }
 

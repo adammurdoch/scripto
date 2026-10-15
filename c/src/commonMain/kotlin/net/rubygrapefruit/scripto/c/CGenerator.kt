@@ -67,6 +67,7 @@ class CGenerator {
             is VariableReference -> CVariableReference(expression)
             is InfixFunctionCall -> mapInfix(expression)
             is FunctionCallExpression -> mapFunctionCall(expression)
+            is ReceiverFunctionCallExpression -> mapFunctionCall(expression)
         }
     }
 
@@ -75,6 +76,14 @@ class CGenerator {
             return CFunctionCall("readText", expression.args.map { toExpression(it) }, SourceFragment.ReadText)
         } else if (expression.target == StandardLibrary.fileConstructor) {
             return toExpression(expression.args.first())
+        } else {
+            throw IllegalArgumentException("Unknown function '${expression.target.name}'")
+        }
+    }
+
+    private fun mapFunctionCall(expression: ReceiverFunctionCallExpression): CExpression {
+        if (expression.target == StandardLibrary.stringToString) {
+            return toExpression(expression.receiver)
         } else {
             throw IllegalArgumentException("Unknown function '${expression.target.name}'")
         }
@@ -117,6 +126,7 @@ class CGenerator {
             is VariableReference -> toPrintfArgs(arg, CVariableReference(arg))
             is InfixFunctionCall -> toPrintfArgs(arg, mapInfix(arg))
             is FunctionCallExpression -> listOf(CString("%s\n"), mapFunctionCall(arg))
+            is ReceiverFunctionCallExpression -> listOf(CString("%s\n"), mapFunctionCall(arg))
         }
     }
 

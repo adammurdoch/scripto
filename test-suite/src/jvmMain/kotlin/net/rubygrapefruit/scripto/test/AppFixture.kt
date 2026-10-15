@@ -14,14 +14,23 @@ abstract class AppFixture(val workDir: Directory) {
     protected abstract fun generateAndRun(program: Program): String
 
     protected fun run(commandLine: List<String>): String {
-        val process = ProcessBuilder(commandLine).redirectErrorStream(true).start()
-        process.outputStream.close()
-        val exitCode = process.waitFor()
-        val output = process.inputReader().readText()
-        assertEquals(0, exitCode, "script failed: $output")
+        return section("Run ${commandLine.joinToString(" ")}") {
+            val process = ProcessBuilder(commandLine).redirectErrorStream(true).start()
+            process.outputStream.close()
+            val exitCode = process.waitFor()
+            val output = process.inputReader().readText()
+            assertEquals(0, exitCode, "script failed: $output")
 
-        println("$commandLine produced '$output'")
+            println(output)
+            output
+        }
+    }
 
-        return output
+    protected inline fun <T> section(title: String, action: () -> T): T {
+        println(title)
+        println("----")
+        val result = action()
+        println("----")
+        return result
     }
 }
