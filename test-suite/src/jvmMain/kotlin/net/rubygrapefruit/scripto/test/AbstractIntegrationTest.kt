@@ -16,15 +16,11 @@ abstract class AbstractIntegrationTest {
 
     abstract fun fixture(): AppFixture
 
-    private fun compile(sourceFile: RegularFile): Program {
-        val compiler = Compiler()
-        return compiler.compile(sourceFile)
-    }
-
     protected fun compileAndRun(sourceFile: RegularFile, builder: InspectionFixture.() -> Unit) {
         val spec = DefaultInspectionFixture()
         spec.builder()
-        val program = compile(sourceFile)
+        val compiler = Compiler()
+        val program = compiler.compile(sourceFile).get()
         spec.inspect(program)
         fixture().generateAndRun(program, spec.expectedOutput)
     }

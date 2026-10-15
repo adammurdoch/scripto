@@ -4,10 +4,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class WhitespaceIntegrationTest : AbstractCompilerIntegrationTest() {
+    val sourceFile = workDir.file("app.scripto")
+
     @Test
     fun `parses script with whitespace only`() {
-        val sourceFile = workDir.file("app.scripto")
-
         val candidates = listOf(
             "",
             "\n",
@@ -16,15 +16,13 @@ class WhitespaceIntegrationTest : AbstractCompilerIntegrationTest() {
         for (candidate in candidates) {
             sourceFile.writeText(candidate)
 
-            val program = Compiler().compile(sourceFile)
+            val program = compile()
             assertEquals(0, program.operations.size)
         }
     }
 
     @Test
     fun `parses script with line comments only`() {
-        val sourceFile = workDir.file("app.scripto")
-
         val candidates = listOf(
             "//",
             "// no trailing end of line",
@@ -46,15 +44,13 @@ class WhitespaceIntegrationTest : AbstractCompilerIntegrationTest() {
         for (candidate in candidates) {
             sourceFile.writeText(candidate)
 
-            val program = Compiler().compile(sourceFile)
+            val program = compile()
             assertEquals(0, program.operations.size)
         }
     }
 
     @Test
     fun `parses script with blank lines around statements`() {
-        val sourceFile = workDir.file("app.scripto")
-
         val candidates = listOf(
             "\n",
             "   \n   \n   \n\n"
@@ -62,15 +58,13 @@ class WhitespaceIntegrationTest : AbstractCompilerIntegrationTest() {
         for (candidate in candidates) {
             sourceFile.writeText("${candidate}println()${candidate}println()$candidate")
 
-            val program = Compiler().compile(sourceFile)
+            val program = compile()
             assertEquals(2, program.operations.size)
         }
     }
 
     @Test
     fun `parses script with line comment on same line as statement`() {
-        val sourceFile = workDir.file("app.scripto")
-
         val candidates = listOf(
             "println() // comment",
             "val a = 12 // comment",
@@ -81,18 +75,18 @@ class WhitespaceIntegrationTest : AbstractCompilerIntegrationTest() {
         for (candidate in candidates) {
             sourceFile.writeText(candidate)
 
-            val program = Compiler().compile(sourceFile)
+            val program = compile()
             assertEquals(1, program.operations.size)
         }
     }
 
     @Test
     fun `parses script with no trailing end-of-line`() {
-        val sourceFile = workDir.file("app.scripto")
-
         sourceFile.writeText("println()")
 
-        val program = Compiler().compile(sourceFile)
+        val program = compile()
         assertEquals(1, program.operations.size)
     }
+
+    fun compile() = compile(sourceFile)
 }

@@ -27,7 +27,7 @@ class CompileAction : CliAction() {
 
     override fun run() {
         val compiler = Compiler()
-        val program = compiler.compile(sourceFile)
+        val program = compiler.compile(sourceFile).get()
 
         val bashGenerator = BashGenerator()
         bashGenerator.generate(program, outputDir.file("app.bash"))
@@ -52,7 +52,7 @@ class RunAction : CliAction() {
 
     override fun run() {
         val compiler = Compiler()
-        val program = compiler.compile(sourceFile)
+        val program = compiler.compile(sourceFile).get()
 
         val jvmGenerator = JvmGenerator()
         val generatedClass = jvmGenerator.generate(program)

@@ -9,9 +9,9 @@ import net.rubygrapefruit.parse.text.file.parse
 import net.rubygrapefruit.scripto.ir.*
 
 class Compiler {
-    private val parser = createCompiler()
+    private val parser = createParser()
 
-    fun compile(sourceFile: RegularFile): Program {
+    fun compile(sourceFile: RegularFile): Result {
 
         val trees = parser.parse(sourceFile).get()
 
@@ -19,10 +19,13 @@ class Compiler {
         val problems = mutableListOf<String>()
         val program = ProgramTree(trees).resolve(library, problems)
         if (problems.isNotEmpty()) {
-            throw IllegalArgumentException("Compile failed: ${problems.joinToString(", ")}")
+            for (problem in problems) {
+                println(problem)
+            }
+            return Result.Failure(problems)
         }
 
-        return program
+        return Result.Success(program)
     }
 
     // Functions to move to Kotlin tools
@@ -31,7 +34,7 @@ class Compiler {
         return sequence(parsers.map { discard(it) })
     }
 
-    private fun createCompiler(): Parser<TextInput, List<OperationTree>> {
+    private fun createParser(): Parser<TextInput, List<OperationTree>> {
         val whitespaceChar = oneOf(' ', '\t')
         val optionalWhitespace = discard(zeroOrMore(whitespaceChar))
         val whitespace = discard(oneOrMore(whitespaceChar))
@@ -92,5 +95,25 @@ class Compiler {
         val statement = suffixed(oneOf(functionCall, variableDeclaration), blankLine)
 
         return surrounded(blankLines, zeroOrMore(statement, separator = blankLines), blankLines)
+    }
+
+    sealed interface Result {
+        fun get(): Program
+
+        class Success(val program: Program) : Result {
+            override fun get(): Program {
+                return program
+            }
+        }
+
+        class Failure(val problems: List<String>) : Result {
+            override fun get(): Program {
+                throw if (problems.size == 1) {
+                    IllegalArgumentException("Compile failed with 1 error")
+                } else {
+                    IllegalArgumentException("Compile failed with ${problems.size} errors")
+                }
+            }
+        }
     }
 }
