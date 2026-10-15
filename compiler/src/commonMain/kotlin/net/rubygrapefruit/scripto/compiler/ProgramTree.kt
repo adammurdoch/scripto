@@ -15,14 +15,6 @@ internal class ProgramTree(val operations: List<OperationTree>) {
                     }
                 }
 
-                is ReceiverFunctionCallTree -> {
-                    val receiver = resolve(operation.receiver, variables, library, problems)
-                    if (receiver == null) {
-                        continue
-                    }
-                    problems.add("Unknown function '${receiver.type}.${operation.target.name}'")
-                }
-
                 is VariableDeclarationTree -> {
                     val declaration = resolveVariableDeclaration(operation, variables, library, problems)
                     if (declaration != null) {
@@ -86,11 +78,11 @@ internal class ProgramTree(val operations: List<OperationTree>) {
             is InfixOperatorTree -> resolveInfixOperator(library, expression, problems, variables)
             is FunctionCallTree -> {
                 val definition = locateFunction(expression, library, problems) ?: return null
+                val arguments = resolveExpressions(expression.arguments, variables, library, problems) ?: return null
                 if (definition !is TypedFunctionDefinition) {
-                    problems.add("Function '${expression.name}' has no return value")
+                    problems.add("Function ${expression.name}() has no return value")
                     return null
                 }
-                val arguments = resolveExpressions(expression.arguments, variables, library, problems) ?: return null
                 FunctionCallExpression(definition, arguments)
             }
 
@@ -103,11 +95,11 @@ internal class ProgramTree(val operations: List<OperationTree>) {
                 if (definition == null) {
                     return null
                 }
+                val arguments = resolveExpressions(expression.target.arguments, variables, library, problems) ?: return null
                 if (definition !is TypedFunctionDefinition) {
-                    problems.add("Function '${receiver.type}.${expression.target.name}' has no return value")
+                    problems.add("Function ${receiver.type}.${expression.target.name}() has no return value")
                     return null
                 }
-                val arguments = resolveExpressions(expression.target.arguments, variables, library, problems) ?: return null
                 ReceiverFunctionCallExpression(receiver, definition, arguments)
             }
         }
@@ -130,12 +122,12 @@ internal class ProgramTree(val operations: List<OperationTree>) {
     private fun locateFunction(operation: FunctionCallTree, library: StandardLibrary, problems: MutableList<String>): FunctionDefinition? {
         val definitions = library.definitions(operation.name)
         if (definitions.isEmpty()) {
-            problems.add("Unknown function '${operation.name}'")
+            problems.add("Unknown function ${operation.name}()")
             return null
         }
         val definition = definitions.find { it.args.size == operation.arguments.size }
         if (definition == null) {
-            problems.add("Incorrect number of parameters for function '${operation.name}'")
+            problems.add("Incorrect number of parameters for function ${operation.name}()")
             return null
         }
         return definition
@@ -144,12 +136,12 @@ internal class ProgramTree(val operations: List<OperationTree>) {
     private fun locateFunction(receiver: Type, operation: FunctionCallTree, library: StandardLibrary, problems: MutableList<String>): FunctionDefinition? {
         val definitions = library.definitions(receiver, operation.name)
         if (definitions.isEmpty()) {
-            problems.add("Unknown function '${operation.name}'")
+            problems.add("Unknown function ${receiver}.${operation.name}()")
             return null
         }
         val definition = definitions.find { it.args.size == operation.arguments.size }
         if (definition == null) {
-            problems.add("Incorrect number of parameters for function '${operation.name}'")
+            problems.add("Incorrect number of parameters for function ${receiver}.${operation.name}()")
             return null
         }
         return definition

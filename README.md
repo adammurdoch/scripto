@@ -10,7 +10,7 @@ comment = `//` (not end-of-line)* end-of-line
 
 statement = function call | variable declaration
 
-function call = identifier `(` expression (`,` expression)* `)`
+function call = (expression `.` )? identifier `(` expression (`,` expression)* `)`
 
 expression = literal | variable reference | infix | function call
 

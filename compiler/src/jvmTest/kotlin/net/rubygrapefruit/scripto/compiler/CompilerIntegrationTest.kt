@@ -195,7 +195,7 @@ unknown()
         """.trimIndent()
         )
 
-        compileFails(sourceFile, "Compile failed: Unknown function 'unknown'")
+        compileFails(sourceFile, "Compile failed: Unknown function unknown()")
     }
 
     @Test
@@ -208,7 +208,33 @@ println("a", "b")
         """.trimIndent()
         )
 
-        compileFails(sourceFile, "Compile failed: Incorrect number of parameters for function 'println'")
+        compileFails(sourceFile, "Compile failed: Incorrect number of parameters for function println()")
+    }
+
+    @Test
+    fun `fails when unknown function called on receiver`() {
+        val sourceFile = workDir.file("app.scripto")
+
+        sourceFile.writeText(
+            """
+val s = "text".unknown()
+        """.trimIndent()
+        )
+
+        compileFails(sourceFile, "Compile failed: Unknown function String.unknown()")
+    }
+
+    @Test
+    fun `fails when incorrect number of arguments provided to receiver function`() {
+        val sourceFile = workDir.file("app.scripto")
+
+        sourceFile.writeText(
+            """
+val s = "text".toString(1, 2)
+        """.trimIndent()
+        )
+
+        compileFails(sourceFile, "Compile failed: Incorrect number of parameters for function String.toString()")
     }
 
     @Test
@@ -248,7 +274,7 @@ println("a", "b")
         """.trimIndent()
         )
 
-        compileFails(sourceFile, "Compile failed: Unknown function 'unknown1', Incorrect number of parameters for function 'println'")
+        compileFails(sourceFile, "Compile failed: Unknown function unknown1(), Incorrect number of parameters for function println()")
     }
 
     private fun compileFails(sourceFile: RegularFile, message: String) {

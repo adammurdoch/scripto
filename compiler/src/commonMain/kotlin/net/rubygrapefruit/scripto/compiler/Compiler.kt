@@ -74,7 +74,9 @@ class Compiler {
         val argsList = surrounded(argsPrefix, zeroOrMore(expression, separator = argSeparator), argsSuffix)
 
         val functionCall = sequence(identifier, argsList) { name, args -> FunctionCallTree(name, args) }
-        val receiverFunctionCall = separated(additionArgument, literal('.'), functionCall) { receiver, target -> ReceiverFunctionCallTree(receiver, target) }
+        val receiverFunctionCall = sequence(additionArgument, oneOrMore(prefixed(literal('.'), functionCall))) { receiver, calls ->
+            calls.fold(receiver) { r, c -> ReceiverFunctionCallTree(r, c) }
+        }
 
         expression.parser(oneOf(infixFunctionCall, receiverFunctionCall, intLiteral, stringLiteral, trueLiteral, falseLiteral, functionCall, variableReference))
 
