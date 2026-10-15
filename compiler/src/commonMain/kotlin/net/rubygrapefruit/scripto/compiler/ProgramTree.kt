@@ -3,58 +3,71 @@ package net.rubygrapefruit.scripto.compiler
 import net.rubygrapefruit.scripto.ir.*
 
 internal class ProgramTree(val operations: List<OperationTree>) {
-    fun resolve(library: StandardLibrary, problems: MutableList<String>): Program {
+    fun resolve(library: StandardLibrary): ResolveResult<Program> {
+        val problems = mutableListOf<Problem>()
         val variables = mutableMapOf<String, VariableDeclaration>()
         val resolvedOperations = mutableListOf<Operation>()
+
         for (operation in operations) {
             when (operation) {
                 is FunctionCallTree -> {
-                    val functionCall = resolveFunctionCall(operation, variables, library, problems)
-                    if (functionCall != null) {
-                        resolvedOperations.add(functionCall)
+                    val result = resolveFunctionCall(operation, variables, library)
+                    when (result) {
+                        is Resolved -> resolvedOperations.add(result.result)
+                        is ResolveResult.Failed -> problems.addAll(result.problems)
                     }
                 }
 
                 is VariableDeclarationTree -> {
-                    val declaration = resolveVariableDeclaration(operation, variables, library, problems)
-                    if (declaration != null) {
-                        variables[operation.name] = declaration
-                        resolvedOperations.add(declaration)
+                    val result = resolveVariableDeclaration(operation, variables, library)
+                    when (result) {
+                        is Resolved -> {
+                            val declaration = result.result
+                            variables[operation.name] = declaration
+                            resolvedOperations.add(declaration)
+                        }
+
+                        is ResolveResult.Failed -> problems.addAll(result.problems)
                     }
                 }
             }
         }
 
-        return Program(resolvedOperations)
+        val program = Program(resolvedOperations)
+        return if (problems.isEmpty()) {
+            Resolved(program)
+        } else {
+            PartiallyResolved(program, problems)
+        }
     }
 
     private fun resolveFunctionCall(
         operation: FunctionCallTree,
         variables: Map<String, VariableDeclaration>,
-        library: StandardLibrary,
-        problems: MutableList<String>
-    ): FunctionCall? {
-        val definition = locateFunction(operation, library, problems) ?: return null
+        library: StandardLibrary
+    ): ResolveResult<FunctionCall> {
+        val problems = mutableListOf<String>()
+        val definition = locateFunction(operation, library, problems) ?: return NotResolved.of(problems)
         if (definition !is VoidFunctionDefinition) {
             problems.add("Return value ignored for function '${operation.name}'")
-            return null
+            return NotResolved.of(problems)
         }
-        val arguments = resolveExpressions(operation.arguments, variables, library, problems) ?: return null
-        return FunctionCall(definition, arguments)
+        val arguments = resolveExpressions(operation.arguments, variables, library, problems) ?: return NotResolved.of(problems)
+        return Resolved(FunctionCall(definition, arguments))
     }
 
     private fun resolveVariableDeclaration(
         operation: VariableDeclarationTree,
         variables: Map<String, VariableDeclaration>,
-        library: StandardLibrary,
-        problems: MutableList<String>
-    ): VariableDeclaration? {
+        library: StandardLibrary
+    ): ResolveResult<VariableDeclaration> {
+        val problems = mutableListOf<String>()
         if (variables.containsKey(operation.name)) {
             problems.add("Variable '${operation.name}' declared multiple times")
-            return null
+            return NotResolved.of(problems)
         }
-        val initializer = resolve(operation.value, variables, library, problems) ?: return null
-        return VariableDeclaration(operation.name, initializer)
+        val initializer = resolve(operation.value, variables, library, problems) ?: return NotResolved.of(problems)
+        return Resolved(VariableDeclaration(operation.name, initializer))
     }
 
     private fun resolveExpressions(
@@ -112,7 +125,7 @@ internal class ProgramTree(val operations: List<OperationTree>) {
     ): VariableReference? {
         val declaration = variables[expression.name]
         return if (declaration == null) {
-            problems.add("Unknown variable '${expression.name}'")
+            problems.add("${expression.position}: Unknown variable '${expression.name}'")
             null
         } else {
             VariableReference(declaration)

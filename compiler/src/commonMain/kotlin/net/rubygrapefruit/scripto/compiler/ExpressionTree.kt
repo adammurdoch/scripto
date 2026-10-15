@@ -1,10 +1,11 @@
 package net.rubygrapefruit.scripto.compiler
 
+import net.rubygrapefruit.parse.Position
 import net.rubygrapefruit.scripto.ir.Literal
 
 internal sealed interface ExpressionTree
 
-internal class VariableReferenceTree(val name: String) : ExpressionTree
+internal class VariableReferenceTree(val position: Position, val name: String) : ExpressionTree
 
 internal class LiteralTree(val literal: Literal) : ExpressionTree
 

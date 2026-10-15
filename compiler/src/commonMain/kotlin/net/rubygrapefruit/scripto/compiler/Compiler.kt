@@ -5,6 +5,7 @@ import net.rubygrapefruit.parse.ParseException
 import net.rubygrapefruit.parse.Parser
 import net.rubygrapefruit.parse.combinators.*
 import net.rubygrapefruit.parse.general.endOfInput
+import net.rubygrapefruit.parse.general.position
 import net.rubygrapefruit.parse.text.*
 import net.rubygrapefruit.parse.text.file.parse
 import net.rubygrapefruit.scripto.ir.*
@@ -18,20 +19,21 @@ class Compiler {
         val trees = try {
             parseResult.get()
         } catch (e: ParseException) {
-            return Result.Failure(listOf(e.message!!))
+            return Result.Failure(listOf(Problem(null, e.message!!)))
         }
 
         val library = StandardLibrary()
-        val problems = mutableListOf<String>()
-        val program = ProgramTree(trees).resolve(library, problems)
-        if (problems.isNotEmpty()) {
-            for (problem in problems) {
-                println(problem)
+        val resolveResult = ProgramTree(trees).resolve(library)
+        return when (resolveResult) {
+            is ResolveResult.Failed -> {
+                for (problem in resolveResult.problems) {
+                    println(problem)
+                }
+                Result.Failure(resolveResult.problems)
             }
-            return Result.Failure(problems)
-        }
 
-        return Result.Success(program)
+            is Resolved -> Result.Success(resolveResult.result)
+        }
     }
 
     // Functions to move to Kotlin tools
@@ -70,7 +72,7 @@ class Compiler {
         val trueLiteral = literal("true", LiteralTree(BooleanLiteral(true)))
         val falseLiteral = literal("false", LiteralTree(BooleanLiteral(false)))
 
-        val variableReference = map(identifier) { VariableReferenceTree(it) }
+        val variableReference = sequence(position(), identifier) { pos, id -> VariableReferenceTree(pos, id) }
 
         val additionArgument = oneOf(intLiteral, stringLiteral, trueLiteral, falseLiteral, variableReference)
 
@@ -118,7 +120,7 @@ class Compiler {
             }
         }
 
-        class Failure(val problems: List<String>) : Result {
+        class Failure(val problems: List<Problem>) : Result {
             override fun get(): Program {
                 throw if (problems.size == 1) {
                     IllegalArgumentException("Compile failed with 1 error")

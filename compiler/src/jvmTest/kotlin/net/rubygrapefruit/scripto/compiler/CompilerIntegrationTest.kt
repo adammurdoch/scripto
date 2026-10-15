@@ -51,7 +51,7 @@ println(unknown)
         """.trimIndent()
         )
 
-        compileFails("Unknown variable 'unknown'")
+        compileFails("8: Unknown variable 'unknown'")
     }
 
     @Test
@@ -62,7 +62,7 @@ val a = b
         """.trimIndent()
         )
 
-        compileFails("Unknown variable 'b'")
+        compileFails("8: Unknown variable 'b'")
     }
 
     @Test
