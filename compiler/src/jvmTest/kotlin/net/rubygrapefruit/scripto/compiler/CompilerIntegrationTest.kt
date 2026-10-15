@@ -51,18 +51,18 @@ println(unknown)
         """.trimIndent()
         )
 
-        compileFails("Unknown variable 'unknown'")
+        compileFails("Line 1: 9: Unknown variable 'unknown'")
     }
 
     @Test
     fun `fails when unknown variable used as variable initializer`() {
         sourceFile.writeText(
             """
-val a = b
+val other = b
         """.trimIndent()
         )
 
-        compileFails("Unknown variable 'b'")
+        compileFails("Line 1: 13: Unknown variable 'b'")
     }
 
     @Test
@@ -74,7 +74,7 @@ val a = 2
         """.trimIndent()
         )
 
-        compileFails("Variable 'a' declared multiple times")
+        compileFails("Line 2: 5: Variable 'a' declared multiple times")
     }
 
     @Test
@@ -85,7 +85,7 @@ unknown()
         """.trimIndent()
         )
 
-        compileFails("Unknown function unknown()")
+        compileFails("Line 1: 1: Unknown function unknown()")
     }
 
     @Test
@@ -96,7 +96,18 @@ println("a", "b")
         """.trimIndent()
         )
 
-        compileFails("Incorrect number of parameters for function println()")
+        compileFails("Line 1: 1: Incorrect number of parameters for function println()")
+    }
+
+    @Test
+    fun `fails when void function used in expression`() {
+        sourceFile.writeText(
+            """
+val s = println("text")
+        """.trimIndent()
+        )
+
+        compileFails("Line 1: 9: Function println() has no return value")
     }
 
     @Test
@@ -107,7 +118,7 @@ val s = "text".unknown()
         """.trimIndent()
         )
 
-        compileFails("Unknown function String.unknown()")
+        compileFails("Line 1: 16: Unknown function String.unknown()")
     }
 
     @Test
@@ -118,7 +129,7 @@ val s = "text".toString(1, 2)
         """.trimIndent()
         )
 
-        compileFails("Incorrect number of parameters for function String.toString()")
+        compileFails("Line 1: 16: Incorrect number of parameters for function String.toString()")
     }
 
     @Test
@@ -148,11 +159,15 @@ println(2 + "string")
         sourceFile.writeText(
             """
 unknown1()
-println("a", "b")
+val x = println("a", b)
         """.trimIndent()
         )
 
-        compileFails(listOf("Unknown function unknown1()", "Incorrect number of parameters for function println()"))
+        compileFails(listOf(
+            "Line 1: 1: Unknown function unknown1()",
+            "Line 2: 9: Incorrect number of parameters for function println()",
+            "Line 2: 22: Unknown variable 'b'"
+        ))
     }
 
     fun compile() = compile(sourceFile)

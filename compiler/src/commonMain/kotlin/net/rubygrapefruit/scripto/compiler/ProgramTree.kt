@@ -52,7 +52,7 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         val initializer = resolve(operation.value, variables, library)
         return initializer.mapping { initializer ->
             if (variables.containsKey(operation.name)) {
-                NotResolved.of("Variable '${operation.name}' declared multiple times")
+                NotResolved.of(operation.position, "Variable '${operation.name}' declared multiple times")
             } else {
                 Resolved(VariableDeclaration(operation.name, initializer))
             }
@@ -78,7 +78,7 @@ internal class ProgramTree(val operations: List<OperationTree>) {
                 val arguments = resolveExpressions(expression.arguments, variables, library)
                 zipping(definition, arguments) { definition, arguments ->
                     if (definition !is TypedFunctionDefinition) {
-                        NotResolved.of("Function ${expression.name}() has no return value")
+                        NotResolved.of(expression.position, "Function ${expression.name}() has no return value")
                     } else {
                         Resolved(FunctionCallExpression(definition, arguments))
                     }
@@ -93,7 +93,7 @@ internal class ProgramTree(val operations: List<OperationTree>) {
                 }
                 zipping(receiver, definition, arguments) { receiver, definition, arguments ->
                     if (definition !is TypedFunctionDefinition) {
-                        NotResolved.of("Function ${receiver.type}.${expression.target.name}() has no return value")
+                        NotResolved.of(expression.target.position, "Function ${receiver.type}.${expression.target.name}() has no return value")
                     } else {
                         Resolved(ReceiverFunctionCallExpression(receiver, definition, arguments))
                     }
@@ -117,11 +117,11 @@ internal class ProgramTree(val operations: List<OperationTree>) {
     private fun locateFunction(operation: FunctionCallTree, library: StandardLibrary): ResolveResult<FunctionDefinition> {
         val definitions = library.definitions(operation.name)
         if (definitions.isEmpty()) {
-            return NotResolved.of("Unknown function ${operation.name}()")
+            return NotResolved.of(operation.position, "Unknown function ${operation.name}()")
         }
         val definition = definitions.find { it.args.size == operation.arguments.size }
         if (definition == null) {
-            return NotResolved.of("Incorrect number of parameters for function ${operation.name}()")
+            return NotResolved.of(operation.position, "Incorrect number of parameters for function ${operation.name}()")
         }
         return Resolved(definition)
     }
@@ -129,11 +129,11 @@ internal class ProgramTree(val operations: List<OperationTree>) {
     private fun locateFunction(receiver: Type, operation: FunctionCallTree, library: StandardLibrary): ResolveResult<FunctionDefinition> {
         val definitions = library.definitions(receiver, operation.name)
         if (definitions.isEmpty()) {
-            return NotResolved.of("Unknown function ${receiver}.${operation.name}()")
+            return NotResolved.of(operation.position,"Unknown function ${receiver}.${operation.name}()")
         }
         val definition = definitions.find { it.args.size == operation.arguments.size }
         if (definition == null) {
-            return NotResolved.of("Incorrect number of parameters for function ${receiver}.${operation.name}()")
+            return NotResolved.of(operation.position, "Incorrect number of parameters for function ${receiver}.${operation.name}()")
         }
         return Resolved(definition)
     }

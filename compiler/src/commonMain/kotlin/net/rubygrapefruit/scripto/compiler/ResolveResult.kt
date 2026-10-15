@@ -21,7 +21,7 @@ internal class NotResolved(override val problems: List<Problem>) : ResolveResult
     }
 }
 
-class Problem(val position: Position?, val message: String)
+internal class Problem(val position: Position?, val message: String)
 
 internal fun <S, T> List<T>.resolving(map: (T) -> ResolveResult<S>): ResolveResult<List<S>> {
     if (isEmpty()) {

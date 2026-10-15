@@ -7,7 +7,6 @@ import net.rubygrapefruit.parse.combinators.*
 import net.rubygrapefruit.parse.general.endOfInput
 import net.rubygrapefruit.parse.general.position
 import net.rubygrapefruit.parse.text.*
-import net.rubygrapefruit.parse.text.file.parse
 import net.rubygrapefruit.scripto.ir.*
 
 class Compiler {
@@ -15,25 +14,39 @@ class Compiler {
 
     fun compile(sourceFile: RegularFile): Result {
 
-        val parseResult = parser.parse(sourceFile)
+        val sourceText = sourceFile.readText()
+        val parseResult = parser.parse(sourceText)
         val trees = try {
             parseResult.get()
         } catch (e: ParseException) {
-            return Result.Failure(listOf(Problem(null, e.message!!)))
+            return Result.Failure(listOf(Error(e.message!!)))
         }
 
         val library = StandardLibrary()
         val resolveResult = ProgramTree(trees).resolve(library)
         return when (resolveResult) {
             is NotResolved -> {
-                for (problem in resolveResult.problems) {
+                val errors = resolveResult.problems.map { problem ->
                     if (problem.position != null) {
-                        println("${problem.position}: ${problem.message}")
+                        var line = 1
+                        var col = 1
+                        for (pos in 0 until problem.position.value) {
+                            if (sourceText[pos] == '\n') {
+                                line++
+                                col = 1
+                            } else {
+                                col++
+                            }
+                        }
+                        Error("Line ${line}: $col: ${problem.message}")
                     } else {
-                        println(problem.message)
+                        Error(problem.message)
                     }
                 }
-                Result.Failure(resolveResult.problems)
+                for (error in errors) {
+                    println(error.message)
+                }
+                Result.Failure(errors)
             }
 
             is Resolved -> Result.Success(resolveResult.result)
@@ -94,7 +107,7 @@ class Compiler {
         val argsSuffix = sequence(optionalWhitespace, literal(")"))
         val argsList = surrounded(argsPrefix, zeroOrMore(expression, separator = argSeparator), argsSuffix)
 
-        val functionCall = sequence(identifier, argsList) { name, args -> FunctionCallTree(name, args) }
+        val functionCall = sequence(position(), identifier, argsList) { pos, name, args -> FunctionCallTree(pos, name, args) }
         val receiverFunctionCall = sequence(additionArgument, oneOrMore(prefixed(literal('.'), functionCall))) { receiver, calls ->
             calls.fold(receiver) { r, c -> ReceiverFunctionCallTree(r, c) }
         }
@@ -103,7 +116,7 @@ class Compiler {
 
         val assignmentSeparator = sequence(optionalWhitespace, literal("="), optionalWhitespace)
         val variableDeclarationPrefix = sequence(literal("val"), whitespace)
-        val variableDeclaration = sequence(variableDeclarationPrefix, identifier, assignmentSeparator, expression) { _, name, _, value -> VariableDeclarationTree(name, value) }
+        val variableDeclaration = sequence(variableDeclarationPrefix, position(), identifier, assignmentSeparator, expression) { _, pos, name, _, value -> VariableDeclarationTree(pos, name, value) }
 
         val lineTerminator = oneOf(endOfLine(), endOfInput())
         val comment = discardSequence(literal("//"), zeroOrMore(oneExcept(lineTerminator)))
@@ -124,14 +137,16 @@ class Compiler {
             }
         }
 
-        class Failure(val problems: List<Problem>) : Result {
+        class Failure(val error: List<Error>) : Result {
             override fun get(): Program {
-                throw if (problems.size == 1) {
+                throw if (error.size == 1) {
                     IllegalArgumentException("Compile failed with 1 error")
                 } else {
-                    IllegalArgumentException("Compile failed with ${problems.size} errors")
+                    IllegalArgumentException("Compile failed with ${error.size} errors")
                 }
             }
         }
     }
+
+    class Error(val message: String)
 }
