@@ -73,6 +73,8 @@ class CGenerator {
     private fun mapFunctionCall(expression: FunctionCallExpression): CExpression {
         if (expression.target == StandardLibrary.readText) {
             return CFunctionCall("readText", expression.args.map { toExpression(it) }, SourceFragment.ReadText)
+        } else if (expression.target == StandardLibrary.fileConstructor) {
+            return toExpression(expression.args.first())
         } else {
             throw IllegalArgumentException("Unknown function '${expression.target.name}'")
         }

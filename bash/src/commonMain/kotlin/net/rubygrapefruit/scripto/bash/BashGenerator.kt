@@ -50,6 +50,8 @@ class BashGenerator {
                 if (expression.target == StandardLibrary.readText) {
                     val readText = readFileIntoVar(expression.args.first(), "TMP_VAR")
                     BashCommandInvocationExpression("TMP_VAR", readText)
+                } else if (expression.target == StandardLibrary.fileConstructor) {
+                    toExpression(expression.args.first())
                 } else {
                     throw IllegalArgumentException("Unknown function '${expression.target}'")
                 }

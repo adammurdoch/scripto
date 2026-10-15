@@ -32,7 +32,7 @@ variable reference = name
 
 variable declaration = `val` name `=` expression
 
-name = `a`-`z` (`a`-`z` | `0`-`9`)*
+name = (`a`-`z` | `A`-`Z`) (`a`-`z` | `A`-`Z` | `0`-`9`)*
 
 Standard library
 ----
@@ -41,6 +41,7 @@ Standard library
 - `println(String)`
 - `println(Int)`
 - `println(Boolean)`
+- `File(String)`
 - `readText(String): String`
 - `Int + Int: Boolean`
 - `String + String: String`

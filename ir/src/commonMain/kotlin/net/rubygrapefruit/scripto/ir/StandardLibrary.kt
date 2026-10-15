@@ -5,6 +5,7 @@ class StandardLibrary {
         return when (name) {
             printlnNoArgs.name -> listOf(printlnNoArgs, printlnOneArg)
             readText.name -> listOf(readText)
+            fileConstructor.name -> listOf(fileConstructor)
             else -> emptyList()
         }
     }
@@ -22,6 +23,7 @@ class StandardLibrary {
     companion object {
         val printlnNoArgs = VoidFunctionDefinition("println", emptyList())
         val printlnOneArg = VoidFunctionDefinition("println", listOf(IncomingType.Any))
+        val fileConstructor = TypedFunctionDefinition("File", Type.String, listOf(Type.String))
         val readText = TypedFunctionDefinition("readText", Type.String, listOf(Type.String))
         val intAddition = OperatorDefinition(Operator.Plus, Type.Int, listOf(Type.Int, Type.Int))
         val stringConcatenation = OperatorDefinition(Operator.Plus, Type.String, listOf(Type.String, Type.String))

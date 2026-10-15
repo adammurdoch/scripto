@@ -69,10 +69,12 @@ class PowershellGenerator {
         }
     }
 
-    private fun mapFunctionCall(expression: FunctionCallExpression): PsCommandInvocationExpression {
+    private fun mapFunctionCall(expression: FunctionCallExpression): PsExpression {
         return if (expression.target == StandardLibrary.readText) {
             val commands = readFileIntoVar(expression.args.first(), "TMP_VAR")
             PsCommandInvocationExpression("TMP_VAR", commands)
+        } else if (expression.target == StandardLibrary.fileConstructor) {
+            toExpression(expression.args.first())
         } else {
             throw IllegalArgumentException("Unknown function '${expression.target.name}'")
         }

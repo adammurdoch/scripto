@@ -36,9 +36,9 @@ class Compiler {
         val optionalWhitespace = discard(zeroOrMore(whitespaceChar))
         val whitespace = discard(oneOrMore(whitespaceChar))
 
-        val initialChar = oneInRange('a'..'z')
-        val subsequentChar = oneOf(initialChar, oneInRange('A'..'Z'), digit(), literal("_", '_'))
-        val identifier = match(sequence(discard(initialChar), zeroOrMore(discard(subsequentChar))))
+        val initialChar = oneOf(oneInRange('a'..'z'), oneInRange('A'..'Z'))
+        val subsequentChar = oneOf(initialChar, digit(), literal("_", '_'))
+        val identifier = describedAs(match(sequence(discard(initialChar), zeroOrMore(discard(subsequentChar)))), "an identifier")
 
         val quote = literal('"')
         val stringBody = match(zeroOrMore(oneExcept(oneOf(endOfLine(), quote))))

@@ -141,10 +141,12 @@ class JvmGenerator {
         }
     }
 
-    private fun mapFunctionCall(expression: FunctionCallExpression): StaticMethodCall {
+    private fun mapFunctionCall(expression: FunctionCallExpression): JvmExpression {
         return if (expression.target == StandardLibrary.readText) {
             val asPath = StaticMethodCall(path, "of", stringToPathMethod, listOf(toExpression(expression.args.first()), EmptyStringArray), true)
             StaticMethodCall(files, "readString", pathToStringMethod, listOf(asPath))
+        } else if (expression.target == StandardLibrary.fileConstructor) {
+            toExpression(expression.args.first())
         } else {
             throw IllegalArgumentException("Unknown function '${expression.target.name}'")
         }
