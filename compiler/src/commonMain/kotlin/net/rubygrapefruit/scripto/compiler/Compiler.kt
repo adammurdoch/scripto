@@ -25,9 +25,13 @@ class Compiler {
         val library = StandardLibrary()
         val resolveResult = ProgramTree(trees).resolve(library)
         return when (resolveResult) {
-            is ResolveResult.Failed -> {
+            is NotResolved -> {
                 for (problem in resolveResult.problems) {
-                    println(problem)
+                    if (problem.position != null) {
+                        println("${problem.position}: ${problem.message}")
+                    } else {
+                        println(problem.message)
+                    }
                 }
                 Result.Failure(resolveResult.problems)
             }
