@@ -31,6 +31,19 @@ val $candidate = "string"
     }
 
     @Test
+    fun `fails with syntax error`() {
+        sourceFile.writeText(
+            """
+text!
+        """.trimIndent()
+        )
+
+        compileFails("""1 | text!
+        ^
+Expected "(", "A".."Z", "_", "a".."z", a digit""")
+    }
+
+    @Test
     fun `fails when unknown variable used as function argument`() {
         sourceFile.writeText(
             """

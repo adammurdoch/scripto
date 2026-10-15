@@ -1,6 +1,7 @@
 package net.rubygrapefruit.scripto.compiler
 
 import net.rubygrapefruit.file.RegularFile
+import net.rubygrapefruit.parse.ParseException
 import net.rubygrapefruit.parse.Parser
 import net.rubygrapefruit.parse.combinators.*
 import net.rubygrapefruit.parse.general.endOfInput
@@ -13,7 +14,12 @@ class Compiler {
 
     fun compile(sourceFile: RegularFile): Result {
 
-        val trees = parser.parse(sourceFile).get()
+        val parseResult = parser.parse(sourceFile)
+        val trees = try {
+            parseResult.get()
+        } catch (e: ParseException) {
+            return Result.Failure(listOf(e.message!!))
+        }
 
         val library = StandardLibrary()
         val problems = mutableListOf<String>()
@@ -50,7 +56,13 @@ class Compiler {
         val zero = literal("0", 0)
         val firstDigit = discard(oneInRange('1'..'9'))
         val subsequentDigit = discard(oneInRange('0'..'9'))
-        val number = map(match(sequence(firstDigit, zeroOrMore(subsequentDigit)))) { it.toInt() }
+        val number = check(match(sequence(firstDigit, zeroOrMore(subsequentDigit)))) {
+            try {
+                MappingResult.of(it.toInt())
+            } catch (_: NumberFormatException) {
+                MappingResult.expected("an integer")
+            }
+        }
         val negativeNumber = map(match(sequence(literal("-"), firstDigit, zeroOrMore(subsequentDigit)))) { it.toInt() }
 
         val intLiteral = map(oneOf(zero, negativeNumber, number)) { LiteralTree(IntLiteral(it)) }

@@ -65,23 +65,23 @@ class LiteralIntegrationTest : AbstractCompilerIntegrationTest() {
     @Test
     fun `fails when int literal is badly formed`() {
         val candidates = listOf(
-            "012",
-            "002",
-            "--12"
+            "012" to """")", "+", ",", ".", "==", space, tab""",
+            "002" to """")", "+", ",", ".", "==", space, tab""",
+            "--12" to """"1".."9""""
         )
 
         for (candidate in candidates) {
             sourceFile.writeText(
                 """
-println($candidate)
+println(${candidate.first})
         """.trimIndent()
             )
 
             compileFails(
                 """
-                1 | println($candidate)
+                1 | println(${candidate.first})
                              ^
-                Expected
+                Expected ${candidate.second}
             """.trimIndent()
             )
         }
@@ -91,7 +91,9 @@ println($candidate)
     fun `fails when int literal is too large`() {
         sourceFile.writeText("println(${Int.MAX_VALUE.toLong() + 1})")
 
-        compileFails("For input string: \"2147483648\"")
+        compileFails("""1 | println(2147483648)
+            ^
+Expected ")", "-", "0", "false", "true", '"', an identifier, an integer, space, tab""")
     }
 
     @Test
