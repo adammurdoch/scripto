@@ -72,18 +72,22 @@ class CGenerator {
     }
 
     private fun mapFunctionCall(expression: FunctionCallExpression): CExpression {
-        if (expression.target == StandardLibrary.readText) {
-            return CFunctionCall("readText", expression.args.map { toExpression(it) }, SourceFragment.ReadText)
-        } else if (expression.target == StandardLibrary.fileConstructor) {
-            return toExpression(expression.args.first())
-        } else {
-            throw IllegalArgumentException("Unknown function '${expression.target.name}'")
+        return when (expression.target) {
+            StandardLibrary.readText -> CFunctionCall("readText", expression.args.map { toExpression(it) }, SourceFragment.ReadText)
+            StandardLibrary.fileConstructor -> toExpression(expression.args.first())
+            else -> throw IllegalArgumentException("Unknown function '${expression.target.name}'")
         }
     }
 
     private fun mapFunctionCall(expression: ReceiverFunctionCallExpression): CExpression {
-        if (expression.target == StandardLibrary.stringToString) {
-            return toExpression(expression.receiver)
+        return if (expression.target == StringFunctions.toString) {
+            toExpression(expression.receiver)
+        } else if (expression.target == IntFunctions.toString) {
+            val receiver = expression.receiver
+            when (receiver) {
+                is IntLiteral -> CString(receiver.value.toString())
+                else -> toExpression(expression.receiver)
+            }
         } else {
             throw IllegalArgumentException("Unknown function '${expression.target.name}'")
         }

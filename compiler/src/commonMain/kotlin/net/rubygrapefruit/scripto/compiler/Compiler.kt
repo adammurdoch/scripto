@@ -31,8 +31,7 @@ class Compiler {
             return Result.Failure(listOf(Error(e.message!!)))
         }
 
-        val library = StandardLibrary()
-        val resolveResult = ProgramTree(trees).resolve(library)
+        val resolveResult = ProgramTree(trees).resolve(StandardLibrary)
         return when (resolveResult) {
             is NotResolved -> {
                 val errors = resolveResult.problems.map { problem ->

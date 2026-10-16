@@ -72,21 +72,22 @@ class PowershellGenerator {
     }
 
     private fun mapFunctionCall(expression: FunctionCallExpression): PsExpression {
-        return if (expression.target == StandardLibrary.readText) {
-            val commands = readFileIntoVar(expression.args.first(), "TMP_VAR")
-            PsCommandInvocationExpression("TMP_VAR", commands)
-        } else if (expression.target == StandardLibrary.fileConstructor) {
-            toExpression(expression.args.first())
-        } else {
-            throw IllegalArgumentException("Unknown function '${expression.target.name}'")
+        return when (expression.target) {
+            StandardLibrary.readText -> {
+                val commands = readFileIntoVar(expression.args.first(), "TMP_VAR")
+                PsCommandInvocationExpression("TMP_VAR", commands)
+            }
+
+            StandardLibrary.fileConstructor -> toExpression(expression.args.first())
+            else -> throw IllegalArgumentException("Unknown function '${expression.target.name}'")
         }
     }
 
     private fun mapFunctionCall(expression: ReceiverFunctionCallExpression): PsExpression {
-        return if (expression.target == StandardLibrary.stringToString) {
-            toExpression(expression.receiver)
-        } else {
-            throw IllegalArgumentException("Unknown function '${expression.target.name}'")
+        return when (expression.target) {
+            StringFunctions.toString -> toExpression(expression.receiver)
+            IntFunctions.toString -> toExpression(expression.receiver)
+            else -> throw IllegalArgumentException("Unknown function '${expression.target.name}'")
         }
     }
 

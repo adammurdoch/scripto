@@ -34,6 +34,13 @@ variable declaration = `val` identifier `=` expression
 
 identifier = (`a`-`z` | `A`-`Z`) (`a`-`z` | `A`-`Z` | `0`-`9`)*
 
+Terminology
+----
+
+- Type
+- Function
+- Static Function
+
 Standard library
 ----
 
@@ -41,6 +48,8 @@ Standard library
 - `println(String)`
 - `println(Int)`
 - `println(Boolean)`
+- `String.toString()`
+- `Int.toString()`
 - `File(String)`
 - `readText(String): String`
 - `Int + Int: Boolean`

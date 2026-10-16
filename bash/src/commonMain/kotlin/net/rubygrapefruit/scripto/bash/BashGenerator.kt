@@ -58,7 +58,9 @@ class BashGenerator {
             }
 
             is ReceiverFunctionCallExpression -> {
-                if (expression.target == StandardLibrary.stringToString) {
+                if (expression.target == StringFunctions.toString) {
+                    toExpression(expression.receiver)
+                } else if (expression.target == IntFunctions.toString) {
                     toExpression(expression.receiver)
                 } else {
                     throw IllegalArgumentException("Unknown function '${expression.receiver}.${expression.target}'")

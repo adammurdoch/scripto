@@ -4,9 +4,9 @@ sealed class FunctionDefinition {
     abstract val args: List<IncomingType>
 }
 
-data class VoidFunctionDefinition(val name: String, override val args: List<IncomingType>) : FunctionDefinition()
+class VoidFunctionDefinition(val name: String, override val args: List<IncomingType>) : FunctionDefinition()
 
-data class TypedFunctionDefinition(val name: String, val returnType: Type, override val args: List<IncomingType>) : FunctionDefinition()
+class TypedFunctionDefinition(val name: String, val returnType: Type, override val args: List<IncomingType>) : FunctionDefinition()
 
 sealed class Operator {
     abstract val operator: String
@@ -22,4 +22,4 @@ sealed class Operator {
     }
 }
 
-data class OperatorDefinition(val operator: Operator, val returnType: Type, override val args: List<Type>) : FunctionDefinition()
+class OperatorDefinition(val operator: Operator, val returnType: Type, override val args: List<Type>) : FunctionDefinition()

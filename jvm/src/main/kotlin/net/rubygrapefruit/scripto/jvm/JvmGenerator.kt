@@ -155,8 +155,14 @@ class JvmGenerator {
     }
 
     private fun mapFunctionCall(expression: ReceiverFunctionCallExpression): JvmExpression {
-        return if (expression.target == StandardLibrary.stringToString) {
+        return if (expression.target == StringFunctions.toString) {
             toExpression(expression.receiver)
+        } else if (expression.target == IntFunctions.toString) {
+            val receiver = expression.receiver
+            when (receiver) {
+                is IntLiteral -> JvmString(receiver.value.toString())
+                else -> intToString(toExpression(receiver))
+            }
         } else {
             throw IllegalArgumentException("Unknown function '${expression.target.name}'")
         }
