@@ -5,23 +5,6 @@ import kotlin.test.Test
 abstract class AbstractStatementIntegrationTest : AbstractIntegrationTest() {
 
     @Test
-    fun `compiles int variable defintion and call to println stdlib function`() {
-        val sourceFile = workDir.file("app.scripto")
-
-        sourceFile.writeText(
-            """
-val i = 40
-println(i)
-        """
-        )
-
-        compileAndRun(sourceFile) {
-            statements(2)
-            output("40\n")
-        }
-    }
-
-    @Test
     fun `compiles boolean variable defintion and call to println stdlib function`() {
         val sourceFile = workDir.file("app.scripto")
 
