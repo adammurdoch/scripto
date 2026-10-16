@@ -13,7 +13,16 @@ class Compiler {
     private val parser = createParser()
 
     fun compile(sourceFile: RegularFile): Result {
+        val result = doCompile(sourceFile)
+        if (result is Result.Failure) {
+            for (error in result.errors) {
+                println(error.message)
+            }
+        }
+        return result
+    }
 
+    private fun doCompile(sourceFile: RegularFile): Result {
         val sourceText = sourceFile.readText()
         val parseResult = parser.parse(sourceText)
         val trees = try {
@@ -42,9 +51,6 @@ class Compiler {
                     } else {
                         Error(problem.message)
                     }
-                }
-                for (error in errors) {
-                    println(error.message)
                 }
                 Result.Failure(errors)
             }
@@ -116,7 +122,8 @@ class Compiler {
 
         val assignmentSeparator = sequence(optionalWhitespace, literal("="), optionalWhitespace)
         val variableDeclarationPrefix = sequence(literal("val"), whitespace)
-        val variableDeclaration = sequence(variableDeclarationPrefix, position(), identifier, assignmentSeparator, expression) { _, pos, name, _, value -> VariableDeclarationTree(pos, name, value) }
+        val variableDeclaration =
+            sequence(variableDeclarationPrefix, position(), identifier, assignmentSeparator, expression) { _, pos, name, _, value -> VariableDeclarationTree(pos, name, value) }
 
         val lineTerminator = oneOf(endOfLine(), endOfInput())
         val comment = discardSequence(literal("//"), zeroOrMore(oneExcept(lineTerminator)))
@@ -137,12 +144,12 @@ class Compiler {
             }
         }
 
-        class Failure(val error: List<Error>) : Result {
+        class Failure(val errors: List<Error>) : Result {
             override fun get(): Program {
-                throw if (error.size == 1) {
+                throw if (errors.size == 1) {
                     IllegalArgumentException("Compile failed with 1 error")
                 } else {
-                    IllegalArgumentException("Compile failed with ${error.size} errors")
+                    IllegalArgumentException("Compile failed with ${errors.size} errors")
                 }
             }
         }

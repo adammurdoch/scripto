@@ -27,7 +27,7 @@ abstract class AbstractCompilerIntegrationTest {
         val compiler = Compiler()
         val result = compiler.compile(sourceFile)
         assertIs<Compiler.Result.Failure>(result)
-        assertEquals(listOf(message), result.error.map { it.message })
+        assertEquals(listOf(message), result.errors.map { it.message })
         val e = assertFails {
             result.get()
         }
@@ -38,7 +38,7 @@ abstract class AbstractCompilerIntegrationTest {
         val compiler = Compiler()
         val result = compiler.compile(sourceFile)
         assertIs<Compiler.Result.Failure>(result)
-        assertEquals(messages, result.error.map { it.message })
+        assertEquals(messages, result.errors.map { it.message })
         val e = assertFails {
             result.get()
         }
