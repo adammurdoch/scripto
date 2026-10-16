@@ -4,15 +4,12 @@ import net.rubygrapefruit.scripto.ir.Type
 import net.rubygrapefruit.scripto.ir.VariableDeclaration
 
 internal class CVariableDeclaration(
-    val declaration: VariableDeclaration,
+    val name: String,
+    val type: Type,
     val value: CExpression,
-    val declaredBy: ExternalDeclaration?
+    val declaredBy: ExternalDeclaration? = null
 ) : CStatement {
-    val name: String
-        get() = declaration.name
-
-    val type: Type
-        get() = declaration.type
+    constructor(declaration: VariableDeclaration, value: CExpression, declaredBy: ExternalDeclaration?) : this(declaration.name, declaration.type, value, declaredBy)
 
     override fun visitDeclarations(visitor: (ExternalDeclaration) -> Unit) {
         if (declaredBy != null) {
