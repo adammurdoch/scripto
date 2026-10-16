@@ -1,9 +1,15 @@
 package net.rubygrapefruit.scripto.c
 
-class CStatementScope {
-    private var counter = 1
+internal class CStatementScope {
+    private val counts = mutableMapOf<String, Int>()
 
-    fun newVarName(base: String): String {
-        return "$base${counter++}"
+    fun newVarName(base: String): CVariableReference {
+        val count = counts[base] ?: 1
+        counts[base] = count + 1
+        return if (count == 1) {
+            CVariableReference(base)
+        } else {
+            CVariableReference("$base$count")
+        }
     }
 }

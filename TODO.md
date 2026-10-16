@@ -20,8 +20,9 @@ JVM
 
 C
 
-- Garbage collect strings
-- Use puts() instead of printf()
+- Garbage collect strings created by + operator
+- `println()`: Use puts() instead of printf() when arg is a string
+- `Int.toString()`: Don't use a temporary variable when value is already a variable reference
 - Use `whar_t*` or `char16_t*` to represent strings?
 - Interesting reference counting approach https://www.microsoft.com/en-us/research/wp-content/uploads/2020/11/perceus-tr-v1.pdf
 

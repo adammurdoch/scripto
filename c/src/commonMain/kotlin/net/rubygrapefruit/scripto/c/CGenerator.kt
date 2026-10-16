@@ -98,29 +98,29 @@ class CGenerator {
                 is IntLiteral -> CString(receiver.value.toString())
                 else -> {
                     val value = toExpression(expression.receiver, scope)
-                    val valueVar = scope.newVarName("value")
-                    val lengthVar = scope.newVarName("length")
-                    val stringVar = scope.newVarName("string")
-                    CTemporaryVariable(
+                    val valueVar = scope.newVarName("iVal")
+                    val lengthVar = scope.newVarName("strLen")
+                    val stringVar = scope.newVarName("str")
+                    CPreCalculatedExpression(
                         listOf(
-                            CVariableDeclaration(valueVar, Type.Int, value),
+                            CVariableDeclaration(valueVar.name, Type.Int, value),
                             CVariableDeclaration(
-                                lengthVar, Type.Int,
+                                lengthVar.name, Type.Int,
                                 CInfixOperator(
-                                    CFunctionCall("snprintf", listOf(CNull, CInt(0), CString("%d"), CVariableReference(valueVar))),
+                                    CFunctionCall("snprintf", listOf(CNull, CInt(0), CString("%d"), valueVar)),
                                     "+",
                                     CInt(1)
                                 )
                             ),
                             CVariableDeclaration(
-                                stringVar, Type.String,
-                                CFunctionCall("malloc", listOf(CVariableReference(lengthVar)), Header.Stdlib)
+                                stringVar.name, Type.String,
+                                CFunctionCall("malloc", listOf(lengthVar), Header.Stdlib)
                             ),
-                            CFunctionCall("snprintf", listOf(CVariableReference(stringVar), CVariableReference(lengthVar), CString("%d"), CVariableReference(valueVar)), null)
+                            CFunctionCall("snprintf", listOf(stringVar, lengthVar, CString("%d"), valueVar), null)
                         ),
                         stringVar,
                         listOf(
-                            CFunctionCall("free", listOf(CVariableReference(stringVar)), Header.Stdlib),
+                            CFunctionCall("free", listOf(stringVar), Header.Stdlib),
                         )
                     )
                 }
@@ -256,8 +256,8 @@ class CGenerator {
                 appendCall(expression)
             }
 
-            is CTemporaryVariable -> {
-                append(expression.varName)
+            is CPreCalculatedExpression -> {
+                append(expression.value.name)
             }
         }
     }

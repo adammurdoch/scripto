@@ -80,9 +80,9 @@ internal class CTernaryExpression(val condition: CExpression, val left: CExpress
 }
 
 /**
- * An expression that requires the result of some statement.
+ * An expression that uses the result of some statement(s).
  */
-internal class CTemporaryVariable(val setup: List<CStatement>, val varName: String, val cleanup: List<CStatement>) : CExpression {
+internal class CPreCalculatedExpression(val setup: List<CStatement>, val value: CVariableReference, val cleanup: List<CStatement>) : CExpression {
     override fun visitSetup(visitor: (CStatement) -> Unit) {
         setup.forEach(visitor)
     }
