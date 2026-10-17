@@ -111,6 +111,7 @@ internal sealed interface TypeDescriptor {
 
     companion object {
         val Object = ofClass("java.lang.Object")
+        val String = ofClass("java.lang.String")
 
         fun ofClass(className: String): ObjectType {
             val binaryName = BinaryName(className.replace('.', '/'))
@@ -243,11 +244,11 @@ private class DefaultCodeBuilder(params: List<TypeDescriptor>, private val const
     private val encoder = Encoder()
     private val stackMap = mutableListOf<StackMapEntry>()
     private val locals = mutableListOf<TypeDescriptor>()
+    private val stack = mutableListOf<TypeDescriptor>()
     private var maxStack = 0
-    private var currentStack = 0
     private var startFrame = 0
 
-    private class StackMapEntry(val offset: Int)
+    private class StackMapEntry(val offset: Int, val locals: List<TypeDescriptor>, val stack: List<TypeDescriptor>)
 
     init {
         locals.addAll(params)
@@ -282,20 +283,16 @@ private class DefaultCodeBuilder(params: List<TypeDescriptor>, private val const
             stackMapEncoder.u2(entry.offset)
 
             // locals
-            stackMapEncoder.u2(locals.size)
-            for (local in locals) {
-                when (local) {
-                    is TypeDescriptor.Int, is TypeDescriptor.Boolean -> stackMapEncoder.u1(1)
-                    is TypeDescriptor.ReferenceType -> {
-                        stackMapEncoder.u1(7)
-                        stackMapEncoder.u2(constantPool.addClassInfo(local).index)
-                    }
-                }
+            stackMapEncoder.u2(entry.locals.size)
+            for (local in entry.locals) {
+                stackMapEncoder.verificationType(local)
             }
 
             // stack
-            stackMapEncoder.u2(1)
-            stackMapEncoder.u1(1) // int
+            stackMapEncoder.u2(entry.stack.size)
+            for (stack in entry.stack) {
+                stackMapEncoder.verificationType(stack)
+            }
         }
 
         codeEncoder.u2(constantPool.addUtf8("StackMapTable").index)
@@ -304,6 +301,16 @@ private class DefaultCodeBuilder(params: List<TypeDescriptor>, private val const
         codeEncoder.bytes(stackMap)
 
         return codeEncoder.toByteArray()
+    }
+
+    private fun Encoder.verificationType(local: TypeDescriptor) {
+        when (local) {
+            is TypeDescriptor.Int, is TypeDescriptor.Boolean -> u1(1)
+            is TypeDescriptor.ReferenceType -> {
+                u1(7)
+                u2(constantPool.addClassInfo(local).index)
+            }
+        }
     }
 
     override fun allocateLocal(type: TypeDescriptor): LocalVariable {
@@ -348,7 +355,6 @@ private class DefaultCodeBuilder(params: List<TypeDescriptor>, private val const
                         encoder.u1(variable.slot)
                     }
                 }
-                push()
             }
 
             is TypeDescriptor.ReferenceType -> {
@@ -359,26 +365,25 @@ private class DefaultCodeBuilder(params: List<TypeDescriptor>, private val const
                         encoder.u1(variable.slot)
                     }
                 }
-                push()
             }
         }
+        push(variable.type)
     }
 
     override fun loadConstant(value: String) {
         val constant = constantPool.addStringInfo(value)
         loadConstant(constant)
+        push(TypeDescriptor.String)
     }
 
     override fun loadConstant(value: Int) {
         when (value) {
             -1 -> {
                 encoder.u1(0x2) // iconst_m1
-                push()
             }
 
             in 0..5 -> {
                 encoder.u1(0x3 + value) // iconst_0 .. iconst_5
-                push()
             }
 
             else -> {
@@ -386,6 +391,7 @@ private class DefaultCodeBuilder(params: List<TypeDescriptor>, private val const
                 loadConstant(constant)
             }
         }
+        push(TypeDescriptor.Int)
     }
 
     override fun loadConstant(value: Boolean) {
@@ -405,7 +411,6 @@ private class DefaultCodeBuilder(params: List<TypeDescriptor>, private val const
 
         encoder.u1(0x12) // ldc
         encoder.u1(constant.index)
-        push()
     }
 
     override fun iadd() {
@@ -423,17 +428,12 @@ private class DefaultCodeBuilder(params: List<TypeDescriptor>, private val const
         encoder.u2(4) // target end
 
         // False branch
+        pop(2)
         startFrame()
         encoder.u1(0x3) // iconst_0
 
-        pop()
+        push(TypeDescriptor.Int)
         startFrame()
-    }
-
-    private fun startFrame() {
-        val offset = if (startFrame == 0) encoder.length else encoder.length - startFrame - 1
-        stackMap.add(StackMapEntry(offset))
-        startFrame = encoder.length
     }
 
     override fun newArray(type: TypeDescriptor.ObjectType) {
@@ -447,7 +447,7 @@ private class DefaultCodeBuilder(params: List<TypeDescriptor>, private val const
         val fieldRef = constantPool.addFieldRef(owner, name, type)
         encoder.u1(0xb2) // getstatic
         encoder.u2(fieldRef.index)
-        push()
+        push(type)
     }
 
     override fun invokeVirtual(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor) {
@@ -474,15 +474,23 @@ private class DefaultCodeBuilder(params: List<TypeDescriptor>, private val const
         encoder.u1(0xb1) // return
     }
 
-    private fun push() {
-        currentStack++
-        if (currentStack > maxStack) {
-            maxStack = currentStack
+    private fun startFrame() {
+        val offset = if (startFrame == 0) encoder.length else encoder.length - startFrame - 1
+        stackMap.add(StackMapEntry(offset, locals.toList(), stack.toList()))
+        startFrame = encoder.length
+    }
+
+    private fun push(type: TypeDescriptor) {
+        stack.add(type)
+        if (stack.size > maxStack) {
+            maxStack = stack.size
         }
     }
 
     private fun pop(count: Int = 1) {
-        currentStack -= count
+        repeat(count) {
+            stack.removeLast()
+        }
     }
 }
 

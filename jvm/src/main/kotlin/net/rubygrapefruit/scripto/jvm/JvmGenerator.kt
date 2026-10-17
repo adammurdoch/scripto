@@ -5,18 +5,16 @@ import net.rubygrapefruit.scripto.generator.OperationMapper
 import net.rubygrapefruit.scripto.ir.*
 
 class JvmGenerator {
-    private val string = TypeDescriptor.ofClass("java.lang.String")
-
     private val integer = TypeDescriptor.ofClass("java.lang.Integer")
     private val boolean = TypeDescriptor.ofClass("java.lang.Boolean")
     private val files = TypeDescriptor.ofClass("java.nio.file.Files")
     private val path = TypeDescriptor.ofInterface("java.nio.file.Path")
-    private val intToStringMethod = MethodDescriptor.of(string, TypeDescriptor.Int)
-    private val boolToStringMethod = MethodDescriptor.of(string, TypeDescriptor.Boolean)
+    private val intToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.Int)
+    private val boolToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.Boolean)
     private val objectToBoolMethod = MethodDescriptor.of(TypeDescriptor.Boolean, TypeDescriptor.Object)
-    private val pathToStringMethod = MethodDescriptor.of(string, path)
-    private val stringToPathMethod = MethodDescriptor.of(path, string, string.arrayType())
-    private val stringToStringMethod = MethodDescriptor.of(string, string)
+    private val pathToStringMethod = MethodDescriptor.of(TypeDescriptor.String, path)
+    private val stringToPathMethod = MethodDescriptor.of(path, TypeDescriptor.String, TypeDescriptor.String.arrayType())
+    private val stringToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.String)
 
     fun generate(program: Program): GeneratedByteCode {
         val byteCode = ClassFileWriter().write("App") { generate(program) }
@@ -32,10 +30,10 @@ class JvmGenerator {
         val printStream = TypeDescriptor.ofClass("java.io.PrintStream")
         val system = TypeDescriptor.ofClass("java.lang.System")
 
-        val stringArray = string.arrayType()
+        val stringArray = TypeDescriptor.String.arrayType()
 
         val voidMethod = MethodDescriptor.ofVoid()
-        val stringToVoidMethod = MethodDescriptor.ofVoid(string)
+        val stringToVoidMethod = MethodDescriptor.ofVoid(TypeDescriptor.String)
 
         val systemOut = StaticField(system, "out", printStream)
 
@@ -81,7 +79,7 @@ class JvmGenerator {
         return when (type) {
             is Type.Boolean -> TypeDescriptor.Boolean
             is Type.Int -> TypeDescriptor.Int
-            is Type.String -> string
+            is Type.String -> TypeDescriptor.String
         }
     }
 
@@ -153,7 +151,7 @@ class JvmGenerator {
     private fun mapInfix(expression: InfixFunctionCall): JvmExpression {
         return when (expression.target) {
             StandardLibrary.intAddition -> JvmIntAddition(toExpression(expression.left), toExpression(expression.right))
-            StandardLibrary.stringConcatenation -> VirtualMethodCall(string, "concat", stringToStringMethod, toExpression(expression.left), listOf(toExpression(expression.right)))
+            StandardLibrary.stringConcatenation -> VirtualMethodCall(TypeDescriptor.String, "concat", stringToStringMethod, toExpression(expression.left), listOf(toExpression(expression.right)))
             StandardLibrary.stringEquality -> JvmStringEquality(toExpression(expression.left), toExpression(expression.right))
             StandardLibrary.intEquality -> JvmIntEquality(toExpression(expression.left), toExpression(expression.right))
             StandardLibrary.booleanEquality -> JvmIntEquality(toExpression(expression.left), toExpression(expression.right))
@@ -222,7 +220,7 @@ class JvmGenerator {
 
             is EmptyStringArray -> {
                 loadConstant(0)
-                newArray(string)
+                newArray(TypeDescriptor.String)
             }
         }
     }
