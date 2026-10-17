@@ -142,9 +142,7 @@ private class MethodInfo(
     private val name: ConstantPool.Entry.Utf8,
     private val descriptor: ConstantPool.Entry.Utf8,
     private val flags: MethodFlags,
-    private val maxStack: Int,
-    private val maxLocals: Int,
-    private val code: ByteArray
+    private val codeAttribute: ByteArray
 ) {
     fun appendTo(encoder: Encoder, codeAttributeName: ConstantPool.Entry.Utf8) {
         // Access flags
@@ -158,19 +156,6 @@ private class MethodInfo(
         encoder.u2(1)
 
         // Code attribute
-        val codeEncoder = Encoder()
-        // max stack, max locals
-        codeEncoder.u2(maxStack)
-        codeEncoder.u2(maxLocals)
-        // code
-        codeEncoder.u4(code.size)
-        codeEncoder.bytes(code)
-        // exceptions
-        codeEncoder.u2(0)
-        // attributes
-        codeEncoder.u2(0)
-
-        val codeAttribute = codeEncoder.toByteArray()
         encoder.u2(codeAttributeName.index)
         encoder.u4(codeAttribute.size)
         encoder.bytes(codeAttribute)
@@ -196,9 +181,7 @@ private class DefaultClassBuilder(private val constantPool: ConstantPool) : Clas
             nameEntry,
             descriptorEntry,
             flags,
-            codeBuilder.maxStack,
-            codeBuilder.maxLocals,
-            codeBuilder.encoder.toByteArray()
+            codeBuilder.codeAttribute()
         )
         methods.add(method)
     }
@@ -246,15 +229,57 @@ internal interface CodeBuilder {
 }
 
 private class DefaultCodeBuilder(params: Int, private val constantPool: ConstantPool) : CodeBuilder {
-    val encoder = Encoder()
-
-    var maxLocals = params
-        private set
-
-    var maxStack = 0
-        private set
-
+    private val encoder = Encoder()
+    private val stackMap = mutableListOf<StackMapEntry>()
+    private var maxLocals = params
+    private var maxStack = 0
     private var currentStack = 0
+    private var startFrame = 0
+
+    private class StackMapEntry(val offset: Int)
+
+    fun codeAttribute(): ByteArray {
+        val codeEncoder = Encoder()
+
+        // max stack, max locals
+        codeEncoder.u2(maxStack)
+        codeEncoder.u2(maxLocals)
+
+        // byte code
+        val code = encoder.toByteArray()
+        codeEncoder.u4(code.size)
+        codeEncoder.bytes(code)
+
+        // exceptions
+        codeEncoder.u2(0)
+
+        // attributes
+        codeEncoder.u2(1)
+
+        // stack map table
+        val stackMapEncoder = Encoder()
+        stackMapEncoder.u2(stackMap.size)
+        for (entry in stackMap) {
+            // type
+            stackMapEncoder.u1(255)
+
+            // offset
+            stackMapEncoder.u2(entry.offset)
+
+            // locals
+            stackMapEncoder.u2(0)
+
+            // stack
+            stackMapEncoder.u2(0)
+        }
+
+        codeEncoder.u2(constantPool.addUtf8("StackMapTable").index)
+        val stackMap = stackMapEncoder.toByteArray()
+        codeEncoder.u4(stackMap.size)
+        codeEncoder.bytes(stackMap)
+
+        return codeEncoder.toByteArray()
+    }
 
     override fun allocateLocal(type: TypeDescriptor): LocalVariable {
         return LocalVariable(maxLocals++, type)
@@ -371,9 +396,17 @@ private class DefaultCodeBuilder(params: Int, private val constantPool: Constant
         encoder.u2(4) // target end
 
         // False branch
+        startFrame()
         encoder.u1(0x3) // iconst_0
 
         pop()
+        startFrame()
+    }
+
+    private fun startFrame() {
+        val offset = if (startFrame == 0) encoder.length else encoder.length - startFrame - 1
+        stackMap.add(StackMapEntry(offset))
+        startFrame = 0
     }
 
     override fun newArray(type: TypeDescriptor.ObjectType) {
@@ -612,6 +645,9 @@ private class ConstantPool {
 private class Encoder {
     private val bytes = ByteArray(4096)
     private var pos = 0
+
+    val length: Int
+        get() = pos
 
     fun u4(value: Long) {
         u4(value.toInt())
