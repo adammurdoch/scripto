@@ -1,44 +1,39 @@
 package net.rubygrapefruit.scripto.jvm
 
 import net.rubygrapefruit.file.RegularFile
-import net.rubygrapefruit.file.path
 import net.rubygrapefruit.scripto.generator.OperationMapper
 import net.rubygrapefruit.scripto.ir.*
 import java.io.PrintStream
-import java.lang.classfile.ClassBuilder
-import java.lang.classfile.ClassFile
 import java.lang.classfile.CodeBuilder
 import java.lang.classfile.TypeKind
 import java.lang.constant.ClassDesc
 import java.lang.constant.MethodTypeDesc
 
 class JvmGenerator {
+    private val string = TypeDescriptor.of("java.lang.String")
+
     private val int = ClassDesc.ofDescriptor("I")
     private val bool = ClassDesc.ofDescriptor("Z")
     private val objectType = ClassDesc.of("java.lang.Object")
     private val integer = ClassDesc.of("java.lang.Integer")
     private val boolean = ClassDesc.of("java.lang.Boolean")
-    private val string = ClassDesc.of("java.lang.String")
+    private val stringX = ClassDesc.of("java.lang.String")
     private val files = ClassDesc.of("java.nio.file.Files")
     private val path = ClassDesc.of("java.nio.file.Path")
-    private val intToStringMethod = MethodTypeDesc.of(string, int)
-    private val boolToStringMethod = MethodTypeDesc.of(string, bool)
+    private val intToStringMethod = MethodTypeDesc.of(stringX, int)
+    private val boolToStringMethod = MethodTypeDesc.of(stringX, bool)
     private val objectToBoolMethod = MethodTypeDesc.of(bool, objectType)
-    private val pathToStringMethod = MethodTypeDesc.of(string, path)
-    private val stringToPathMethod = MethodTypeDesc.of(path, string, string.arrayType())
-    private val stringToStringMethod = MethodTypeDesc.of(string, string)
+    private val pathToStringMethod = MethodTypeDesc.of(stringX, path)
+    private val stringToPathMethod = MethodTypeDesc.of(path, stringX, stringX.arrayType())
+    private val stringToStringMethod = MethodTypeDesc.of(stringX, stringX)
 
     fun generate(program: Program): GeneratedByteCode {
-        val byteCode = ClassFile.of().build(ClassDesc.of("App")) { classBuilder ->
-            classBuilder.generate(program)
-        }
+        val byteCode = ClassFileWriter().write("App") { generate(program) }
         return GeneratedByteCode("App", byteCode)
     }
 
     fun generate(program: Program, output: RegularFile): GeneratedClass {
-        ClassFile.of().buildTo(output.path(), ClassDesc.of("App")) { classBuilder ->
-            classBuilder.generate(program)
-        }
+        ClassFileWriter().writeTo("App", output) { generate(program) }
         return GeneratedClass("App")
     }
 
@@ -50,7 +45,7 @@ class JvmGenerator {
 
         val void = ClassDesc.ofDescriptor("V")
         val voidMethod = MethodTypeDesc.of(void)
-        val stringToVoidMethod = MethodTypeDesc.of(void, string)
+        val stringToVoidMethod = MethodTypeDesc.of(void, stringX)
 
         val systemOut = StaticField(system, "out", printStream)
 
@@ -70,8 +65,7 @@ class JvmGenerator {
 
         val jvmProgram = JvmProgram(mapping.map(program.operations))
 
-        withVersion(ClassFile.JAVA_11_VERSION, 0)
-        withMethod("main", MethodTypeDesc.of(void, stringArray), ClassFile.ACC_STATIC.or(ClassFile.ACC_PUBLIC)) { methodBuilder ->
+        method("main", MethodDescriptor.ofVoid(stringArray), MethodFlags.PublicStatic) { methodBuilder ->
             methodBuilder.withCode { codeBuilder ->
                 val slots = mutableMapOf<String, Int>()
                 for (declaration in jvmProgram.variables) {
@@ -171,7 +165,7 @@ class JvmGenerator {
     private fun mapInfix(expression: InfixFunctionCall): JvmExpression {
         return when (expression.target) {
             StandardLibrary.intAddition -> JvmIntAddition(toExpression(expression.left), toExpression(expression.right))
-            StandardLibrary.stringConcatenation -> VirtualMethodCall(string, "concat", stringToStringMethod, toExpression(expression.left), listOf(toExpression(expression.right)))
+            StandardLibrary.stringConcatenation -> VirtualMethodCall(stringX, "concat", stringToStringMethod, toExpression(expression.left), listOf(toExpression(expression.right)))
             StandardLibrary.stringEquality -> JvmStringEquality(toExpression(expression.left), toExpression(expression.right))
             StandardLibrary.intEquality -> JvmIntEquality(toExpression(expression.left), toExpression(expression.right))
             StandardLibrary.booleanEquality -> JvmIntEquality(toExpression(expression.left), toExpression(expression.right))
@@ -248,7 +242,7 @@ class JvmGenerator {
 
             is EmptyStringArray -> {
                 iconst_0()
-                anewarray(string)
+                anewarray(stringX)
             }
         }
     }
