@@ -1,5 +1,6 @@
 plugins {
     id("net.rubygrapefruit.kmp.lib")
+    id("scripto.powershell")
 }
 
 library {

@@ -1,5 +1,6 @@
 pluginManagement {
     includeBuild("kotlin-tools")
+    includeBuild("plugins")
 }
 
 plugins {
