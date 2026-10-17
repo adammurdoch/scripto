@@ -10,7 +10,8 @@ internal class ClassFileWriter {
         val thisClass = constantPool.addClassInfo(className)
         val objectClass = constantPool.addClassInfo("java.lang.Object")
 
-        DefaultClassBuilder().builder()
+        val classBuilder = DefaultClassBuilder(constantPool)
+        classBuilder.builder()
 
         val encoder = Encoder()
 
@@ -38,7 +39,10 @@ internal class ClassFileWriter {
         encoder.u2(0)
 
         // methods
-        encoder.u2(0)
+        encoder.u2(classBuilder.methods.size)
+        for (method in classBuilder.methods) {
+            method.appendTo(encoder)
+        }
 
         // attributes
         encoder.u2(0)
@@ -52,41 +56,91 @@ internal class ClassFileWriter {
     }
 }
 
-internal sealed class TypeDescriptor {
-    class ReferenceType : TypeDescriptor() {
+internal sealed interface TypeDescriptor {
+    val descriptor: String
+
+    class ReferenceType(override val descriptor: String) : TypeDescriptor {
         fun arrayType(): ReferenceType {
-            return ReferenceType()
+            return ReferenceType("[$descriptor")
         }
     }
 
     companion object {
         fun of(className: String): ReferenceType {
-            return ReferenceType()
+            return ReferenceType("L${className.replace('.', '/')};")
         }
     }
 }
 
-internal class MethodDescriptor {
+internal class MethodDescriptor(val descriptor: String) {
     companion object {
         fun ofVoid(vararg parameters: TypeDescriptor): MethodDescriptor {
-            return MethodDescriptor()
+            val builder = StringBuilder()
+            builder.append("(")
+            for (descriptor in parameters) {
+                builder.append(descriptor.descriptor)
+            }
+            builder.append(")V")
+            return MethodDescriptor(builder.toString())
         }
     }
 }
 
-internal class MethodFlags {
+internal class MethodFlags(val flags: Int) {
     companion object {
-        val PublicStatic = MethodFlags()
+        val PublicStatic = MethodFlags(0x0009)
+    }
+}
+
+private class MethodInfo(
+    private val name: ConstantPool.Entry.Utf8,
+    private val descriptor: ConstantPool.Entry.Utf8,
+    private val flags: MethodFlags,
+    private val codeAttributeNode: ConstantPool.Entry.Utf8
+) {
+    fun appendTo(encoder: Encoder) {
+        // Access flags
+        encoder.u2(flags.flags)
+
+        // Name, descriptor
+        encoder.u2(name.index)
+        encoder.u2(descriptor.index)
+
+        // Attributes
+        encoder.u2(1)
+
+        // Code attribute
+        val codeEncoder = Encoder()
+        // max stack, max locals
+        codeEncoder.u2(0)
+        codeEncoder.u2(1)
+        // code
+        codeEncoder.u4(0)
+        // exceptions
+        codeEncoder.u2(0)
+        // attributes
+        codeEncoder.u2(0)
+        val code = codeEncoder.toByteArray()
+
+        encoder.u2(codeAttributeNode.index)
+        encoder.u4(code.size.toLong())
+        encoder.bytes(code)
     }
 }
 
 internal interface ClassBuilder {
-
     fun method(name: String, descriptor: MethodDescriptor, flags: MethodFlags, builder: (MethodBuilder) -> Unit)
 }
 
-private class DefaultClassBuilder : ClassBuilder {
+private class DefaultClassBuilder(private val constantPool: ConstantPool) : ClassBuilder {
+    val methods: List<MethodInfo>
+        field = mutableListOf<MethodInfo>()
+
     override fun method(name: String, descriptor: MethodDescriptor, flags: MethodFlags, builder: MethodBuilder.() -> Unit) {
+        val nameEntry = constantPool.addUtf8(name)
+        val descriptorEntry = constantPool.addUtf8(descriptor.descriptor)
+        val method = MethodInfo(nameEntry, descriptorEntry, flags, constantPool.addUtf8("Code"))
+        methods.add(method)
     }
 }
 
