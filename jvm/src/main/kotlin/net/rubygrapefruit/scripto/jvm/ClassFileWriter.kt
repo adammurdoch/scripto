@@ -57,15 +57,15 @@ internal class ClassFileWriter {
 }
 
 internal sealed interface TypeDescriptor {
-    val descriptor: String
+    val descriptor: TypeDescriptorString
 
     sealed interface ReferenceType : TypeDescriptor {
         val binaryName: BinaryName
     }
 
-    class ObjectType(override val binaryName: BinaryName, override val descriptor: String, val isInterface: kotlin.Boolean) : ReferenceType {
+    class ObjectType(override val binaryName: BinaryName, override val descriptor: TypeDescriptorString, val isInterface: kotlin.Boolean) : ReferenceType {
         fun arrayType(): ArrayType {
-            return ArrayType(BinaryName("[$descriptor"), "[$descriptor", this)
+            return ArrayType(BinaryName("[${descriptor.value}"), TypeDescriptorString("[${descriptor.value}"), this)
         }
 
         override fun hashCode(): kotlin.Int {
@@ -83,7 +83,7 @@ internal sealed interface TypeDescriptor {
         }
     }
 
-    class ArrayType(override val binaryName: BinaryName, override val descriptor: String, val elementType: ObjectType) : ReferenceType {
+    class ArrayType(override val binaryName: BinaryName, override val descriptor: TypeDescriptorString, val elementType: ObjectType) : ReferenceType {
         override fun hashCode(): kotlin.Int {
             return descriptor.hashCode()
         }
@@ -100,13 +100,13 @@ internal sealed interface TypeDescriptor {
     }
 
     object Int : TypeDescriptor {
-        override val descriptor: String
-            get() = "I"
+        override val descriptor: TypeDescriptorString
+            get() = TypeDescriptorString("I")
     }
 
     object Boolean : TypeDescriptor {
-        override val descriptor: String
-            get() = "Z"
+        override val descriptor: TypeDescriptorString
+            get() = TypeDescriptorString("Z")
     }
 
     companion object {
@@ -114,36 +114,40 @@ internal sealed interface TypeDescriptor {
         val String = ofClass("java.lang.String")
 
         fun ofClass(className: String): ObjectType {
-            val binaryName = BinaryName(className.replace('.', '/'))
-            return ObjectType(binaryName, "L${binaryName.name};", false)
+            return of(className, false)
         }
 
         fun ofInterface(className: String): ObjectType {
+            return of(className, true)
+        }
+
+        private fun of(className: String, isInterface: kotlin.Boolean): ObjectType {
             val binaryName = BinaryName(className.replace('.', '/'))
-            return ObjectType(binaryName, "L${binaryName.name};", true)
+            return ObjectType(binaryName, TypeDescriptorString("L${binaryName.name};"), isInterface)
         }
     }
 }
 
-internal data class MethodDescriptor(val descriptor: String, val parameters: List<TypeDescriptor>, val stackChange: Int) {
+internal data class MethodDescriptor(val descriptor: MethodDescriptorString, val parameters: List<TypeDescriptor>, val stackChange: Int) {
     companion object {
         fun ofVoid(vararg parameters: TypeDescriptor): MethodDescriptor {
-            return of("V", parameters.size, parameters.toList())
+            return of(TypeDescriptorString("V"), parameters.size, parameters.toList())
         }
 
         fun of(returnType: TypeDescriptor, vararg parameters: TypeDescriptor): MethodDescriptor {
             return of(returnType.descriptor, parameters.size - 1, parameters.toList())
         }
 
-        private fun of(returnDescriptor: String, stackChange: Int, parameters: List<TypeDescriptor>): MethodDescriptor {
+        private fun of(returnDescriptor: TypeDescriptorString, stackChange: Int, parameters: List<TypeDescriptor>): MethodDescriptor {
             val builder = StringBuilder()
             builder.append("(")
             for (descriptor in parameters) {
-                builder.append(descriptor.descriptor)
+                builder.append(descriptor.descriptor.value)
             }
             builder.append(")")
-            builder.append(returnDescriptor)
-            return MethodDescriptor(builder.toString(), parameters, stackChange)
+            builder.append(returnDescriptor.value)
+            val descriptor = MethodDescriptorString(builder.toString())
+            return MethodDescriptor(descriptor, parameters, stackChange)
         }
     }
 }
@@ -188,7 +192,7 @@ private class DefaultClassBuilder(private val constantPool: ConstantPool) : Clas
 
     override fun method(name: String, descriptor: MethodDescriptor, flags: MethodFlags, builder: CodeBuilder.() -> Unit) {
         val nameEntry = constantPool.addUtf8(name)
-        val descriptorEntry = constantPool.addUtf8(descriptor.descriptor)
+        val descriptorEntry = constantPool.addUtf8(descriptor.descriptor.value)
 
         val codeBuilder = DefaultCodeBuilder(descriptor.parameters, constantPool)
         codeBuilder.builder()
@@ -205,6 +209,12 @@ private class DefaultClassBuilder(private val constantPool: ConstantPool) : Clas
 
 @JvmInline
 value class BinaryName(val name: String)
+
+@JvmInline
+value class TypeDescriptorString(val value: String)
+
+@JvmInline
+value class MethodDescriptorString(val value: String)
 
 internal class LocalVariable(val slot: Int, val type: TypeDescriptor)
 
@@ -507,6 +517,7 @@ private class ConstantPool {
     private val constStrings = mutableMapOf<String, Entry.StringInfo>()
     private val constInts = mutableMapOf<Int, Entry.IntegerInfo>()
     private val fields = mutableMapOf<FieldRef, Entry.FieldRef>()
+    private val methods = mutableMapOf<MethodRef, Entry.MethodRef>()
 
     sealed interface Entry {
         fun appendTo(encoder: Encoder)
@@ -582,7 +593,9 @@ private class ConstantPool {
         }
     }
 
-    private data class FieldRef(val owner: TypeDescriptor.ObjectType, val name: String, val type: TypeDescriptor)
+    private data class FieldRef(val owner: TypeDescriptorString, val name: String, val type: TypeDescriptorString)
+
+    private data class MethodRef(val owner: TypeDescriptorString, val name: String, val descriptor: MethodDescriptorString)
 
     fun addUtf8(text: String): Entry.Utf8 {
         val current = strings[text]
@@ -633,13 +646,13 @@ private class ConstantPool {
     }
 
     fun addFieldRef(owner: TypeDescriptor.ObjectType, name: String, type: TypeDescriptor): Entry.FieldRef {
-        val ref = FieldRef(owner, name, type)
+        val ref = FieldRef(owner.descriptor, name, type.descriptor)
         val current = fields[ref]
         return if (current != null) {
             current
         } else {
             val ownerInfo = addClassInfo(owner)
-            val nameAndType = addNameAndType(name, type.descriptor)
+            val nameAndType = addNameAndType(name, type.descriptor.value)
             val entry = Entry.FieldRef(ownerInfo, nameAndType, nextIndex())
             entries.add(entry)
             fields[ref] = entry
@@ -648,16 +661,23 @@ private class ConstantPool {
     }
 
     fun addMethodRef(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor): Entry.MethodRef {
-        val ownerInfo = addClassInfo(owner)
-        val nameAndType = addNameAndType(name, type.descriptor)
-        val entry = Entry.MethodRef(ownerInfo, nameAndType, nextIndex())
-        entries.add(entry)
-        return entry
+        val ref = MethodRef(owner.descriptor, name, type.descriptor)
+        val current = methods[ref]
+        return if (current != null) {
+            current
+        } else {
+            val ownerInfo = addClassInfo(owner)
+            val nameAndType = addNameAndType(name, type.descriptor.value)
+            val entry = Entry.MethodRef(ownerInfo, nameAndType, nextIndex())
+            entries.add(entry)
+            methods[ref] = entry
+            entry
+        }
     }
 
     fun addInterfaceMethodRef(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor): Entry.InterfaceMethodRef {
         val ownerInfo = addClassInfo(owner)
-        val nameAndType = addNameAndType(name, type.descriptor)
+        val nameAndType = addNameAndType(name, type.descriptor.value)
         val entry = Entry.InterfaceMethodRef(ownerInfo, nameAndType, nextIndex())
         entries.add(entry)
         return entry
