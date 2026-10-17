@@ -5,7 +5,7 @@ import java.lang.classfile.TypeKind
 
 internal class JvmVariableDeclaration(
     val declaration: VariableDeclaration,
-    val typeKind: TypeKind,
+    val type: TypeDescriptor,
     val value: JvmExpression
 ): JvmOperation {
     val name: String

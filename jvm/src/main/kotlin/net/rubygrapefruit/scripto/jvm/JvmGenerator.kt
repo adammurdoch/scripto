@@ -4,7 +4,6 @@ import net.rubygrapefruit.file.RegularFile
 import net.rubygrapefruit.scripto.generator.OperationMapper
 import net.rubygrapefruit.scripto.ir.*
 import java.io.PrintStream
-import java.lang.classfile.TypeKind
 import java.lang.constant.ClassDesc
 import java.lang.constant.MethodTypeDesc
 
@@ -19,6 +18,7 @@ class JvmGenerator {
     private val stringX = ClassDesc.of("java.lang.String")
     private val files = ClassDesc.of("java.nio.file.Files")
     private val path = ClassDesc.of("java.nio.file.Path")
+    val printStreamX = ClassDesc.of(PrintStream::class.java.name)
     private val intToStringMethod = MethodTypeDesc.of(stringX, int)
     private val boolToStringMethod = MethodTypeDesc.of(stringX, bool)
     private val objectToBoolMethod = MethodTypeDesc.of(bool, objectType)
@@ -37,8 +37,8 @@ class JvmGenerator {
     }
 
     private fun ClassBuilder.generate(program: Program) {
-        val printStream = ClassDesc.of(PrintStream::class.java.name)
-        val system = ClassDesc.of(System::class.java.name)
+        val printStream = TypeDescriptor.of("java.io.PrintStream")
+        val system = TypeDescriptor.of("java.lang.System")
 
         val stringArray = string.arrayType()
 
@@ -50,11 +50,11 @@ class JvmGenerator {
 
         val mapping = OperationMapper.of {
             mapFun(StandardLibrary.printlnNoArgs) {
-                InstanceMethodCall(printStream, "println", voidMethod, systemOut, emptyList())
+                InstanceMethodCall(printStreamX, "println", voidMethod, systemOut, emptyList())
             }
             mapFun(StandardLibrary.printlnOneArg) {
                 val args = it.arguments.map { toStringExpression(it) }
-                InstanceMethodCall(printStream, "println", stringToVoidMethod, systemOut, args)
+                InstanceMethodCall(printStreamX, "println", stringToVoidMethod, systemOut, args)
             }
             mapVar { declaration ->
                 val type = toTypeKind(declaration.type)
@@ -67,7 +67,7 @@ class JvmGenerator {
         method("main", MethodDescriptor.ofVoid(stringArray), MethodFlags.PublicStatic) {
             val slots = mutableMapOf<String, LocalVariable>()
             for (declaration in jvmProgram.variables) {
-                val slot = allocateLocal()
+                val slot = allocateLocal(declaration.type)
                 slots[declaration.name] = slot
             }
             for (operation in jvmProgram.operations) {
@@ -86,11 +86,11 @@ class JvmGenerator {
         }
     }
 
-    private fun toTypeKind(type: Type): TypeKind {
+    private fun toTypeKind(type: Type): TypeDescriptor {
         return when (type) {
-            is Type.Boolean -> TypeKind.BOOLEAN
-            is Type.Int -> TypeKind.INT
-            is Type.String -> TypeKind.REFERENCE
+            is Type.Boolean -> TypeDescriptor.Boolean
+            is Type.Int -> TypeDescriptor.Integer
+            is Type.String -> string
         }
     }
 
@@ -189,11 +189,11 @@ class JvmGenerator {
             }
 
             is JvmTrue -> {
-                iconst_1()
+                loadConstant(true)
             }
 
             is JvmFalse -> {
-                iconst_0()
+                loadConstant(false)
             }
 
             is JvmIntAddition -> {
@@ -208,10 +208,10 @@ class JvmGenerator {
                 val notEqual = newLabel()
                 val end = newLabel()
                 if_icmpne(notEqual)
-                iconst_1()
+                loadConstant(true)
                 goto_(end)
                 labelBinding(notEqual)
-                iconst_0()
+                loadConstant(false)
                 labelBinding(end)
             }
 
@@ -222,7 +222,6 @@ class JvmGenerator {
             }
 
             is JvmVariableReference -> {
-                val type = toTypeKind(expression.type)
                 loadLocal(slots.getValue(expression.name))
             }
 
@@ -238,7 +237,7 @@ class JvmGenerator {
             }
 
             is EmptyStringArray -> {
-                iconst_0()
+                loadConstant(0)
                 anewarray(string)
             }
         }

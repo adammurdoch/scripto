@@ -21,6 +21,36 @@ println(s)
     }
 
     @Test
+    fun `compiles multiple string variable defintion initialized with literal`() {
+        val sourceFile = workDir.file("app.scripto")
+
+        sourceFile.writeText(
+            """
+val a = "a"
+val b = "b"
+val c = "c"
+val d = "d"
+val e = "e" // more than 4 to cover JVM bytecode
+println(a)
+println(b)
+println(c)
+println(d)
+println(e)
+        """
+        )
+
+        compileAndRun(sourceFile) {
+            statements(10)
+            output("""a
+b
+c
+d
+e
+""")
+        }
+    }
+
+    @Test
     fun `compiles call to string literal toString() function`() {
         val sourceFile = workDir.file("app.scripto")
 

@@ -8,8 +8,8 @@ internal class ClassFileWriter {
     fun write(className: String, builder: ClassBuilder.() -> Unit): ByteArray {
         val constantPool = ConstantPool()
 
-        val thisClass = constantPool.addClassInfo(className)
-        val objectClass = constantPool.addClassInfo("java.lang.Object")
+        val thisClass = constantPool.addClassInfo(BinaryName.of(className))
+        val objectClass = constantPool.addClassInfo(TypeDescriptor.Object.binaryName)
         val codeAttributeName = constantPool.addUtf8("Code")
 
         val classBuilder = DefaultClassBuilder(constantPool)
@@ -61,15 +61,31 @@ internal class ClassFileWriter {
 internal sealed interface TypeDescriptor {
     val descriptor: String
 
-    class ReferenceType(override val descriptor: String) : TypeDescriptor {
-        fun arrayType(): ReferenceType {
-            return ReferenceType("[$descriptor")
+    class ObjectType(val binaryName: BinaryName, override val descriptor: String) : TypeDescriptor {
+        fun arrayType(): TypeDescriptor {
+            return ArrayType("[$descriptor")
         }
     }
 
+    class ArrayType(override val descriptor: String) : TypeDescriptor {
+    }
+
+    object Integer : TypeDescriptor {
+        override val descriptor: String
+            get() = "I"
+    }
+
+    object Boolean : TypeDescriptor {
+        override val descriptor: String
+            get() = "Z"
+    }
+
     companion object {
-        fun of(className: String): ReferenceType {
-            return ReferenceType("L${className.replace('.', '/')};")
+        val Object = of("java.lang.Object")
+
+        fun of(className: String): ObjectType {
+            val binaryName = BinaryName.of(className)
+            return ObjectType(binaryName, "L${binaryName.name};")
         }
     }
 }
@@ -161,12 +177,18 @@ private class DefaultClassBuilder(private val constantPool: ConstantPool) : Clas
 }
 
 @JvmInline
-internal value class LocalVariable(val slot: Int)
+value class BinaryName private constructor(val name: String) {
+    companion object {
+        fun of(name: String) = BinaryName(name.replace('.', '/'))
+    }
+}
+
+internal class LocalVariable(val slot: Int, val type: TypeDescriptor)
 
 internal class Label
 
 internal interface CodeBuilder {
-    fun allocateLocal(): LocalVariable
+    fun allocateLocal(type: TypeDescriptor): LocalVariable
 
     fun storeLocal(variable: LocalVariable)
 
@@ -175,6 +197,8 @@ internal interface CodeBuilder {
     fun loadConstant(value: String)
 
     fun loadConstant(value: Int)
+
+    fun loadConstant(value: Boolean)
 
     fun anewarray(type: TypeDescriptor)
 
@@ -188,15 +212,11 @@ internal interface CodeBuilder {
 
     fun goto_(target: Label)
 
+    fun getstatic(owner: TypeDescriptor.ObjectType, name: String, type: TypeDescriptor)
+
     // REWORK THESE
 
     fun labelBinding(label: Label)
-
-    fun iconst_1()
-
-    fun iconst_0()
-
-    fun getstatic(owner: ClassDesc, name: String, type: ClassDesc)
 
     fun invokevirtual(owner: ClassDesc, name: String, type: MethodTypeDesc)
 
@@ -212,14 +232,32 @@ private class DefaultCodeBuilder(params: Int, private val constantPool: Constant
     var maxStack = 0
         private set
 
-    override fun allocateLocal(): LocalVariable {
-        return LocalVariable(maxLocals++)
+    private var currentStack = 0
+
+    override fun allocateLocal(type: TypeDescriptor): LocalVariable {
+        return LocalVariable(maxLocals++, type)
     }
 
     override fun storeLocal(variable: LocalVariable) {
+        when (variable.slot) {
+            in 0..3 -> encoder.u1(0x4b + variable.slot) // astore_0 .. astore_3
+            else -> {
+                encoder.u1(0x3a) // astore
+                encoder.u1(variable.slot)
+            }
+        }
+        pop()
     }
 
     override fun loadLocal(variable: LocalVariable) {
+        when (variable.slot) {
+            in 0..3 -> encoder.u1(0x2a + variable.slot) // aload_0 .. aload_3
+            else -> {
+                encoder.u1(0x19) // aload
+                encoder.u1(variable.slot)
+            }
+        }
+        push()
     }
 
     override fun loadConstant(value: String) {
@@ -230,13 +268,15 @@ private class DefaultCodeBuilder(params: Int, private val constantPool: Constant
     override fun loadConstant(value: Int) {
         when (value) {
             -1 -> {
-                encoder.u1(0x2)
-                maxStack++
+                encoder.u1(0x2) // iconst_m1
+                push()
             }
+
             in 0..5 -> {
-                encoder.u1(0x3 + value)
-                maxStack++
+                encoder.u1(0x3 + value) // iconst_0 .. iconst_5
+                push()
             }
+
             else -> {
                 val constant = constantPool.addIntegerInfo(value)
                 loadConstant(constant)
@@ -244,16 +284,18 @@ private class DefaultCodeBuilder(params: Int, private val constantPool: Constant
         }
     }
 
+    override fun loadConstant(value: Boolean) {
+        if (value) {
+            loadConstant(1)
+        } else {
+            loadConstant(0)
+        }
+    }
+
     private fun loadConstant(constant: ConstantPool.Entry.Loadable) {
         encoder.u1(0x12) // ldc
         encoder.u1(constant.index)
-        maxStack++
-    }
-
-    override fun iconst_0() {
-    }
-
-    override fun iconst_1() {
+        push()
     }
 
     override fun iadd() {
@@ -275,7 +317,11 @@ private class DefaultCodeBuilder(params: Int, private val constantPool: Constant
     override fun anewarray(type: TypeDescriptor) {
     }
 
-    override fun getstatic(owner: ClassDesc, name: String, type: ClassDesc) {
+    override fun getstatic(owner: TypeDescriptor.ObjectType, name: String, type: TypeDescriptor) {
+        val fieldRef = constantPool.addFieldRef(owner.binaryName, name, type)
+        encoder.u1(0xb2) // getstatic
+        encoder.u2(fieldRef.index)
+        push()
     }
 
     override fun invokevirtual(owner: ClassDesc, name: String, type: MethodTypeDesc) {
@@ -285,14 +331,25 @@ private class DefaultCodeBuilder(params: Int, private val constantPool: Constant
     }
 
     override fun return_() {
-        encoder.u1(0xb1)
+        encoder.u1(0xb1) // return
+    }
+
+    private fun push() {
+        currentStack++
+        if (currentStack > maxStack) {
+            maxStack = currentStack
+        }
+    }
+
+    private fun pop() {
+        currentStack--
     }
 }
 
 private class ConstantPool {
     private val entries = mutableListOf<Entry>()
     private val strings = mutableMapOf<String, Entry.Utf8>()
-    private val classes = mutableMapOf<String, Entry.ClassInfo>()
+    private val classes = mutableMapOf<BinaryName, Entry.ClassInfo>()
     private val constStrings = mutableMapOf<String, Entry.StringInfo>()
     private val constInts = mutableMapOf<Int, Entry.IntegerInfo>()
 
@@ -330,6 +387,22 @@ private class ConstantPool {
             override fun appendTo(encoder: Encoder) {
                 encoder.u1(7)
                 encoder.u2(name.index)
+            }
+        }
+
+        class FieldRef(val owner: ClassInfo, val nameAndType: NameAndType, val index: Int) : Entry {
+            override fun appendTo(encoder: Encoder) {
+                encoder.u1(9)
+                encoder.u2(owner.index)
+                encoder.u2(nameAndType.index)
+            }
+        }
+
+        class NameAndType(val name: Utf8, val descriptor: Utf8, val index: Int) : Entry {
+            override fun appendTo(encoder: Encoder) {
+                encoder.u1(12)
+                encoder.u2(name.index)
+                encoder.u2(descriptor.index)
             }
         }
     }
@@ -370,16 +443,32 @@ private class ConstantPool {
         }
     }
 
-    fun addClassInfo(className: String): Entry.ClassInfo {
+    fun addClassInfo(className: BinaryName): Entry.ClassInfo {
         val current = classes[className]
         return if (current != null) {
             current
         } else {
-            val entry = Entry.ClassInfo(addUtf8(className.replace('.', '/')), nextIndex())
+            val entry = Entry.ClassInfo(addUtf8(className.name), nextIndex())
             entries.add(entry)
             classes[className] = entry
             entry
         }
+    }
+
+    fun addFieldRef(owner: BinaryName, name: String, type: TypeDescriptor): Entry.FieldRef {
+        val ownerInfo = addClassInfo(owner)
+        val nameAndType = addNameAndType(name, type)
+        val entry = Entry.FieldRef(ownerInfo, nameAndType, nextIndex())
+        entries.add(entry)
+        return entry
+    }
+
+    private fun addNameAndType(name: String, type: TypeDescriptor): Entry.NameAndType {
+        val nameEntry = addUtf8(name)
+        val descriptorEntry = addUtf8(type.descriptor)
+        val entry = Entry.NameAndType(nameEntry, descriptorEntry, nextIndex())
+        entries.add(entry)
+        return entry
     }
 
     fun appendTo(encoder: Encoder) {
