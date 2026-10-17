@@ -3,6 +3,7 @@ package net.rubygrapefruit.scripto.compiler
 import net.rubygrapefruit.file.RegularFile
 import net.rubygrapefruit.parse.ParseException
 import net.rubygrapefruit.parse.Parser
+import net.rubygrapefruit.parse.Position
 import net.rubygrapefruit.parse.combinators.*
 import net.rubygrapefruit.parse.general.endOfInput
 import net.rubygrapefruit.parse.general.position
@@ -36,17 +37,7 @@ class Compiler {
             is NotResolved -> {
                 val errors = resolveResult.problems.map { problem ->
                     if (problem.position != null) {
-                        var line = 1
-                        var col = 1
-                        for (pos in 0 until problem.position.value) {
-                            if (sourceText[pos] == '\n') {
-                                line++
-                                col = 1
-                            } else {
-                                col++
-                            }
-                        }
-                        Error("Line ${line}: $col: ${problem.message}")
+                        addContext(problem.position, problem, sourceText)
                     } else {
                         Error(problem.message)
                     }
@@ -56,6 +47,20 @@ class Compiler {
 
             is Resolved -> Result.Success(resolveResult.result)
         }
+    }
+
+    private fun addContext(position: Position, problem: Problem, sourceText: String): Error {
+        var line = 1
+        var col = 1
+        for (pos in 0 until position.value) {
+            if (sourceText[pos] == '\n') {
+                line++
+                col = 1
+            } else {
+                col++
+            }
+        }
+        return Error("Line ${line}: $col: ${problem.message}")
     }
 
     // Functions to move to Kotlin tools
@@ -96,14 +101,7 @@ class Compiler {
 
         val variableReference = sequence(position(), identifier) { pos, id -> VariableReferenceTree(pos, id) }
 
-        val additionArgument = oneOf(intLiteral, stringLiteral, trueLiteral, falseLiteral, variableReference)
-
-        val operator = oneOf(
-            literal("+", "+"),
-            literal("==", "=="),
-        )
-        val infixOperator = surrounded(optionalWhitespace, operator, optionalWhitespace)
-        val infixFunctionCall = sequence(additionArgument, infixOperator, additionArgument) { left, operator, right -> InfixOperatorTree(left, operator, right) }
+        val functionReceiver = oneOf(intLiteral, stringLiteral, trueLiteral, falseLiteral, variableReference)
 
         val expression = recursive<TextInput, ExpressionTree>()
 
@@ -113,9 +111,18 @@ class Compiler {
         val argsList = surrounded(argsPrefix, zeroOrMore(expression, separator = argSeparator), argsSuffix)
 
         val functionCall = sequence(position(), identifier, argsList) { pos, name, args -> FunctionCallTree(pos, name, args) }
-        val receiverFunctionCall = sequence(additionArgument, oneOrMore(prefixed(literal('.'), functionCall))) { receiver, calls ->
+        val receiverFunctionCall = sequence(functionReceiver, oneOrMore(prefixed(literal('.'), functionCall))) { receiver, calls ->
             calls.fold(receiver) { r, c -> ReceiverFunctionCallTree(r, c) }
         }
+
+        val additionArgument = oneOf(receiverFunctionCall, functionReceiver)
+
+        val operator = oneOf(
+            literal("+", "+"),
+            literal("==", "=="),
+        )
+        val infixOperator = surrounded(optionalWhitespace, operator, optionalWhitespace)
+        val infixFunctionCall = sequence(additionArgument, infixOperator, additionArgument) { left, operator, right -> InfixOperatorTree(left, operator, right) }
 
         expression.parser(oneOf(infixFunctionCall, receiverFunctionCall, intLiteral, stringLiteral, trueLiteral, falseLiteral, functionCall, variableReference))
 

@@ -51,4 +51,39 @@ println(v.toString())
         }
     }
 
+    @Test
+    fun `compiles multiple calls to int variable toString() function`() {
+        val sourceFile = workDir.file("app.scripto")
+
+        sourceFile.writeText(
+            """
+val a = -123
+val b = 900
+println(a.toString())
+println(b.toString())
+        """
+        )
+
+        compileAndRun(sourceFile) {
+            output("-123\n900\n")
+        }
+    }
+
+    @Test
+    fun `compiles variable initialized with result of int toString()`() {
+        val sourceFile = workDir.file("app.scripto")
+
+        sourceFile.writeText(
+            """
+val a = -123
+val b = a.toString()
+println(b)
+        """
+        )
+
+        compileAndRun(sourceFile) {
+            output("-123\n")
+        }
+    }
+
 }

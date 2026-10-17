@@ -56,4 +56,22 @@ println(a + b)
         }
     }
 
+    @Test
+    fun `compiles string concatenation with function calls as arguments`() {
+        val sourceFile = workDir.file("app.scripto")
+
+        sourceFile.writeText(
+            """
+val a = 12
+val b = 3
+println(a.toString() + b.toString())
+        """
+        )
+
+        compileAndRun(sourceFile) {
+            statements(3)
+            output("123\n")
+        }
+    }
+
 }

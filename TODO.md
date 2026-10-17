@@ -4,6 +4,7 @@ General
 - Improve error message when operator called with arguments of incorrect type
 - Inline constants
   - Evaluate functions with constant args at compile time
+  - Need some way to initialize variables to arbitrary value in order to test this, e.g. function defs or args to main
 - Eliminate unused variables
 - Escapes in strings
 - Define int size
@@ -20,9 +21,9 @@ JVM
 
 C
 
-- Garbage collect strings created by + operator
-- `println()`: Use puts() instead of printf() when arg is a string
+- Garbage collect strings created by `+` operator and `Int.toString()`
 - `Int.toString()`: Don't use a temporary variable when value is already a variable reference
+  - Need some other `Int` typed expression to use for current test coverage, eg a function that returns `Int` or a property of type `Int`
 - Use `whar_t*` or `char16_t*` to represent strings?
 - Interesting reference counting approach https://www.microsoft.com/en-us/research/wp-content/uploads/2020/11/perceus-tr-v1.pdf
 

@@ -39,6 +39,23 @@ println(s.toString().toString().toString())
     }
 
     @Test
+    fun `compiles chained int and string toString() calls`() {
+        val sourceFile = workDir.file("app.scripto")
+
+        sourceFile.writeText(
+            """
+val i = -500
+println(i.toString().toString())
+        """
+        )
+
+        compileAndRun(sourceFile) {
+            statements(2)
+            output("-500\n")
+        }
+    }
+
+    @Test
     fun `compiles variable defintion that references another string variable and call to println stdlib function`() {
         val sourceFile = workDir.file("app.scripto")
 
