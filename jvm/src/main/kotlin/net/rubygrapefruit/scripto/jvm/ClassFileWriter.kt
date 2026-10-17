@@ -244,6 +244,7 @@ private class DefaultCodeBuilder(params: List<TypeDescriptor>, private val const
     private val encoder = Encoder()
     private val stackMap = mutableListOf<StackMapEntry>()
     private val locals = mutableListOf<TypeDescriptor>()
+    private var maxLocals = params.size
     private val stack = mutableListOf<TypeDescriptor>()
     private var maxStack = 0
     private var startFrame = 0
@@ -314,8 +315,8 @@ private class DefaultCodeBuilder(params: List<TypeDescriptor>, private val const
     }
 
     override fun allocateLocal(type: TypeDescriptor): LocalVariable {
-        val slot = locals.size
-        locals.add(type)
+        val slot = maxLocals
+        maxLocals++
         return LocalVariable(slot, type)
     }
 
@@ -342,6 +343,11 @@ private class DefaultCodeBuilder(params: List<TypeDescriptor>, private val const
                 }
                 pop()
             }
+        }
+        if (locals.size == variable.slot) {
+            locals.add(variable.type)
+        } else {
+            locals[variable.slot] = variable.type
         }
     }
 
