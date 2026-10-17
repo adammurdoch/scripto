@@ -61,13 +61,29 @@ internal class ClassFileWriter {
 internal sealed interface TypeDescriptor {
     val descriptor: String
 
-    class ObjectType(val binaryName: BinaryName, override val descriptor: String) : TypeDescriptor {
+    interface ReferenceType : TypeDescriptor
+
+    class ObjectType(val binaryName: BinaryName, override val descriptor: String) : ReferenceType {
         fun arrayType(): TypeDescriptor {
             return ArrayType("[$descriptor")
         }
+
+        override fun hashCode(): Int {
+            return binaryName.hashCode()
+        }
+
+        override fun equals(other: Any?): kotlin.Boolean {
+            return if (other === this) {
+                true
+            } else if (other == null || other !is ObjectType) {
+                false
+            } else {
+                binaryName == other.binaryName
+            }
+        }
     }
 
-    class ArrayType(override val descriptor: String) : TypeDescriptor {
+    class ArrayType(override val descriptor: String) : ReferenceType {
     }
 
     object Integer : TypeDescriptor {
@@ -90,7 +106,7 @@ internal sealed interface TypeDescriptor {
     }
 }
 
-internal class MethodDescriptor(val descriptor: String, val parameters: Int) {
+internal data class MethodDescriptor(val descriptor: String, val parameters: Int) {
     companion object {
         fun ofVoid(vararg parameters: TypeDescriptor): MethodDescriptor {
             return of("V", *parameters)
@@ -248,25 +264,45 @@ private class DefaultCodeBuilder(params: Int, private val constantPool: Constant
     }
 
     override fun storeLocal(variable: LocalVariable) {
-        when (variable.slot) {
-            in 0..3 -> encoder.u1(0x4b + variable.slot) // astore_0 .. astore_3
-            else -> {
-                encoder.u1(0x3a) // astore
+        when (variable.type) {
+            is TypeDescriptor.Boolean, is TypeDescriptor.Integer -> {
+                encoder.u1(0x36) // istore
                 encoder.u1(variable.slot)
+                pop()
+            }
+
+            is TypeDescriptor.ReferenceType -> {
+                when (variable.slot) {
+                    in 0..3 -> encoder.u1(0x4b + variable.slot) // astore_0 .. astore_3
+                    else -> {
+                        encoder.u1(0x3a) // astore
+                        encoder.u1(variable.slot)
+                    }
+                }
+                pop()
             }
         }
-        pop()
     }
 
     override fun loadLocal(variable: LocalVariable) {
-        when (variable.slot) {
-            in 0..3 -> encoder.u1(0x2a + variable.slot) // aload_0 .. aload_3
-            else -> {
-                encoder.u1(0x19) // aload
+        when (variable.type) {
+            is TypeDescriptor.Boolean, is TypeDescriptor.Integer -> {
+                encoder.u1(0x15) // iload
                 encoder.u1(variable.slot)
+                push()
+            }
+
+            is TypeDescriptor.ReferenceType -> {
+                when (variable.slot) {
+                    in 0..3 -> encoder.u1(0x2a + variable.slot) // aload_0 .. aload_3
+                    else -> {
+                        encoder.u1(0x19) // aload
+                        encoder.u1(variable.slot)
+                    }
+                }
+                push()
             }
         }
-        push()
     }
 
     override fun loadConstant(value: String) {
@@ -365,6 +401,7 @@ private class ConstantPool {
     private val classes = mutableMapOf<BinaryName, Entry.ClassInfo>()
     private val constStrings = mutableMapOf<String, Entry.StringInfo>()
     private val constInts = mutableMapOf<Int, Entry.IntegerInfo>()
+    private val fields = mutableMapOf<FieldRef, Entry.FieldRef>()
 
     sealed interface Entry {
         fun appendTo(encoder: Encoder)
@@ -428,6 +465,8 @@ private class ConstantPool {
         }
     }
 
+    private data class FieldRef(val owner: BinaryName, val name: String, val type: TypeDescriptor)
+
     fun addUtf8(text: String): Entry.Utf8 {
         val current = strings[text]
         return if (current != null) {
@@ -477,11 +516,18 @@ private class ConstantPool {
     }
 
     fun addFieldRef(owner: BinaryName, name: String, type: TypeDescriptor): Entry.FieldRef {
-        val ownerInfo = addClassInfo(owner)
-        val nameAndType = addNameAndType(name, type.descriptor)
-        val entry = Entry.FieldRef(ownerInfo, nameAndType, nextIndex())
-        entries.add(entry)
-        return entry
+        val ref = FieldRef(owner, name, type)
+        val current = fields[ref]
+        return if (current != null) {
+            current
+        } else {
+            val ownerInfo = addClassInfo(owner)
+            val nameAndType = addNameAndType(name, type.descriptor)
+            val entry = Entry.FieldRef(ownerInfo, nameAndType, nextIndex())
+            entries.add(entry)
+            fields[ref] = entry
+            entry
+        }
     }
 
     fun addMethodRef(owner: BinaryName, name: String, type: MethodDescriptor): Entry.MethodRef {
