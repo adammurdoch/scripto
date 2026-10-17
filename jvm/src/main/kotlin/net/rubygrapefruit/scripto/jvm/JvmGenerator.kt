@@ -3,24 +3,19 @@ package net.rubygrapefruit.scripto.jvm
 import net.rubygrapefruit.file.RegularFile
 import net.rubygrapefruit.scripto.generator.OperationMapper
 import net.rubygrapefruit.scripto.ir.*
-import java.lang.constant.ClassDesc
-import java.lang.constant.MethodTypeDesc
 
 class JvmGenerator {
     private val string = TypeDescriptor.of("java.lang.String")
 
-    private val int = ClassDesc.ofDescriptor("I")
-    private val bool = ClassDesc.ofDescriptor("Z")
-    private val integer = ClassDesc.of("java.lang.Integer")
-    private val boolean = ClassDesc.of("java.lang.Boolean")
-    private val stringX = ClassDesc.of("java.lang.String")
-    private val files = ClassDesc.of("java.nio.file.Files")
-    private val path = ClassDesc.of("java.nio.file.Path")
-    private val intToStringMethod = MethodTypeDesc.of(stringX, int)
-    private val boolToStringMethod = MethodTypeDesc.of(stringX, bool)
+    private val integer = TypeDescriptor.of("java.lang.Integer")
+    private val boolean = TypeDescriptor.of("java.lang.Boolean")
+    private val files = TypeDescriptor.of("java.nio.file.Files")
+    private val path = TypeDescriptor.of("java.nio.file.Path")
+    private val intToStringMethod = MethodDescriptor.of(string, TypeDescriptor.Int)
+    private val boolToStringMethod = MethodDescriptor.of(string, TypeDescriptor.Boolean)
     private val objectToBoolMethod = MethodDescriptor.of(TypeDescriptor.Boolean, TypeDescriptor.Object)
-    private val pathToStringMethod = MethodTypeDesc.of(stringX, path)
-    private val stringToPathMethod = MethodTypeDesc.of(path, stringX, stringX.arrayType())
+    private val pathToStringMethod = MethodDescriptor.of(string, path)
+    private val stringToPathMethod = MethodDescriptor.of(path, string, string.arrayType())
     private val stringToStringMethod = MethodDescriptor.of(string, string)
 
     fun generate(program: Program): GeneratedByteCode {
@@ -85,7 +80,7 @@ class JvmGenerator {
     private fun toTypeKind(type: Type): TypeDescriptor {
         return when (type) {
             is Type.Boolean -> TypeDescriptor.Boolean
-            is Type.Int -> TypeDescriptor.Integer
+            is Type.Int -> TypeDescriptor.Int
             is Type.String -> string
         }
     }
@@ -132,7 +127,7 @@ class JvmGenerator {
 
     private fun mapFunctionCall(expression: FunctionCallExpression): JvmExpression {
         return if (expression.target == StandardLibrary.readText) {
-            val asPath = StaticMethodCall(path, "of", stringToPathMethod, listOf(toExpression(expression.args.first()), EmptyStringArray), true)
+            val asPath = StaticMethodCall(path, "of", stringToPathMethod, listOf(toExpression(expression.args.first()), EmptyStringArray))
             StaticMethodCall(files, "readString", pathToStringMethod, listOf(asPath))
         } else if (expression.target == StandardLibrary.fileConstructor) {
             toExpression(expression.args.first())
@@ -171,7 +166,7 @@ class JvmGenerator {
         for (expression in methodCall.arguments) {
             push(expression, slots)
         }
-        invokevirtual(methodCall.owner, methodCall.name, methodCall.descriptor)
+        invokeVirtual(methodCall.owner, methodCall.name, methodCall.descriptor)
     }
 
     private fun CodeBuilder.push(expression: JvmExpression, slots: Map<String, LocalVariable>) {
@@ -214,7 +209,7 @@ class JvmGenerator {
             is JvmStringEquality -> {
                 push(expression.left, slots)
                 push(expression.right, slots)
-                invokevirtual(TypeDescriptor.Object, "equals", objectToBoolMethod)
+                invokeVirtual(TypeDescriptor.Object, "equals", objectToBoolMethod)
             }
 
             is JvmVariableReference -> {
@@ -223,13 +218,13 @@ class JvmGenerator {
 
             is StaticMethodCall -> {
                 expression.args.forEach { push(it, slots) }
-                invokestatic(expression.owner, expression.name, expression.descriptor, expression.isInterface)
+                invokeStatic(expression.owner, expression.name, expression.descriptor)
             }
 
             is VirtualMethodCall -> {
                 push(expression.receiver, slots)
                 expression.args.forEach { push(it, slots) }
-                invokevirtual(expression.owner, expression.name, expression.descriptor)
+                invokeVirtual(expression.owner, expression.name, expression.descriptor)
             }
 
             is EmptyStringArray -> {
@@ -241,7 +236,7 @@ class JvmGenerator {
 
     private fun CodeBuilder.push(expression: ReferenceExpression) {
         when (expression) {
-            is StaticField -> getstatic(expression.owner, expression.name, expression.type)
+            is StaticField -> getStaticField(expression.owner, expression.name, expression.type)
         }
     }
 }

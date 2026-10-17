@@ -21,6 +21,36 @@ println(i)
     }
 
     @Test
+    fun `compiles multiple int variable defintion initialized with literal`() {
+        val sourceFile = workDir.file("app.scripto")
+
+        sourceFile.writeText(
+            """
+val a = 1
+val b = 2
+val c = 3
+val d = 4
+val e = 5 // more than 4 to cover JVM bytecode
+println(a)
+println(b)
+println(c)
+println(d)
+println(e)
+        """
+        )
+
+        compileAndRun(sourceFile) {
+            statements(10)
+            output("""1
+2
+3
+4
+5
+""")
+        }
+    }
+
+    @Test
     fun `compiles call to int literal toString() function`() {
         val sourceFile = workDir.file("app.scripto")
 

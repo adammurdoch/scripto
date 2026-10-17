@@ -1,8 +1,6 @@
 package net.rubygrapefruit.scripto.jvm
 
 import net.rubygrapefruit.file.RegularFile
-import java.lang.constant.ClassDesc
-import java.lang.constant.MethodTypeDesc
 
 internal class ClassFileWriter {
     fun write(className: String, builder: ClassBuilder.() -> Unit): ByteArray {
@@ -68,7 +66,7 @@ internal sealed interface TypeDescriptor {
             return ArrayType("[$descriptor")
         }
 
-        override fun hashCode(): Int {
+        override fun hashCode(): kotlin.Int {
             return binaryName.hashCode()
         }
 
@@ -86,7 +84,7 @@ internal sealed interface TypeDescriptor {
     class ArrayType(override val descriptor: String) : ReferenceType {
     }
 
-    object Integer : TypeDescriptor {
+    object Int : TypeDescriptor {
         override val descriptor: String
             get() = "I"
     }
@@ -106,17 +104,17 @@ internal sealed interface TypeDescriptor {
     }
 }
 
-internal data class MethodDescriptor(val descriptor: String, val parameters: Int) {
+internal data class MethodDescriptor(val descriptor: String, val parameters: Int, val stackChange: Int) {
     companion object {
         fun ofVoid(vararg parameters: TypeDescriptor): MethodDescriptor {
-            return of("V", *parameters)
+            return of("V", parameters.size, *parameters)
         }
 
         fun of(returnType: TypeDescriptor, vararg parameters: TypeDescriptor): MethodDescriptor {
-            return of(returnType.descriptor, *parameters)
+            return of(returnType.descriptor, parameters.size - 1, *parameters)
         }
 
-        private fun of(returnDescriptor: String, vararg parameters: TypeDescriptor): MethodDescriptor {
+        private fun of(returnDescriptor: String, stackChange: Int, vararg parameters: TypeDescriptor): MethodDescriptor {
             val builder = StringBuilder()
             builder.append("(")
             for (descriptor in parameters) {
@@ -124,7 +122,7 @@ internal data class MethodDescriptor(val descriptor: String, val parameters: Int
             }
             builder.append(")")
             builder.append(returnDescriptor)
-            return MethodDescriptor(builder.toString(), parameters.size)
+            return MethodDescriptor(builder.toString(), parameters.size, stackChange)
         }
     }
 }
@@ -237,15 +235,15 @@ internal interface CodeBuilder {
 
     fun goto_(target: Label)
 
-    fun getstatic(owner: TypeDescriptor.ObjectType, name: String, type: TypeDescriptor)
+    fun getStaticField(owner: TypeDescriptor.ObjectType, name: String, type: TypeDescriptor)
 
-    fun invokevirtual(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor)
+    fun invokeVirtual(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor)
+
+    fun invokeStatic(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor)
 
     // REWORK THESE
 
     fun labelBinding(label: Label)
-
-    fun invokestatic(owner: ClassDesc, name: String, type: MethodTypeDesc, isInterface: Boolean)
 }
 
 private class DefaultCodeBuilder(params: Int, private val constantPool: ConstantPool) : CodeBuilder {
@@ -265,9 +263,14 @@ private class DefaultCodeBuilder(params: Int, private val constantPool: Constant
 
     override fun storeLocal(variable: LocalVariable) {
         when (variable.type) {
-            is TypeDescriptor.Boolean, is TypeDescriptor.Integer -> {
-                encoder.u1(0x36) // istore
-                encoder.u1(variable.slot)
+            is TypeDescriptor.Boolean, is TypeDescriptor.Int -> {
+                when (variable.slot) {
+                    in 0..3 -> encoder.u1(0x3b + variable.slot) // istore_0 .. istore_3
+                    else -> {
+                        encoder.u1(0x36) // istore
+                        encoder.u1(variable.slot)
+                    }
+                }
                 pop()
             }
 
@@ -286,9 +289,14 @@ private class DefaultCodeBuilder(params: Int, private val constantPool: Constant
 
     override fun loadLocal(variable: LocalVariable) {
         when (variable.type) {
-            is TypeDescriptor.Boolean, is TypeDescriptor.Integer -> {
-                encoder.u1(0x15) // iload
-                encoder.u1(variable.slot)
+            is TypeDescriptor.Boolean, is TypeDescriptor.Int -> {
+                when (variable.slot) {
+                    in 0..3 -> encoder.u1(0x1a + variable.slot) // iload_0 .. iload_3
+                    else -> {
+                        encoder.u1(0x15) // iload
+                        encoder.u1(variable.slot)
+                    }
+                }
                 push()
             }
 
@@ -362,21 +370,25 @@ private class DefaultCodeBuilder(params: Int, private val constantPool: Constant
     override fun anewarray(type: TypeDescriptor) {
     }
 
-    override fun getstatic(owner: TypeDescriptor.ObjectType, name: String, type: TypeDescriptor) {
+    override fun getStaticField(owner: TypeDescriptor.ObjectType, name: String, type: TypeDescriptor) {
         val fieldRef = constantPool.addFieldRef(owner.binaryName, name, type)
         encoder.u1(0xb2) // getstatic
         encoder.u2(fieldRef.index)
         push()
     }
 
-    override fun invokevirtual(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor) {
+    override fun invokeVirtual(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor) {
         val methodRef = constantPool.addMethodRef(owner.binaryName, name, type)
         encoder.u1(0xb6) // invokevirtual
         encoder.u2(methodRef.index)
-        pop(type.parameters + 1)
+        pop(type.stackChange + 1)
     }
 
-    override fun invokestatic(owner: ClassDesc, name: String, type: MethodTypeDesc, isInterface: Boolean) {
+    override fun invokeStatic(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor) {
+        encoder.u1(0xb8) // invokestatic
+        val methodRef = constantPool.addMethodRef(owner.binaryName, name, type)
+        encoder.u2(methodRef.index)
+        pop(type.stackChange)
     }
 
     override fun return_() {
