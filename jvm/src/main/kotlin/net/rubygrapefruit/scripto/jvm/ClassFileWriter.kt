@@ -61,8 +61,8 @@ internal sealed interface TypeDescriptor {
 
     interface ReferenceType : TypeDescriptor
 
-    class ObjectType(val binaryName: BinaryName, override val descriptor: String) : ReferenceType {
-        fun arrayType(): TypeDescriptor {
+    class ObjectType(val binaryName: BinaryName, override val descriptor: String, val isInterface: kotlin.Boolean) : ReferenceType {
+        fun arrayType(): ArrayType {
             return ArrayType("[$descriptor")
         }
 
@@ -95,11 +95,16 @@ internal sealed interface TypeDescriptor {
     }
 
     companion object {
-        val Object = of("java.lang.Object")
+        val Object = ofClass("java.lang.Object")
 
-        fun of(className: String): ObjectType {
+        fun ofClass(className: String): ObjectType {
             val binaryName = BinaryName.of(className)
-            return ObjectType(binaryName, "L${binaryName.name};")
+            return ObjectType(binaryName, "L${binaryName.name};", false)
+        }
+
+        fun ofInteface(className: String): ObjectType {
+            val binaryName = BinaryName.of(className)
+            return ObjectType(binaryName, "L${binaryName.name};", true)
         }
     }
 }
@@ -223,7 +228,7 @@ internal interface CodeBuilder {
 
     fun loadConstant(value: Boolean)
 
-    fun anewarray(type: TypeDescriptor)
+    fun newArray(type: TypeDescriptor.ObjectType)
 
     fun iadd()
 
@@ -352,6 +357,8 @@ private class DefaultCodeBuilder(params: Int, private val constantPool: Constant
     }
 
     override fun iadd() {
+        encoder.u1(0x60) // iadd
+        pop()
     }
 
     override fun newLabel(): Label {
@@ -367,7 +374,11 @@ private class DefaultCodeBuilder(params: Int, private val constantPool: Constant
     override fun goto_(target: Label) {
     }
 
-    override fun anewarray(type: TypeDescriptor) {
+    override fun newArray(type: TypeDescriptor.ObjectType) {
+        val classInfo = constantPool.addClassInfo(type.binaryName)
+
+        encoder.u1(0xbd) // anewarray
+        encoder.u2(classInfo.index)
     }
 
     override fun getStaticField(owner: TypeDescriptor.ObjectType, name: String, type: TypeDescriptor) {
@@ -379,14 +390,20 @@ private class DefaultCodeBuilder(params: Int, private val constantPool: Constant
 
     override fun invokeVirtual(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor) {
         val methodRef = constantPool.addMethodRef(owner.binaryName, name, type)
+
         encoder.u1(0xb6) // invokevirtual
         encoder.u2(methodRef.index)
         pop(type.stackChange + 1)
     }
 
     override fun invokeStatic(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor) {
+        val methodRef = if (owner.isInterface) {
+            constantPool.addInterfaceMethodRef(owner.binaryName, name, type)
+        } else {
+            constantPool.addMethodRef(owner.binaryName, name, type)
+        }
+
         encoder.u1(0xb8) // invokestatic
-        val methodRef = constantPool.addMethodRef(owner.binaryName, name, type)
         encoder.u2(methodRef.index)
         pop(type.stackChange)
     }
@@ -419,6 +436,10 @@ private class ConstantPool {
         fun appendTo(encoder: Encoder)
 
         sealed interface Loadable : Entry {
+            val index: Int
+        }
+
+        sealed interface Ref : Entry {
             val index: Int
         }
 
@@ -460,9 +481,17 @@ private class ConstantPool {
             }
         }
 
-        class MethodRef(val owner: ClassInfo, val nameAndType: NameAndType, val index: Int) : Entry {
+        class MethodRef(val owner: ClassInfo, val nameAndType: NameAndType, override val index: Int) : Ref {
             override fun appendTo(encoder: Encoder) {
                 encoder.u1(10)
+                encoder.u2(owner.index)
+                encoder.u2(nameAndType.index)
+            }
+        }
+
+        class InterfaceMethodRef(val owner: ClassInfo, val nameAndType: NameAndType, override val index: Int) : Ref {
+            override fun appendTo(encoder: Encoder) {
+                encoder.u1(11)
                 encoder.u2(owner.index)
                 encoder.u2(nameAndType.index)
             }
@@ -546,6 +575,14 @@ private class ConstantPool {
         val ownerInfo = addClassInfo(owner)
         val nameAndType = addNameAndType(name, type.descriptor)
         val entry = Entry.MethodRef(ownerInfo, nameAndType, nextIndex())
+        entries.add(entry)
+        return entry
+    }
+
+    fun addInterfaceMethodRef(owner: BinaryName, name: String, type: MethodDescriptor): Entry.InterfaceMethodRef {
+        val ownerInfo = addClassInfo(owner)
+        val nameAndType = addNameAndType(name, type.descriptor)
+        val entry = Entry.InterfaceMethodRef(ownerInfo, nameAndType, nextIndex())
         entries.add(entry)
         return entry
     }

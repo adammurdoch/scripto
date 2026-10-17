@@ -5,12 +5,12 @@ import net.rubygrapefruit.scripto.generator.OperationMapper
 import net.rubygrapefruit.scripto.ir.*
 
 class JvmGenerator {
-    private val string = TypeDescriptor.of("java.lang.String")
+    private val string = TypeDescriptor.ofClass("java.lang.String")
 
-    private val integer = TypeDescriptor.of("java.lang.Integer")
-    private val boolean = TypeDescriptor.of("java.lang.Boolean")
-    private val files = TypeDescriptor.of("java.nio.file.Files")
-    private val path = TypeDescriptor.of("java.nio.file.Path")
+    private val integer = TypeDescriptor.ofClass("java.lang.Integer")
+    private val boolean = TypeDescriptor.ofClass("java.lang.Boolean")
+    private val files = TypeDescriptor.ofClass("java.nio.file.Files")
+    private val path = TypeDescriptor.ofInteface("java.nio.file.Path")
     private val intToStringMethod = MethodDescriptor.of(string, TypeDescriptor.Int)
     private val boolToStringMethod = MethodDescriptor.of(string, TypeDescriptor.Boolean)
     private val objectToBoolMethod = MethodDescriptor.of(TypeDescriptor.Boolean, TypeDescriptor.Object)
@@ -29,8 +29,8 @@ class JvmGenerator {
     }
 
     private fun ClassBuilder.generate(program: Program) {
-        val printStream = TypeDescriptor.of("java.io.PrintStream")
-        val system = TypeDescriptor.of("java.lang.System")
+        val printStream = TypeDescriptor.ofClass("java.io.PrintStream")
+        val system = TypeDescriptor.ofClass("java.lang.System")
 
         val stringArray = string.arrayType()
 
@@ -229,7 +229,7 @@ class JvmGenerator {
 
             is EmptyStringArray -> {
                 loadConstant(0)
-                anewarray(string)
+                newArray(string)
             }
         }
     }
