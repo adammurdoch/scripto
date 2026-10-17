@@ -3,9 +3,11 @@ package net.rubygraperuit.scripto.plugins
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.internal.extensions.stdlib.capitalized
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
-import kotlin.jvm.java
 
+@OptIn(ExperimentalKotlinGradlePluginApi::class)
 @Suppress("unused")
 abstract class TestSuitePlugin : Plugin<Project> {
     override fun apply(target: Project) {
@@ -17,7 +19,14 @@ abstract class TestSuitePlugin : Plugin<Project> {
             }
 
             afterEvaluate {
-                extensions.getByType(KotlinMultiplatformExtension::class.java).sourceSets.getByName("jvmTest").generatedKotlin.srcDir(generateTests.flatMap { it.outputDirectory })
+                val kotlin = extensions.findByType(KotlinMultiplatformExtension::class.java)
+                val sourceSet = if (kotlin != null) {
+                    kotlin.sourceSets.getByName("jvmTest")
+                } else {
+                    val jvm = extensions.getByType(KotlinJvmProjectExtension::class.java)
+                    jvm.sourceSets.getByName("test")
+                }
+                sourceSet.generatedKotlin.srcDir(generateTests.flatMap { it.outputDirectory })
             }
         }
     }

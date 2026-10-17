@@ -1,5 +1,6 @@
 plugins {
     id("net.rubygrapefruit.jvm.lib")
+    id("scripto.test-suite")
 }
 
 library {
