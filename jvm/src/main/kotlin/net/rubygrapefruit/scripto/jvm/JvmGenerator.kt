@@ -4,7 +4,6 @@ import net.rubygrapefruit.file.RegularFile
 import net.rubygrapefruit.scripto.generator.OperationMapper
 import net.rubygrapefruit.scripto.ir.*
 import java.io.PrintStream
-import java.lang.classfile.CodeBuilder
 import java.lang.classfile.TypeKind
 import java.lang.constant.ClassDesc
 import java.lang.constant.MethodTypeDesc
@@ -65,27 +64,25 @@ class JvmGenerator {
 
         val jvmProgram = JvmProgram(mapping.map(program.operations))
 
-        method("main", MethodDescriptor.ofVoid(stringArray), MethodFlags.PublicStatic) { methodBuilder ->
-            methodBuilder.withCode { codeBuilder ->
-                val slots = mutableMapOf<String, Int>()
-                for (declaration in jvmProgram.variables) {
-                    val slot = codeBuilder.allocateLocal(declaration.typeKind)
-                    slots[declaration.name] = slot
-                }
-                for (operation in jvmProgram.operations) {
-                    when (operation) {
-                        is JvmVariableDeclaration -> {
-                            codeBuilder.push(operation.value, slots)
-                            codeBuilder.storeLocal(operation.typeKind, slots.getValue(operation.name))
-                        }
+        method("main", MethodDescriptor.ofVoid(stringArray), MethodFlags.PublicStatic) {
+            val slots = mutableMapOf<String, LocalVariable>()
+            for (declaration in jvmProgram.variables) {
+                val slot = allocateLocal()
+                slots[declaration.name] = slot
+            }
+            for (operation in jvmProgram.operations) {
+                when (operation) {
+                    is JvmVariableDeclaration -> {
+                        push(operation.value, slots)
+                        storeLocal(slots.getValue(operation.name))
+                    }
 
-                        is InstanceMethodCall -> {
-                            codeBuilder.callMethod(operation, slots)
-                        }
+                    is InstanceMethodCall -> {
+                        callMethod(operation, slots)
                     }
                 }
-                codeBuilder.return_()
             }
+            return_()
         }
     }
 
@@ -173,7 +170,7 @@ class JvmGenerator {
         }
     }
 
-    private fun CodeBuilder.callMethod(methodCall: InstanceMethodCall, slots: Map<String, Int>) {
+    private fun CodeBuilder.callMethod(methodCall: InstanceMethodCall, slots: Map<String, LocalVariable>) {
         push(methodCall.target)
         for (expression in methodCall.arguments) {
             push(expression, slots)
@@ -181,14 +178,14 @@ class JvmGenerator {
         invokevirtual(methodCall.owner, methodCall.name, methodCall.descriptor)
     }
 
-    private fun CodeBuilder.push(expression: JvmExpression, slots: Map<String, Int>) {
+    private fun CodeBuilder.push(expression: JvmExpression, slots: Map<String, LocalVariable>) {
         when (expression) {
             is JvmString -> {
-                loadConstant(constantPool().stringEntry(expression.value).constantValue())
+                loadConstant(expression.value)
             }
 
             is JvmInt -> {
-                loadConstant(constantPool().intEntry(expression.value).constantValue())
+                loadConstant(expression.value)
             }
 
             is JvmTrue -> {
@@ -226,7 +223,7 @@ class JvmGenerator {
 
             is JvmVariableReference -> {
                 val type = toTypeKind(expression.type)
-                loadLocal(type, slots.getValue(expression.name))
+                loadLocal(slots.getValue(expression.name))
             }
 
             is StaticMethodCall -> {
@@ -242,7 +239,7 @@ class JvmGenerator {
 
             is EmptyStringArray -> {
                 iconst_0()
-                anewarray(stringX)
+                anewarray(string)
             }
         }
     }

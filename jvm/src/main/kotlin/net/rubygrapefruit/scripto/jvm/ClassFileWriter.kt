@@ -1,7 +1,8 @@
 package net.rubygrapefruit.scripto.jvm
 
 import net.rubygrapefruit.file.RegularFile
-import java.lang.classfile.MethodBuilder
+import java.lang.constant.ClassDesc
+import java.lang.constant.MethodTypeDesc
 
 internal class ClassFileWriter {
     fun write(className: String, builder: ClassBuilder.() -> Unit): ByteArray {
@@ -9,6 +10,7 @@ internal class ClassFileWriter {
 
         val thisClass = constantPool.addClassInfo(className)
         val objectClass = constantPool.addClassInfo("java.lang.Object")
+        val codeAttributeName = constantPool.addUtf8("Code")
 
         val classBuilder = DefaultClassBuilder(constantPool)
         classBuilder.builder()
@@ -41,7 +43,7 @@ internal class ClassFileWriter {
         // methods
         encoder.u2(classBuilder.methods.size)
         for (method in classBuilder.methods) {
-            method.appendTo(encoder)
+            method.appendTo(encoder, codeAttributeName)
         }
 
         // attributes
@@ -72,7 +74,7 @@ internal sealed interface TypeDescriptor {
     }
 }
 
-internal class MethodDescriptor(val descriptor: String) {
+internal class MethodDescriptor(val descriptor: String, val parameters: Int) {
     companion object {
         fun ofVoid(vararg parameters: TypeDescriptor): MethodDescriptor {
             val builder = StringBuilder()
@@ -81,7 +83,7 @@ internal class MethodDescriptor(val descriptor: String) {
                 builder.append(descriptor.descriptor)
             }
             builder.append(")V")
-            return MethodDescriptor(builder.toString())
+            return MethodDescriptor(builder.toString(), parameters.size)
         }
     }
 }
@@ -96,9 +98,11 @@ private class MethodInfo(
     private val name: ConstantPool.Entry.Utf8,
     private val descriptor: ConstantPool.Entry.Utf8,
     private val flags: MethodFlags,
-    private val codeAttributeNode: ConstantPool.Entry.Utf8
+    private val maxStack: Int,
+    private val maxLocals: Int,
+    private val code: ByteArray
 ) {
-    fun appendTo(encoder: Encoder) {
+    fun appendTo(encoder: Encoder, codeAttributeName: ConstantPool.Entry.Utf8) {
         // Access flags
         encoder.u2(flags.flags)
 
@@ -112,35 +116,176 @@ private class MethodInfo(
         // Code attribute
         val codeEncoder = Encoder()
         // max stack, max locals
-        codeEncoder.u2(0)
-        codeEncoder.u2(1)
+        codeEncoder.u2(maxStack)
+        codeEncoder.u2(maxLocals)
         // code
-        codeEncoder.u4(0)
+        codeEncoder.u4(code.size)
+        codeEncoder.bytes(code)
         // exceptions
         codeEncoder.u2(0)
         // attributes
         codeEncoder.u2(0)
-        val code = codeEncoder.toByteArray()
 
-        encoder.u2(codeAttributeNode.index)
-        encoder.u4(code.size.toLong())
-        encoder.bytes(code)
+        val codeAttribute = codeEncoder.toByteArray()
+        encoder.u2(codeAttributeName.index)
+        encoder.u4(codeAttribute.size)
+        encoder.bytes(codeAttribute)
     }
 }
 
 internal interface ClassBuilder {
-    fun method(name: String, descriptor: MethodDescriptor, flags: MethodFlags, builder: (MethodBuilder) -> Unit)
+    fun method(name: String, descriptor: MethodDescriptor, flags: MethodFlags, builder: CodeBuilder.() -> Unit)
 }
 
 private class DefaultClassBuilder(private val constantPool: ConstantPool) : ClassBuilder {
     val methods: List<MethodInfo>
         field = mutableListOf<MethodInfo>()
 
-    override fun method(name: String, descriptor: MethodDescriptor, flags: MethodFlags, builder: MethodBuilder.() -> Unit) {
+    override fun method(name: String, descriptor: MethodDescriptor, flags: MethodFlags, builder: CodeBuilder.() -> Unit) {
         val nameEntry = constantPool.addUtf8(name)
         val descriptorEntry = constantPool.addUtf8(descriptor.descriptor)
-        val method = MethodInfo(nameEntry, descriptorEntry, flags, constantPool.addUtf8("Code"))
+
+        val codeBuilder = DefaultCodeBuilder(descriptor.parameters, constantPool)
+        codeBuilder.builder()
+
+        val method = MethodInfo(
+            nameEntry,
+            descriptorEntry,
+            flags,
+            codeBuilder.maxStack,
+            codeBuilder.maxLocals,
+            codeBuilder.encoder.toByteArray()
+        )
         methods.add(method)
+    }
+}
+
+@JvmInline
+internal value class LocalVariable(val slot: Int)
+
+internal class Label
+
+internal interface CodeBuilder {
+    fun allocateLocal(): LocalVariable
+
+    fun storeLocal(variable: LocalVariable)
+
+    fun loadLocal(variable: LocalVariable)
+
+    fun loadConstant(value: String)
+
+    fun loadConstant(value: Int)
+
+    fun anewarray(type: TypeDescriptor)
+
+    fun iadd()
+
+    fun return_()
+
+    fun newLabel(): Label
+
+    fun if_icmpne(target: Label)
+
+    fun goto_(target: Label)
+
+    // REWORK THESE
+
+    fun labelBinding(label: Label)
+
+    fun iconst_1()
+
+    fun iconst_0()
+
+    fun getstatic(owner: ClassDesc, name: String, type: ClassDesc)
+
+    fun invokevirtual(owner: ClassDesc, name: String, type: MethodTypeDesc)
+
+    fun invokestatic(owner: ClassDesc, name: String, type: MethodTypeDesc, isInterface: Boolean)
+}
+
+private class DefaultCodeBuilder(params: Int, private val constantPool: ConstantPool) : CodeBuilder {
+    val encoder = Encoder()
+
+    var maxLocals = params
+        private set
+
+    var maxStack = 0
+        private set
+
+    override fun allocateLocal(): LocalVariable {
+        return LocalVariable(maxLocals++)
+    }
+
+    override fun storeLocal(variable: LocalVariable) {
+    }
+
+    override fun loadLocal(variable: LocalVariable) {
+    }
+
+    override fun loadConstant(value: String) {
+        val constant = constantPool.addStringInfo(value)
+        loadConstant(constant)
+    }
+
+    override fun loadConstant(value: Int) {
+        when (value) {
+            -1 -> {
+                encoder.u1(0x2)
+                maxStack++
+            }
+            in 0..5 -> {
+                encoder.u1(0x3 + value)
+                maxStack++
+            }
+            else -> {
+                val constant = constantPool.addIntegerInfo(value)
+                loadConstant(constant)
+            }
+        }
+    }
+
+    private fun loadConstant(constant: ConstantPool.Entry.Loadable) {
+        encoder.u1(0x12) // ldc
+        encoder.u1(constant.index)
+        maxStack++
+    }
+
+    override fun iconst_0() {
+    }
+
+    override fun iconst_1() {
+    }
+
+    override fun iadd() {
+    }
+
+    override fun newLabel(): Label {
+        return Label()
+    }
+
+    override fun labelBinding(label: Label) {
+    }
+
+    override fun if_icmpne(target: Label) {
+    }
+
+    override fun goto_(target: Label) {
+    }
+
+    override fun anewarray(type: TypeDescriptor) {
+    }
+
+    override fun getstatic(owner: ClassDesc, name: String, type: ClassDesc) {
+    }
+
+    override fun invokevirtual(owner: ClassDesc, name: String, type: MethodTypeDesc) {
+    }
+
+    override fun invokestatic(owner: ClassDesc, name: String, type: MethodTypeDesc, isInterface: Boolean) {
+    }
+
+    override fun return_() {
+        encoder.u1(0xb1)
     }
 }
 
@@ -148,9 +293,15 @@ private class ConstantPool {
     private val entries = mutableListOf<Entry>()
     private val strings = mutableMapOf<String, Entry.Utf8>()
     private val classes = mutableMapOf<String, Entry.ClassInfo>()
+    private val constStrings = mutableMapOf<String, Entry.StringInfo>()
+    private val constInts = mutableMapOf<Int, Entry.IntegerInfo>()
 
     sealed interface Entry {
         fun appendTo(encoder: Encoder)
+
+        sealed interface Loadable : Entry {
+            val index: Int
+        }
 
         class Utf8(val text: String, val index: Int) : Entry {
             override fun appendTo(encoder: Encoder) {
@@ -158,6 +309,20 @@ private class ConstantPool {
                 val bytes = text.toByteArray()
                 encoder.u2(bytes.size)
                 encoder.bytes(bytes)
+            }
+        }
+
+        class StringInfo(val value: Utf8, override val index: Int) : Loadable {
+            override fun appendTo(encoder: Encoder) {
+                encoder.u1(8)
+                encoder.u2(value.index)
+            }
+        }
+
+        class IntegerInfo(val value: Int, override val index: Int) : Loadable {
+            override fun appendTo(encoder: Encoder) {
+                encoder.u1(3)
+                encoder.u4(value)
             }
         }
 
@@ -174,9 +339,33 @@ private class ConstantPool {
         return if (current != null) {
             current
         } else {
-            val entry = Entry.Utf8(text, entries.size + 1)
+            val entry = Entry.Utf8(text, nextIndex())
             entries.add(entry)
             strings[text] = entry
+            entry
+        }
+    }
+
+    fun addStringInfo(text: String): Entry.StringInfo {
+        val current = constStrings[text]
+        return if (current != null) {
+            current
+        } else {
+            val entry = Entry.StringInfo(addUtf8(text), nextIndex())
+            entries.add(entry)
+            constStrings[text] = entry
+            entry
+        }
+    }
+
+    fun addIntegerInfo(value: Int): Entry.IntegerInfo {
+        val current = constInts[value]
+        return if (current != null) {
+            current
+        } else {
+            val entry = Entry.IntegerInfo(value, nextIndex())
+            entries.add(entry)
+            constInts[value] = entry
             entry
         }
     }
@@ -186,7 +375,7 @@ private class ConstantPool {
         return if (current != null) {
             current
         } else {
-            val entry = Entry.ClassInfo(addUtf8(className.replace('.', '/')), entries.size + 1)
+            val entry = Entry.ClassInfo(addUtf8(className.replace('.', '/')), nextIndex())
             entries.add(entry)
             classes[className] = entry
             entry
@@ -199,6 +388,10 @@ private class ConstantPool {
             entry.appendTo(encoder)
         }
     }
+
+    private fun nextIndex(): Int {
+        return entries.size + 1
+    }
 }
 
 private class Encoder {
@@ -206,6 +399,10 @@ private class Encoder {
     private var pos = 0
 
     fun u4(value: Long) {
+        u4(value.toInt())
+    }
+
+    fun u4(value: Int) {
         bytes[pos] = value.shr(24).and(0xFF).toByte()
         bytes[pos + 1] = value.shr(16).and(0xFF).toByte()
         bytes[pos + 2] = value.shr(8).and(0xFF).toByte()

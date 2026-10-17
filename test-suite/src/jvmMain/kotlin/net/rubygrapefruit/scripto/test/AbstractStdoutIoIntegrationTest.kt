@@ -84,6 +84,7 @@ println(s)
             """
 println(123)
 println(0)
+println(1)
 println(-1)
 println(${Int.MAX_VALUE})
 println(${Int.MIN_VALUE})
@@ -91,10 +92,11 @@ println(${Int.MIN_VALUE})
         )
 
         compileAndRun(sourceFile) {
-            statements(5)
+            statements(6)
             output(
                 """123
 0
+1
 -1
 ${Int.MAX_VALUE}
 ${Int.MIN_VALUE}
