@@ -93,12 +93,21 @@ internal sealed interface TypeDescriptor {
 internal class MethodDescriptor(val descriptor: String, val parameters: Int) {
     companion object {
         fun ofVoid(vararg parameters: TypeDescriptor): MethodDescriptor {
+            return of("V", *parameters)
+        }
+
+        fun of(returnType: TypeDescriptor, vararg parameters: TypeDescriptor): MethodDescriptor {
+            return of(returnType.descriptor, *parameters)
+        }
+
+        private fun of(returnDescriptor: String, vararg parameters: TypeDescriptor): MethodDescriptor {
             val builder = StringBuilder()
             builder.append("(")
             for (descriptor in parameters) {
                 builder.append(descriptor.descriptor)
             }
-            builder.append(")V")
+            builder.append(")")
+            builder.append(returnDescriptor)
             return MethodDescriptor(builder.toString(), parameters.size)
         }
     }
@@ -214,11 +223,11 @@ internal interface CodeBuilder {
 
     fun getstatic(owner: TypeDescriptor.ObjectType, name: String, type: TypeDescriptor)
 
+    fun invokevirtual(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor)
+
     // REWORK THESE
 
     fun labelBinding(label: Label)
-
-    fun invokevirtual(owner: ClassDesc, name: String, type: MethodTypeDesc)
 
     fun invokestatic(owner: ClassDesc, name: String, type: MethodTypeDesc, isInterface: Boolean)
 }
@@ -324,7 +333,11 @@ private class DefaultCodeBuilder(params: Int, private val constantPool: Constant
         push()
     }
 
-    override fun invokevirtual(owner: ClassDesc, name: String, type: MethodTypeDesc) {
+    override fun invokevirtual(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor) {
+        val methodRef = constantPool.addMethodRef(owner.binaryName, name, type)
+        encoder.u1(0xb6) // invokevirtual
+        encoder.u2(methodRef.index)
+        pop(type.parameters + 1)
     }
 
     override fun invokestatic(owner: ClassDesc, name: String, type: MethodTypeDesc, isInterface: Boolean) {
@@ -341,8 +354,8 @@ private class DefaultCodeBuilder(params: Int, private val constantPool: Constant
         }
     }
 
-    private fun pop() {
-        currentStack--
+    private fun pop(count: Int = 1) {
+        currentStack -= count
     }
 }
 
@@ -393,6 +406,14 @@ private class ConstantPool {
         class FieldRef(val owner: ClassInfo, val nameAndType: NameAndType, val index: Int) : Entry {
             override fun appendTo(encoder: Encoder) {
                 encoder.u1(9)
+                encoder.u2(owner.index)
+                encoder.u2(nameAndType.index)
+            }
+        }
+
+        class MethodRef(val owner: ClassInfo, val nameAndType: NameAndType, val index: Int) : Entry {
+            override fun appendTo(encoder: Encoder) {
+                encoder.u1(10)
                 encoder.u2(owner.index)
                 encoder.u2(nameAndType.index)
             }
@@ -457,15 +478,23 @@ private class ConstantPool {
 
     fun addFieldRef(owner: BinaryName, name: String, type: TypeDescriptor): Entry.FieldRef {
         val ownerInfo = addClassInfo(owner)
-        val nameAndType = addNameAndType(name, type)
+        val nameAndType = addNameAndType(name, type.descriptor)
         val entry = Entry.FieldRef(ownerInfo, nameAndType, nextIndex())
         entries.add(entry)
         return entry
     }
 
-    private fun addNameAndType(name: String, type: TypeDescriptor): Entry.NameAndType {
+    fun addMethodRef(owner: BinaryName, name: String, type: MethodDescriptor): Entry.MethodRef {
+        val ownerInfo = addClassInfo(owner)
+        val nameAndType = addNameAndType(name, type.descriptor)
+        val entry = Entry.MethodRef(ownerInfo, nameAndType, nextIndex())
+        entries.add(entry)
+        return entry
+    }
+
+    private fun addNameAndType(name: String, descriptor: String): Entry.NameAndType {
         val nameEntry = addUtf8(name)
-        val descriptorEntry = addUtf8(type.descriptor)
+        val descriptorEntry = addUtf8(descriptor)
         val entry = Entry.NameAndType(nameEntry, descriptorEntry, nextIndex())
         entries.add(entry)
         return entry

@@ -38,9 +38,9 @@ internal class StaticMethodCall(
 ) : JvmExpression
 
 internal class VirtualMethodCall(
-    val owner: ClassDesc,
+    val owner: TypeDescriptor.ObjectType,
     val name: String,
-    val descriptor: MethodTypeDesc,
+    val descriptor: MethodDescriptor,
     val receiver: JvmExpression,
     val args: List<JvmExpression>
 ) : JvmExpression

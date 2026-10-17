@@ -3,7 +3,6 @@ package net.rubygrapefruit.scripto.jvm
 import net.rubygrapefruit.file.RegularFile
 import net.rubygrapefruit.scripto.generator.OperationMapper
 import net.rubygrapefruit.scripto.ir.*
-import java.io.PrintStream
 import java.lang.constant.ClassDesc
 import java.lang.constant.MethodTypeDesc
 
@@ -12,19 +11,17 @@ class JvmGenerator {
 
     private val int = ClassDesc.ofDescriptor("I")
     private val bool = ClassDesc.ofDescriptor("Z")
-    private val objectType = ClassDesc.of("java.lang.Object")
     private val integer = ClassDesc.of("java.lang.Integer")
     private val boolean = ClassDesc.of("java.lang.Boolean")
     private val stringX = ClassDesc.of("java.lang.String")
     private val files = ClassDesc.of("java.nio.file.Files")
     private val path = ClassDesc.of("java.nio.file.Path")
-    val printStreamX = ClassDesc.of(PrintStream::class.java.name)
     private val intToStringMethod = MethodTypeDesc.of(stringX, int)
     private val boolToStringMethod = MethodTypeDesc.of(stringX, bool)
-    private val objectToBoolMethod = MethodTypeDesc.of(bool, objectType)
+    private val objectToBoolMethod = MethodDescriptor.of(TypeDescriptor.Boolean, TypeDescriptor.Object)
     private val pathToStringMethod = MethodTypeDesc.of(stringX, path)
     private val stringToPathMethod = MethodTypeDesc.of(path, stringX, stringX.arrayType())
-    private val stringToStringMethod = MethodTypeDesc.of(stringX, stringX)
+    private val stringToStringMethod = MethodDescriptor.of(string, string)
 
     fun generate(program: Program): GeneratedByteCode {
         val byteCode = ClassFileWriter().write("App") { generate(program) }
@@ -42,19 +39,18 @@ class JvmGenerator {
 
         val stringArray = string.arrayType()
 
-        val void = ClassDesc.ofDescriptor("V")
-        val voidMethod = MethodTypeDesc.of(void)
-        val stringToVoidMethod = MethodTypeDesc.of(void, stringX)
+        val voidMethod = MethodDescriptor.ofVoid()
+        val stringToVoidMethod = MethodDescriptor.ofVoid(string)
 
         val systemOut = StaticField(system, "out", printStream)
 
         val mapping = OperationMapper.of {
             mapFun(StandardLibrary.printlnNoArgs) {
-                InstanceMethodCall(printStreamX, "println", voidMethod, systemOut, emptyList())
+                InstanceMethodCall(printStream, "println", voidMethod, systemOut, emptyList())
             }
             mapFun(StandardLibrary.printlnOneArg) {
                 val args = it.arguments.map { toStringExpression(it) }
-                InstanceMethodCall(printStreamX, "println", stringToVoidMethod, systemOut, args)
+                InstanceMethodCall(printStream, "println", stringToVoidMethod, systemOut, args)
             }
             mapVar { declaration ->
                 val type = toTypeKind(declaration.type)
@@ -162,7 +158,7 @@ class JvmGenerator {
     private fun mapInfix(expression: InfixFunctionCall): JvmExpression {
         return when (expression.target) {
             StandardLibrary.intAddition -> JvmIntAddition(toExpression(expression.left), toExpression(expression.right))
-            StandardLibrary.stringConcatenation -> VirtualMethodCall(stringX, "concat", stringToStringMethod, toExpression(expression.left), listOf(toExpression(expression.right)))
+            StandardLibrary.stringConcatenation -> VirtualMethodCall(string, "concat", stringToStringMethod, toExpression(expression.left), listOf(toExpression(expression.right)))
             StandardLibrary.stringEquality -> JvmStringEquality(toExpression(expression.left), toExpression(expression.right))
             StandardLibrary.intEquality -> JvmIntEquality(toExpression(expression.left), toExpression(expression.right))
             StandardLibrary.booleanEquality -> JvmIntEquality(toExpression(expression.left), toExpression(expression.right))
@@ -218,7 +214,7 @@ class JvmGenerator {
             is JvmStringEquality -> {
                 push(expression.left, slots)
                 push(expression.right, slots)
-                invokevirtual(objectType, "equals", objectToBoolMethod)
+                invokevirtual(TypeDescriptor.Object, "equals", objectToBoolMethod)
             }
 
             is JvmVariableReference -> {

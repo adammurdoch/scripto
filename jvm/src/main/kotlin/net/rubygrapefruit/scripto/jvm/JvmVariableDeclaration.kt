@@ -1,7 +1,6 @@
 package net.rubygrapefruit.scripto.jvm
 
 import net.rubygrapefruit.scripto.ir.VariableDeclaration
-import java.lang.classfile.TypeKind
 
 internal class JvmVariableDeclaration(
     val declaration: VariableDeclaration,
