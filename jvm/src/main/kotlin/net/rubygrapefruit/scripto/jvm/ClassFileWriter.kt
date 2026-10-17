@@ -252,14 +252,14 @@ internal interface CodeBuilder {
 
 private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, private val constantPool: ConstantPool) : CodeBuilder {
     private val encoder = Encoder()
-    private val stackMap = mutableListOf<StackMapEntry>()
+    private val stackMap = mutableListOf<StackFrame>()
     private val locals = mutableListOf<TypeDescriptor>()
     private var maxLocals = params.size
     private val stack = mutableListOf<TypeDescriptor>()
     private var maxStack = 0
     private var startFrame = 0
 
-    private class StackMapEntry(val offset: Int, val locals: List<TypeDescriptor>, val stack: List<TypeDescriptor>)
+    private class StackFrame(val offset: Int, val locals: List<TypeDescriptor>, val stack: List<TypeDescriptor>)
 
     init {
         locals.addAll(params)
@@ -292,29 +292,7 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
             } else {
                 stackMap[index - 1].locals
             }
-
-            if (entry.locals == previousLocals && entry.stack.isEmpty() && entry.offset <= 63) {
-                // type - same stack frame
-                stackMapEncoder.u1(entry.offset)
-            } else {
-                // type - full stack frame
-                stackMapEncoder.u1(255)
-
-                // offset
-                stackMapEncoder.u2(entry.offset)
-
-                // locals
-                stackMapEncoder.u2(entry.locals.size)
-                for (local in entry.locals) {
-                    stackMapEncoder.verificationType(local)
-                }
-
-                // stack
-                stackMapEncoder.u2(entry.stack.size)
-                for (stack in entry.stack) {
-                    stackMapEncoder.verificationType(stack)
-                }
-            }
+            stackMapEncoder.stackFrame(entry, previousLocals)
         }
 
         codeEncoder.u2(constantPool.addUtf8("StackMapTable").index)
@@ -323,6 +301,39 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
         codeEncoder.bytes(stackMap)
 
         return codeEncoder.toByteArray()
+    }
+
+    private fun Encoder.stackFrame(frame: StackFrame, previousLocals: List<TypeDescriptor>) {
+        if (frame.locals == previousLocals) {
+            if (frame.stack.isEmpty() && frame.offset <= 63) {
+                // type + offset - same stack frame
+                u1(frame.offset)
+                return
+            }
+            if (frame.stack.size == 1 && frame.offset <= 63) {
+                // type + offset - same stack frame + 1 stack
+                u1(frame.offset + 64)
+                verificationType(frame.stack.first())
+                return
+            }
+        }
+        // type - full stack frame
+        u1(255)
+
+        // offset
+        u2(frame.offset)
+
+        // locals
+        u2(frame.locals.size)
+        for (local in frame.locals) {
+            verificationType(local)
+        }
+
+        // stack
+        u2(frame.stack.size)
+        for (stack in frame.stack) {
+            verificationType(stack)
+        }
     }
 
     private fun Encoder.verificationType(local: TypeDescriptor) {
@@ -503,7 +514,7 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
 
     private fun startFrame() {
         val offset = if (startFrame == 0) encoder.length else encoder.length - startFrame - 1
-        stackMap.add(StackMapEntry(offset, locals.toList(), stack.toList()))
+        stackMap.add(StackFrame(offset, locals.toList(), stack.toList()))
         startFrame = encoder.length
     }
 
