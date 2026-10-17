@@ -89,7 +89,7 @@ internal sealed interface TypeDescriptor {
         }
 
         override fun equals(other: Any?): kotlin.Boolean {
-            return if (other == this) {
+            return if (other === this) {
                 true
             } else if (other == null || other !is ArrayType) {
                 false
@@ -250,7 +250,7 @@ internal interface CodeBuilder {
 
 }
 
-private class DefaultCodeBuilder(params: List<TypeDescriptor>, private val constantPool: ConstantPool) : CodeBuilder {
+private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, private val constantPool: ConstantPool) : CodeBuilder {
     private val encoder = Encoder()
     private val stackMap = mutableListOf<StackMapEntry>()
     private val locals = mutableListOf<TypeDescriptor>()
@@ -286,23 +286,34 @@ private class DefaultCodeBuilder(params: List<TypeDescriptor>, private val const
         // stack map table
         val stackMapEncoder = Encoder()
         stackMapEncoder.u2(stackMap.size)
-        for (entry in stackMap) {
-            // type
-            stackMapEncoder.u1(255)
-
-            // offset
-            stackMapEncoder.u2(entry.offset)
-
-            // locals
-            stackMapEncoder.u2(entry.locals.size)
-            for (local in entry.locals) {
-                stackMapEncoder.verificationType(local)
+        stackMap.forEachIndexed { index, entry ->
+            val previousLocals = if (index == 0) {
+                params
+            } else {
+                stackMap[index - 1].locals
             }
 
-            // stack
-            stackMapEncoder.u2(entry.stack.size)
-            for (stack in entry.stack) {
-                stackMapEncoder.verificationType(stack)
+            if (entry.locals == previousLocals && entry.stack.isEmpty() && entry.offset <= 63) {
+                // type - same stack frame
+                stackMapEncoder.u1(entry.offset)
+            } else {
+                // type - full stack frame
+                stackMapEncoder.u1(255)
+
+                // offset
+                stackMapEncoder.u2(entry.offset)
+
+                // locals
+                stackMapEncoder.u2(entry.locals.size)
+                for (local in entry.locals) {
+                    stackMapEncoder.verificationType(local)
+                }
+
+                // stack
+                stackMapEncoder.u2(entry.stack.size)
+                for (stack in entry.stack) {
+                    stackMapEncoder.verificationType(stack)
+                }
             }
         }
 
