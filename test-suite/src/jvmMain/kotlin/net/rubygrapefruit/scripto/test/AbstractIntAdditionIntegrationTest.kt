@@ -4,7 +4,7 @@ import kotlin.test.Test
 
 abstract class AbstractIntAdditionIntegrationTest : AbstractIntegrationTest() {
     @Test
-    fun `compiles int addition argument to stdlib function`() {
+    fun `compiles function with int addition argument`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(
@@ -20,7 +20,7 @@ println(2 + 4)
     }
 
     @Test
-    fun `compiles variable declaration with int addition initializer`() {
+    fun `compiles variable declaration initialized with int addition`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(

@@ -4,7 +4,7 @@ import kotlin.test.Test
 
 abstract class AbstractStringConcatenationIntegrationTest : AbstractIntegrationTest() {
     @Test
-    fun `compiles string concatenation argument to stdlib function`() {
+    fun `compiles function with string concatenation argument`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(
@@ -22,7 +22,7 @@ println("" + "")
     }
 
     @Test
-    fun `compiles variable declaration with string concatenation initializer`() {
+    fun `compiles variable declaration initialized with string concatenation`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(
@@ -71,6 +71,25 @@ println(a.toString() + b.toString())
         compileAndRun(sourceFile) {
             statements(3)
             output("123\n")
+        }
+    }
+
+    @Test
+    fun `compiles variable declaration initialized with string concatenation with function call  arguments`() {
+        val sourceFile = workDir.file("app.scripto")
+
+        sourceFile.writeText(
+            """
+val a = 12
+val b = -3
+val c = a.toString() + b.toString()
+println(c)
+        """
+        )
+
+        compileAndRun(sourceFile) {
+            statements(4)
+            output("12-3\n")
         }
     }
 

@@ -21,6 +21,8 @@ internal class PsTernaryExpression(val condition: PsExpression, val left: PsExpr
 
 internal class PsInfixOperation(val left: PsExpression, val operator: String, val right: PsExpression) : PsExpression
 
+internal class PsFunctionCall(val receiver: PsExpression, val name: String) : PsExpression
+
 internal class PsCommandInvocationExpression(val intermediateVariable: String, val statements: List<PsStatement>) : PsExpression {
     override fun visitStatements(visitor: (PsStatement) -> Unit) {
         statements.forEach(visitor)

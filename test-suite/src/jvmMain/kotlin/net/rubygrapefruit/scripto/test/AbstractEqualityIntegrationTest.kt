@@ -4,7 +4,7 @@ import kotlin.test.Test
 
 abstract class AbstractEqualityIntegrationTest : AbstractIntegrationTest() {
     @Test
-    fun `compiles string equality argument to stdlib function`() {
+    fun `compiles function with string equality argument`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(
@@ -23,7 +23,7 @@ println("abc" == "aBc")
     }
 
     @Test
-    fun `compiles variable declaration with string equality initializer`() {
+    fun `compiles variable declaration initialized with string equality`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(
@@ -80,7 +80,7 @@ println(a == b)
     }
 
     @Test
-    fun `compiles int equality argument to stdlib function`() {
+    fun `compiles function with int equality argument`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(
@@ -97,7 +97,7 @@ println(1 == 2)
     }
 
     @Test
-    fun `compiles variable declaration with int equality initializer`() {
+    fun `compiles variable declaration initialized with int equality`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(
@@ -116,7 +116,7 @@ println(b)
     }
 
     @Test
-    fun `compiles boolean equality argument to stdlib function`() {
+    fun `compiles function with boolean equality argument`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(
@@ -134,7 +134,7 @@ println(false == true)
     }
 
     @Test
-    fun `compiles variable declaration with boolean equality initializer`() {
+    fun `compiles variable declaration initialized with boolean equality`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(

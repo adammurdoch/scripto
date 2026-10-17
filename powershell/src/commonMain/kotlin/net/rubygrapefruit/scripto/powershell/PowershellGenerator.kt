@@ -86,7 +86,14 @@ class PowershellGenerator {
     private fun mapFunctionCall(expression: ReceiverFunctionCallExpression): PsExpression {
         return when (expression.target) {
             StringFunctions.toString -> toExpression(expression.receiver)
-            IntFunctions.toString -> toExpression(expression.receiver)
+            IntFunctions.toString -> {
+                val receiver = expression.receiver
+                when (receiver) {
+                    is IntLiteral -> PsString(receiver.value.toString())
+                    else -> PsFunctionCall(toExpression(expression.receiver), "ToString")
+                }
+            }
+
             else -> throw IllegalArgumentException("Unknown function '${expression.target.name}'")
         }
     }
@@ -203,6 +210,13 @@ class PowershellGenerator {
                 append(" ")
                 append(expression.right)
                 append(")")
+            }
+
+            is PsFunctionCall -> {
+                append(expression.receiver)
+                append(".")
+                append(expression.name)
+                append("()")
             }
 
             is PsCommandInvocationExpression -> {

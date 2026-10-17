@@ -4,7 +4,7 @@ import kotlin.test.Test
 
 abstract class AbstractStringIntegrationTest : AbstractIntegrationTest() {
     @Test
-    fun `compiles string variable defintion with literal initializer`() {
+    fun `compiles string variable defintion initialized with literal`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(
