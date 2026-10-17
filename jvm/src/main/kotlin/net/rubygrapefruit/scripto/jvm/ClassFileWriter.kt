@@ -213,8 +213,6 @@ value class BinaryName private constructor(val name: String) {
 
 internal class LocalVariable(val slot: Int, val type: TypeDescriptor)
 
-internal class Label
-
 internal interface CodeBuilder {
     fun allocateLocal(type: TypeDescriptor): LocalVariable
 
@@ -228,17 +226,16 @@ internal interface CodeBuilder {
 
     fun loadConstant(value: Boolean)
 
+    // Should handle any type
     fun newArray(type: TypeDescriptor.ObjectType)
 
     fun iadd()
 
     fun return_()
 
-    fun newLabel(): Label
-
-    fun if_icmpne(target: Label)
-
-    fun goto_(target: Label)
+    // Pushes true or false on the stack
+    // Should be generalized to take true and false branches
+    fun intEquality()
 
     fun getStaticField(owner: TypeDescriptor.ObjectType, name: String, type: TypeDescriptor)
 
@@ -246,9 +243,6 @@ internal interface CodeBuilder {
 
     fun invokeStatic(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor)
 
-    // REWORK THESE
-
-    fun labelBinding(label: Label)
 }
 
 private class DefaultCodeBuilder(params: Int, private val constantPool: ConstantPool) : CodeBuilder {
@@ -351,6 +345,12 @@ private class DefaultCodeBuilder(params: Int, private val constantPool: Constant
     }
 
     private fun loadConstant(constant: ConstantPool.Entry.Loadable) {
+        if (constant.index > 255) {
+            // Only a single byte is used for the index, need to use ldc_w for indices > 255
+            // Can also change the constant pool so that it inserts constants at the start of the pool
+            TODO()
+        }
+
         encoder.u1(0x12) // ldc
         encoder.u1(constant.index)
         push()
@@ -361,17 +361,19 @@ private class DefaultCodeBuilder(params: Int, private val constantPool: Constant
         pop()
     }
 
-    override fun newLabel(): Label {
-        return Label()
-    }
+    override fun intEquality() {
+        encoder.u1(0xa0) // if_icmpne
+        encoder.u2(7) // target false branch
 
-    override fun labelBinding(label: Label) {
-    }
+        // True branch
+        encoder.u1(0x4) // iconst_1
+        encoder.u1(0xa7) // goto
+        encoder.u2(4) // target end
 
-    override fun if_icmpne(target: Label) {
-    }
+        // False branch
+        encoder.u1(0x3) // iconst_0
 
-    override fun goto_(target: Label) {
+        pop()
     }
 
     override fun newArray(type: TypeDescriptor.ObjectType) {

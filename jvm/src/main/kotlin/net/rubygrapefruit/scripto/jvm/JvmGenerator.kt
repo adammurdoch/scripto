@@ -196,14 +196,7 @@ class JvmGenerator {
             is JvmIntEquality -> {
                 push(expression.left, slots)
                 push(expression.right, slots)
-                val notEqual = newLabel()
-                val end = newLabel()
-                if_icmpne(notEqual)
-                loadConstant(true)
-                goto_(end)
-                labelBinding(notEqual)
-                loadConstant(false)
-                labelBinding(end)
+                intEquality()
             }
 
             is JvmStringEquality -> {
