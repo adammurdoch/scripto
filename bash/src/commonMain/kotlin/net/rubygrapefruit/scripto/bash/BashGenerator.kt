@@ -14,19 +14,18 @@ class BashGenerator {
         for (operation in program.operations) {
             when (operation) {
                 is FunctionCall -> {
-                    val statement = when (operation.target) {
+                    when (operation.target) {
                         StandardLibrary.printlnNoArgs -> {
-                            BashCommandInvocation("echo", emptyList())
+                            builder.add(BashCommandInvocation("echo", emptyList()))
                         }
 
                         StandardLibrary.printlnOneArg -> {
                             val args = operation.arguments.map { toExpression(it, scope) }
-                            BashCommandInvocation("echo", args)
+                            builder.add(BashCommandInvocation("echo", args))
                         }
 
                         else -> throw IllegalArgumentException("Unknown function ${operation.target.name}()")
                     }
-                    builder.add(statement)
                 }
 
                 is VariableDeclaration -> {
