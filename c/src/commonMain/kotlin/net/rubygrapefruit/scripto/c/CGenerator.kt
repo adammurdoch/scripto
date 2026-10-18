@@ -11,9 +11,10 @@ class CGenerator {
         val scope = CStatementScope()
 
         val operationMapper = createOperationMapper(scope)
-        val statements = operationMapper.map(program.operations)
 
+        val statements = operationMapper.map(program.operations)
         val cProgram = CProgram(statements)
+
         writeTo(outputFile) {
             appendln("// generated file")
 

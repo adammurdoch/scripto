@@ -22,32 +22,12 @@ class JvmGenerator {
     }
 
     private fun ClassBuilder.generate(program: Program) {
-        val printStream = TypeDescriptor.ofClass("java.io.PrintStream")
-        val system = TypeDescriptor.ofClass("java.lang.System")
+        val operationMapper = createOperationMapper()
+
+        val statements = operationMapper.map(program.operations)
+        val jvmProgram = JvmProgram(statements)
 
         val stringArray = TypeDescriptor.String.arrayType()
-
-        val voidMethod = MethodDescriptor.ofVoid()
-        val stringToVoidMethod = MethodDescriptor.ofVoid(TypeDescriptor.String)
-
-        val systemOut = StaticField(system, "out", printStream)
-
-        val mapping = OperationMapper.of {
-            map(StandardLibrary.printlnNoArgs) {
-                InstanceMethodCall(printStream, "println", voidMethod, systemOut, emptyList())
-            }
-            map(StandardLibrary.printlnOneArg) {
-                val args = it.arguments.map { toStringExpression(it) }
-                InstanceMethodCall(printStream, "println", stringToVoidMethod, systemOut, args)
-            }
-            map { declaration ->
-                val type = toTypeKind(declaration.type)
-                JvmVariableDeclaration(declaration, type, toExpression(declaration.value))
-            }
-        }
-
-        val jvmProgram = JvmProgram(mapping.map(program.operations))
-
         method("main", MethodDescriptor.ofVoid(stringArray), MethodFlags.PublicStatic) {
             val slots = mutableMapOf<String, LocalVariable>()
             for (declaration in jvmProgram.variables) {
@@ -68,6 +48,31 @@ class JvmGenerator {
             }
             return_()
         }
+    }
+
+    private fun createOperationMapper(): OperationMapper<JvmOperation> {
+        val printStream = TypeDescriptor.ofClass("java.io.PrintStream")
+        val system = TypeDescriptor.ofClass("java.lang.System")
+
+        val voidMethod = MethodDescriptor.ofVoid()
+        val stringToVoidMethod = MethodDescriptor.ofVoid(TypeDescriptor.String)
+
+        val systemOut = StaticField(system, "out", printStream)
+
+        val mapping = OperationMapper.of {
+            map(StandardLibrary.printlnNoArgs) {
+                InstanceMethodCall(printStream, "println", voidMethod, systemOut, emptyList())
+            }
+            map(StandardLibrary.printlnOneArg) {
+                val args = it.arguments.map { toStringExpression(it) }
+                InstanceMethodCall(printStream, "println", stringToVoidMethod, systemOut, args)
+            }
+            map { declaration ->
+                val type = toTypeKind(declaration.type)
+                JvmVariableDeclaration(declaration, type, toExpression(declaration.value))
+            }
+        }
+        return mapping
     }
 
     private fun toTypeKind(type: Type): TypeDescriptor {

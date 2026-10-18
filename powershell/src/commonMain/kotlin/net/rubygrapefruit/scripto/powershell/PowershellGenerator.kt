@@ -23,6 +23,9 @@ class PowershellGenerator {
                 val initializer = toExpression(value, scope)
                 PsVariableDeclaration(it, initializer)
             }
+            collectDependencies { operation: PsStatement ->
+                addDependencies(operation)
+            }
         }
 
         val powershellProgram = PsProgram(mapping.map(program.operations))
@@ -147,9 +150,6 @@ class PowershellGenerator {
     }
 
     private fun SourceGenerator.append(statement: PsStatement) {
-        statement.visitDependencies {
-            append(it)
-        }
         when (statement) {
             is PsVariableDeclaration -> appendDeclaration(statement)
 

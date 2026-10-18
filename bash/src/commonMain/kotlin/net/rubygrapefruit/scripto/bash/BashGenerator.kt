@@ -12,6 +12,22 @@ class BashGenerator {
     fun generate(program: Program, outputFile: RegularFile) {
         val scope = StatementScope()
 
+        val operationMapper = createOperationMapper(scope)
+
+        val statements = operationMapper.map(program.operations)
+        val bashProgram = BashProgram(statements)
+
+        writeTo(outputFile) {
+            appendln("# generated file")
+            appendln()
+            for (statement in bashProgram.statements) {
+                append(statement)
+            }
+        }
+        outputFile.setPermissions(PosixPermissions.readWriteFile.executable())
+    }
+
+    private fun createOperationMapper(scope: StatementScope): OperationMapper<BashStatement> {
         val operationMapper = OperationMapper.of {
             map(StandardLibrary.printlnNoArgs) {
                 BashCommandInvocation("echo", emptyList())
@@ -28,18 +44,7 @@ class BashGenerator {
                 addDependencies(statement)
             }
         }
-
-        val statements = operationMapper.map(program.operations)
-        val bashProgram = BashProgram(statements)
-
-        writeTo(outputFile) {
-            appendln("# generated file")
-            appendln()
-            for (statement in bashProgram.statements) {
-                append(statement)
-            }
-        }
-        outputFile.setPermissions(PosixPermissions.readWriteFile.executable())
+        return operationMapper
     }
 
     private fun toExpression(expression: Expression, scope: StatementScope): BashExpression {
