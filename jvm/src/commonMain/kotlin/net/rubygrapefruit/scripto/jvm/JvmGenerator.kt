@@ -101,7 +101,8 @@ class JvmGenerator {
     }
 
     private fun fileToString(jvmExpression: JvmExpression): JvmExpression {
-        return concatString(JvmString("File("), concatString(jvmExpression, JvmString(")")))
+        val strValue = VirtualMethodCall(TypeDescriptor.Object, "toString", MethodDescriptor.of(TypeDescriptor.String), jvmExpression, emptyList())
+        return concatString(JvmString("File("), concatString(strValue, JvmString(")")))
     }
 
     private fun intToString(expression: JvmExpression): JvmExpression {
@@ -126,7 +127,8 @@ class JvmGenerator {
 
     private fun mapFunctionCall(expression: FunctionCallExpression): JvmExpression {
         return if (expression.target == StandardLibrary.fileConstructor) {
-            toExpression(expression.args.first())
+            val value = toExpression(expression.args.first())
+            StaticMethodCall(path, "of", stringToPathMethod, listOf(value, EmptyStringArray))
         } else {
             throw IllegalArgumentException("Unknown function '${expression.target.name}'")
         }
@@ -154,8 +156,7 @@ class JvmGenerator {
 
             FileFunctions.toString -> fileToString(toExpression(expression.receiver))
             FileFunctions.readText -> {
-                val asPath = StaticMethodCall(path, "of", stringToPathMethod, listOf(toExpression(expression.receiver), EmptyStringArray))
-                StaticMethodCall(files, "readString", pathToStringMethod, listOf(asPath))
+                StaticMethodCall(files, "readString", pathToStringMethod, listOf(toExpression(expression.receiver)))
             }
 
             else -> throw IllegalArgumentException("Unknown function '${expression.receiver.type}.${expression.target.name}()'")

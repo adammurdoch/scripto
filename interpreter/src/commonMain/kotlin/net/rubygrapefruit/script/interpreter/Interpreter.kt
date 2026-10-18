@@ -19,7 +19,7 @@ class Interpreter {
                     } else if (operation.target == StandardLibrary.printlnOneArg) {
                         val arg = operation.arguments.first()
                         val value = calculate(arg, vars)
-                        val string = when(arg.type) {
+                        val string = when (arg.type) {
                             is Type.File -> "File($value)"
                             else -> value.toString()
                         }

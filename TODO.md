@@ -18,10 +18,10 @@ Stdlib
 Interpreter
 
 - Encode `File` as `RegularFile`
+  - Need to get relative path for `toString()` implementation
 
 JVM
 
-- Encode `File` as JVM `Path`
 - Include debug information
 
 C
@@ -79,6 +79,7 @@ New functions and types
 More features
 
 - `if` statement
+- string interpolation
 - function type + literal
 - named function declarations
 - structs
