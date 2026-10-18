@@ -14,5 +14,6 @@ application {
         implementation(project(":powershell"))
         implementation(project(":c"))
         implementation(project(":jvm"))
+        implementation(project(":interpreter"))
     }
 }

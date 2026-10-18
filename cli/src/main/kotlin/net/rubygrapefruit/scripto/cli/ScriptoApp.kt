@@ -2,13 +2,14 @@ package net.rubygrapefruit.scripto.cli
 
 import net.rubygrapefruit.cli.app.CliAction
 import net.rubygrapefruit.cli.app.CliApp
-import net.rubygrapefruit.scripto.jvm.JvmGenerator
+import net.rubygrapefruit.script.interpreter.Interpreter
+import net.rubygrapefruit.script.interpreter.StdOut
 import net.rubygrapefruit.scripto.bash.BashGenerator
 import net.rubygrapefruit.scripto.c.CGenerator
 import net.rubygrapefruit.scripto.c.compile.CCompiler
 import net.rubygrapefruit.scripto.compiler.Compiler
+import net.rubygrapefruit.scripto.jvm.JvmGenerator
 import net.rubygrapefruit.scripto.powershell.PowershellGenerator
-import java.lang.reflect.InvocationTargetException
 
 class ScriptoApp : CliApp("scripto") {
     val action by action {
@@ -54,27 +55,13 @@ class RunAction : CliAction() {
         val compiler = Compiler()
         val program = compiler.compile(sourceFile).get()
 
-        val jvmGenerator = JvmGenerator()
-        val generatedClass = jvmGenerator.generate(program)
-
-        val classLoader = CustomClassLoader(generatedClass.className, generatedClass.byteCode, javaClass.classLoader)
-        val loadedClass = classLoader.loadClass(generatedClass.className)
-        val method = loadedClass.getDeclaredMethod("main", String::class.java.arrayType())
-        try {
-            method.invoke(null, emptyArray<String>())
-        } catch (e: InvocationTargetException) {
-            throw e.targetException
-        }
-    }
-
-    class CustomClassLoader(val className: String, val bytecode: ByteArray, parent: ClassLoader?) : ClassLoader(parent) {
-        override fun findClass(name: String): Class<*>? {
-            return if (name == className) {
-                defineClass(className, bytecode, 0, bytecode.size)
-            } else {
-                super.findClass(name)
+        val interpreter = Interpreter()
+        val stdout = object : StdOut {
+            override fun println(text: String) {
+                kotlin.io.println(text)
             }
         }
+        interpreter.run(program, stdout)
     }
 }
 

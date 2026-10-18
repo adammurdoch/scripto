@@ -8,7 +8,7 @@ General
 - Eliminate unused variables
 - Escapes in strings
 - Define int size
-- Consistent parsing and semantic error formatting
+- Consistent formatting for parse errors and semantic errors 
 
 Stdlib
 
@@ -52,7 +52,7 @@ New functions and types
 - `boolean.toString()`
 - `int.toString()`
 - `[element*]` -> `list<T>`
-- `readText()` becomes `file(string)` -> `file` and `file.readText()` -> `result<string>`
+- `readText()` becomes `File(string)` -> `File` and `File.readText()` -> `result<string>`
 - `file.exists()` -> `boolean`
 - `file.writeText(string, string)` -> `result<unit>`
 - `homeDir()` -> `dir`
