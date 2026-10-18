@@ -41,8 +41,8 @@ object BooleanFunctions : Functions {
 }
 
 object StandardLibrary : Functions {
-    val printlnNoArgs = VoidFunctionDefinition("println", emptyList())
-    val printlnOneArg = VoidFunctionDefinition("println", listOf(IncomingType.Any))
+    val printlnNoArgs = UnitFunctionDefinition("println", emptyList())
+    val printlnOneArg = UnitFunctionDefinition("println", listOf(IncomingType.Any))
     val fileConstructor = TypedFunctionDefinition("File", Type.String, listOf(Type.String))
     val readText = TypedFunctionDefinition("readText", Type.String, listOf(Type.String))
     val intAddition = OperatorDefinition(Operator.Plus, Type.Int, listOf(Type.Int, Type.Int))

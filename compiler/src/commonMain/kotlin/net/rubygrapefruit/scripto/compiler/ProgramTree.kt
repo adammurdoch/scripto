@@ -36,7 +36,7 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         val definition = locateFunction(operation, library)
         val arguments = resolveExpressions(operation.arguments, variables, library)
         return zipping(definition, arguments) { definition, arguments ->
-            if (definition !is VoidFunctionDefinition) {
+            if (definition !is UnitFunctionDefinition) {
                 NotResolved.of("Return value ignored for function '${operation.name}'")
             } else {
                 Resolved(FunctionCall(definition, arguments))

@@ -3,7 +3,7 @@ package net.rubygrapefruit.scripto.generator
 import net.rubygrapefruit.scripto.ir.FunctionCall
 import net.rubygrapefruit.scripto.ir.Operation
 import net.rubygrapefruit.scripto.ir.VariableDeclaration
-import net.rubygrapefruit.scripto.ir.VoidFunctionDefinition
+import net.rubygrapefruit.scripto.ir.UnitFunctionDefinition
 
 class OperationMapper<T> private constructor(
     private val mappings: Map<String, List<Mapping<T>>>,
@@ -33,7 +33,7 @@ class OperationMapper<T> private constructor(
     }
 
     interface Builder<T> {
-        fun mapFun(definition: VoidFunctionDefinition, map: (FunctionCall) -> T)
+        fun mapFun(definition: UnitFunctionDefinition, map: (FunctionCall) -> T)
 
         fun mapVar(map: (VariableDeclaration) -> T)
 
@@ -44,7 +44,7 @@ class OperationMapper<T> private constructor(
         val mappings = mutableMapOf<String, MutableList<Mapping<T>>>()
         var varMapping: ((VariableDeclaration) -> List<T>)? = null
 
-        override fun mapFun(definition: VoidFunctionDefinition, map: (FunctionCall) -> T) {
+        override fun mapFun(definition: UnitFunctionDefinition, map: (FunctionCall) -> T) {
             val mappingsForName = mappings.getOrPut(definition.name) { mutableListOf() }
             mappingsForName.add(Mapping(definition, map))
         }
@@ -68,5 +68,5 @@ class OperationMapper<T> private constructor(
         }
     }
 
-    private class Mapping<T>(val definition: VoidFunctionDefinition, val map: (FunctionCall) -> T)
+    private class Mapping<T>(val definition: UnitFunctionDefinition, val map: (FunctionCall) -> T)
 }

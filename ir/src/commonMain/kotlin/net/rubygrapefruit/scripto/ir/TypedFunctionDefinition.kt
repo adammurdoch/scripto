@@ -4,7 +4,7 @@ sealed class FunctionDefinition {
     abstract val args: List<IncomingType>
 }
 
-class VoidFunctionDefinition(val name: String, override val args: List<IncomingType>) : FunctionDefinition()
+class UnitFunctionDefinition(val name: String, override val args: List<IncomingType>) : FunctionDefinition()
 
 class TypedFunctionDefinition(val name: String, val returnType: Type, override val args: List<IncomingType>) : FunctionDefinition()
 
