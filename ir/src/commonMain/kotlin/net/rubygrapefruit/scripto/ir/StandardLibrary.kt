@@ -22,13 +22,22 @@ object IntFunctions : ObjectFunctions()
 
 object BooleanFunctions : ObjectFunctions()
 
-object FileFunctions : ObjectFunctions()
+object FileFunctions : ObjectFunctions() {
+    val readText = TypedFunctionDefinition("readText", Type.String, emptyList())
+
+    override fun definitions(name: String): List<FunctionDefinition> {
+        return if (name == "readText") {
+            listOf(readText)
+        } else {
+            super.definitions(name)
+        }
+    }
+}
 
 object StandardLibrary : Functions {
     val printlnNoArgs = UnitFunctionDefinition("println", emptyList())
     val printlnOneArg = UnitFunctionDefinition("println", listOf(IncomingType.Any))
     val fileConstructor = TypedFunctionDefinition("File", Type.File, listOf(Type.String))
-    val readText = TypedFunctionDefinition("readText", Type.String, listOf(Type.String))
     val intAddition = OperatorDefinition(Operator.Plus, Type.Int, listOf(Type.Int, Type.Int))
     val stringConcatenation = OperatorDefinition(Operator.Plus, Type.String, listOf(Type.String, Type.String))
     val stringEquality = OperatorDefinition(Operator.Equality, Type.Boolean, listOf(Type.String, Type.String))
@@ -38,7 +47,6 @@ object StandardLibrary : Functions {
     override fun definitions(name: String): List<FunctionDefinition> {
         return when (name) {
             printlnNoArgs.name -> listOf(printlnNoArgs, printlnOneArg)
-            readText.name -> listOf(readText)
             fileConstructor.name -> listOf(fileConstructor)
             else -> emptyList()
         }

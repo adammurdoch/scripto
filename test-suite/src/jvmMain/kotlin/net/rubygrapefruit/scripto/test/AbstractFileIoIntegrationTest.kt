@@ -11,7 +11,7 @@ abstract class AbstractFileIoIntegrationTest : AbstractIntegrationTest() {
 
         sourceFile.writeText(
             """
-val t = readText("${textFile.absolutePath}")
+val t = File("${textFile.absolutePath}").readText()
 println(t)
         """
         )
@@ -32,7 +32,7 @@ println(t)
 
         sourceFile.writeText(
             """
-val t = readText("${textFile.absolutePath}")
+val t = File("${textFile.absolutePath}").readText()
 println(t)
         """
         )
@@ -52,7 +52,7 @@ println(t)
 
         sourceFile.writeText(
             """
-val t = readText("${textFile.absolutePath}")
+val t = File("${textFile.absolutePath}").readText()
 println(t)
         """
         )
@@ -64,7 +64,7 @@ println(t)
     }
 
     @Test
-    fun `compiles nested calls to readText function as println argument`() {
+    fun `compiles chained calls to readText function as println argument`() {
         val sourceFile = workDir.file("app.scripto")
         val textFile = workDir.file("file.txt")
         textFile.writeText("string")
@@ -73,7 +73,7 @@ println(t)
 
         sourceFile.writeText(
             """
-println(readText(readText("${pathFile.absolutePath}")))
+println(File(File("${pathFile.absolutePath}").readText()).readText())
         """
         )
 
@@ -93,7 +93,7 @@ println(readText(readText("${pathFile.absolutePath}")))
 
         sourceFile.writeText(
             """
-val t = readText(readText("${pathFile.absolutePath}"))
+val t = File(File("${pathFile.absolutePath}").readText()).readText()
 println(t)
         """
         )

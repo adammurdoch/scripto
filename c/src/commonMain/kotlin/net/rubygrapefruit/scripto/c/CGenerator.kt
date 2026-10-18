@@ -100,7 +100,6 @@ class CGenerator {
 
     private fun mapFunctionCall(expression: FunctionCallExpression, scope: CStatementScope): CExpression {
         return when (expression.target) {
-            StandardLibrary.readText -> CFunctionCall("readText", expression.args.map { toExpression(it, scope) }, SourceFragment.ReadText)
             StandardLibrary.fileConstructor -> toExpression(expression.args.first(), scope)
             else -> throw IllegalArgumentException("Unknown function '${expression.target.name}'")
         }
@@ -151,6 +150,8 @@ class CGenerator {
                     CTernaryExpression(value, CString(BooleanLiteral.TRUE), CString(BooleanLiteral.FALSE))
                 }
             }
+        } else if (expression.target == FileFunctions.readText) {
+            CFunctionCall("readText", listOf(toExpression(expression.receiver, scope)), SourceFragment.ReadText)
         } else {
             throw IllegalArgumentException("Unknown function '${expression.receiver.type}.${expression.target.name}()'")
         }

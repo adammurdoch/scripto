@@ -15,6 +15,10 @@ Stdlib
 - Split println() into type specific overloads
 - readText() fails when file cannot be read
 
+Interpreter
+
+- Encode `File` as `RegularFile`
+
 JVM
 
 - Encode `File` as JVM `Path`
@@ -22,7 +26,8 @@ JVM
 
 C
 
-- Garbage collect strings created by `+` operator and `Int.toString()`
+- Don't use a temporary variable to calculate variable initializer, e.g. for `Int.toString()`
+- Garbage collect strings created by `+` operator, `Int.toString()` and `File.readText()`
 - Add a helper function for `Int.toString()`, similar to `stringConcat()` 
 - Add a helper function to `File.toString()`
 - `Int.toString()`: Don't use a temporary variable when value is already a variable reference
@@ -32,12 +37,14 @@ C
 
 Bash
 
+- Don't use a temporary variable to calculate variable initializer, e.g. for `File.readText()`
 - Don't wrap '+' operators in paren when already in arithmetic mode
 - Handle case where multiple expressions use a temporary variable
 - Use `declare -i` for int variables?
 
 PowerShell
 
+- Don't use a temporary variable to calculate variable initializer, e.g. for `File.readText()`
 - Use string interpolation for `File.toString()`?
 - Don't wrap '+' operators in `$()` or `()` when already in arithmetic mode
 

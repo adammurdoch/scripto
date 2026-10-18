@@ -19,11 +19,7 @@ class BashGenerator {
             }
             mapVar { declaration ->
                 val value = declaration.value
-                if (value is FunctionCallExpression && value.target == StandardLibrary.readText) {
-                    readFileIntoVar(value.args.first(), declaration.name)
-                } else {
-                    BashVariableAssignment(declaration.name, toExpression(value))
-                }
+                BashVariableAssignment(declaration.name, toExpression(value))
             }
         }
 
@@ -47,10 +43,7 @@ class BashGenerator {
             is VariableReference -> varReferenceToBash(expression)
             is InfixFunctionCall -> mapInfix(expression)
             is FunctionCallExpression -> {
-                if (expression.target == StandardLibrary.readText) {
-                    val readText = readFileIntoVar(expression.args.first(), "TMP_VAR")
-                    BashCommandInvocationExpression("TMP_VAR", readText)
-                } else if (expression.target == StandardLibrary.fileConstructor) {
+                if (expression.target == StandardLibrary.fileConstructor) {
                     toExpression(expression.args.first())
                 } else {
                     throw IllegalArgumentException("Unknown function '${expression.target}'")
@@ -66,6 +59,9 @@ class BashGenerator {
                     toExpression(expression.receiver)
                 } else if (expression.target == FileFunctions.toString) {
                     BashConcatenatedExpressions(listOf(BashString("File("), toExpression(expression.receiver), BashString(")")))
+                } else if (expression.target == FileFunctions.readText) {
+                    val readText = readFileIntoVar(expression.receiver, "TMP_VAR")
+                    BashCommandInvocationExpression("TMP_VAR", readText)
                 } else {
                     throw IllegalArgumentException("Unknown function '${expression.receiver.type}.${expression.target.name}()'")
                 }

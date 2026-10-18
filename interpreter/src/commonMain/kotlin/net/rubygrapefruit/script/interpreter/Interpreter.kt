@@ -40,7 +40,6 @@ class Interpreter {
                 val args = expression.args.map { calculate(it, vars) }
                 when (expression.target) {
                     StandardLibrary.fileConstructor -> args.first()
-                    StandardLibrary.readText -> FileSystem.local.currentDirectory.file(args.first() as String).readText()
                     else -> throw IllegalArgumentException("unknown function ${expression.target}")
                 }
             }
@@ -65,6 +64,7 @@ class Interpreter {
                     IntFunctions.toString -> receiver.toString()
                     BooleanFunctions.toString -> receiver.toString()
                     FileFunctions.toString -> "File($receiver)"
+                    FileFunctions.readText -> FileSystem.local.currentDirectory.file(receiver as String).readText()
                     else -> throw IllegalArgumentException("unknown function ${expression.receiver.type}.${expression.target.name}()")
                 }
             }
