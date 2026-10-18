@@ -101,8 +101,6 @@ class Compiler {
 
         val variableReference = sequence(position(), identifier) { pos, id -> VariableReferenceTree(pos, id) }
 
-        val functionReceiver = oneOf(intLiteral, stringLiteral, trueLiteral, falseLiteral, variableReference)
-
         val expression = recursive<TextInput, ExpressionTree>()
 
         val argSeparator = sequence(optionalWhitespace, literal(","), optionalWhitespace)
@@ -111,20 +109,26 @@ class Compiler {
         val argsList = surrounded(argsPrefix, zeroOrMore(expression, separator = argSeparator), argsSuffix)
 
         val functionCall = sequence(position(), identifier, argsList) { pos, name, args -> FunctionCallTree(pos, name, args) }
-        val receiverFunctionCall = sequence(functionReceiver, oneOrMore(prefixed(literal('.'), functionCall))) { receiver, calls ->
+
+        val functionReceiver = oneOf(intLiteral, stringLiteral, trueLiteral, falseLiteral, functionCall, variableReference)
+
+        val receiverFunctionCall = sequence(functionReceiver, zeroOrMore(prefixed(literal('.'), functionCall))) { receiver, calls ->
             calls.fold(receiver) { r, c -> ReceiverFunctionCallTree(r, c) }
         }
 
-        val additionArgument = oneOf(receiverFunctionCall, functionReceiver)
+        val infixArgument = receiverFunctionCall
 
         val operator = oneOf(
             literal("+", "+"),
             literal("==", "=="),
         )
         val infixOperator = surrounded(optionalWhitespace, operator, optionalWhitespace)
-        val infixFunctionCall = sequence(additionArgument, infixOperator, additionArgument) { left, operator, right -> InfixOperatorTree(left, operator, right) }
+        val infix = sequence(infixOperator, infixArgument) { op, arg -> Pair(op, arg) }
+        val infixFunctionCall = sequence(infixArgument, zeroOrMore(infix)) { first, calls ->
+            calls.fold(first) { left, op -> InfixOperatorTree(left, op.first, op.second) }
+        }
 
-        expression.parser(oneOf(infixFunctionCall, receiverFunctionCall, intLiteral, stringLiteral, trueLiteral, falseLiteral, functionCall, variableReference))
+        expression.parser(infixFunctionCall)
 
         val assignmentSeparator = sequence(optionalWhitespace, literal("="), optionalWhitespace)
         val variableDeclarationPrefix = sequence(literal("val"), whitespace)

@@ -22,6 +22,7 @@ JVM
 C
 
 - Garbage collect strings created by `+` operator and `Int.toString()`
+- Add a helper function for `Int.toString()`, similar to `stringConcat()` 
 - `Int.toString()`: Don't use a temporary variable when value is already a variable reference
   - Need some other `Int` typed expression to use for current test coverage, eg a function that returns `Int` or a property of type `Int`
 - Use `whar_t*` or `char16_t*` to represent strings?

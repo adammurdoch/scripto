@@ -31,6 +31,22 @@ println(5 + 6) // cover JVM bytecode
     }
 
     @Test
+    fun `compiles function with chained int addition argument`() {
+        val sourceFile = workDir.file("app.scripto")
+
+        sourceFile.writeText(
+            """
+println(1 + 2 + 10 + 20)
+        """
+        )
+
+        compileAndRun(sourceFile) {
+            statements(1)
+            output("33\n")
+        }
+    }
+
+    @Test
     fun `compiles variable declaration initialized with int addition`() {
         val sourceFile = workDir.file("app.scripto")
 

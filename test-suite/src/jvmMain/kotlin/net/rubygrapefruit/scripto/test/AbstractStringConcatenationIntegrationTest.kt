@@ -22,6 +22,22 @@ println("" + "")
     }
 
     @Test
+    fun `compiles function with chained string concatenation argument`() {
+        val sourceFile = workDir.file("app.scripto")
+
+        sourceFile.writeText(
+"""
+println("a" + "b" + "c")
+"""
+        )
+
+        compileAndRun(sourceFile) {
+            statements(1)
+            output("abc\n")
+        }
+    }
+
+    @Test
     fun `compiles variable declaration initialized with string concatenation`() {
         val sourceFile = workDir.file("app.scripto")
 
@@ -75,7 +91,7 @@ println(a.toString() + b.toString())
     }
 
     @Test
-    fun `compiles variable declaration initialized with string concatenation with function call  arguments`() {
+    fun `compiles variable declaration initialized with string concatenation with function call arguments`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(

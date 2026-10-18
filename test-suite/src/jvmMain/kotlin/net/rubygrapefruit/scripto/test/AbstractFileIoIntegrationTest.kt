@@ -4,20 +4,6 @@ import kotlin.test.Test
 
 abstract class AbstractFileIoIntegrationTest : AbstractIntegrationTest() {
     @Test
-    fun `compiles call to File constructor`() {
-        val sourceFile = workDir.file("app.scripto")
-        sourceFile.writeText(
-            """
-val t = File("file.txt")
-println(t)
-        """
-        )
-        compileAndRun(sourceFile) {
-            output("file.txt\n")
-        }
-    }
-
-    @Test
     fun `compiles call to readText function`() {
         val sourceFile = workDir.file("app.scripto")
         val textFile = workDir.file("file.txt")

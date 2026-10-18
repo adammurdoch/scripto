@@ -16,11 +16,6 @@ class JvmGenerator {
     private val stringToPathMethod = MethodDescriptor.of(path, TypeDescriptor.String, TypeDescriptor.String.arrayType())
     private val stringToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.String)
 
-    fun generate(program: Program): GeneratedByteCode {
-        val byteCode = ClassFileWriter().write("App") { generate(program) }
-        return GeneratedByteCode("App", byteCode)
-    }
-
     fun generate(program: Program, output: RegularFile): GeneratedClass {
         ClassFileWriter().writeTo("App", output) { generate(program) }
         return GeneratedClass("App")
