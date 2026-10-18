@@ -1,6 +1,7 @@
 package net.rubygrapefruit.scripto.c
 
 import net.rubygrapefruit.file.RegularFile
+import net.rubygrapefruit.scripto.generator.OperationMapper
 import net.rubygrapefruit.scripto.generator.SourceGenerator
 import net.rubygrapefruit.scripto.generator.writeTo
 import net.rubygrapefruit.scripto.ir.*
@@ -9,10 +10,40 @@ class CGenerator {
     fun generate(program: Program, outputFile: RegularFile) {
         val scope = CStatementScope()
 
-        val statements = CStatementBuilder()
-        mapOperations(program.operations, statements, scope)
+        val operationMapper = OperationMapper.of {
+            mapFun(StandardLibrary.printlnNoArgs) {
+                add(CFunctionCall("puts", listOf(CString("")), Header.Stdio))
+            }
+            mapFun(StandardLibrary.printlnOneArg) { operation ->
+                val arg = operation.arguments.first()
+                when (arg.type) {
+                    is Type.String -> {
+                        add(CFunctionCall("puts", listOf(toExpression(arg, scope)), Header.Stdio))
+                    }
 
-        val cProgram = CProgram(statements.statements)
+                    else -> {
+                        val args = toPrintfArgs(arg, scope)
+                        add(CFunctionCall("printf", args, Header.Stdio))
+                    }
+                }
+            }
+            mapVar { operation ->
+                val value = operation.value
+                val initializer = toExpression(value, scope)
+                val header = if (operation.type is Type.Boolean) Header.Stdbool else null
+                add(CVariableDeclaration(operation, initializer, header))
+            }
+            collectDependencies { operation ->
+                when (operation) {
+                    is CFunctionCall -> addDependencies(operation.arguments)
+                    is CVariableDeclaration -> addDependencies(operation.value)
+                }
+            }
+        }
+
+        val statements = operationMapper.map(program.operations)
+
+        val cProgram = CProgram(statements)
         writeTo(outputFile) {
             appendln("// generated file")
 
@@ -44,45 +75,6 @@ class CGenerator {
             }
             appendln("  return 0;")
             appendln('}')
-        }
-    }
-
-    private fun mapOperations(
-        operations: List<Operation>,
-        statements: CStatementBuilder,
-        scope: CStatementScope
-    ) {
-        for (operation in operations) {
-            when (operation) {
-                is FunctionCall -> {
-                    when (operation.target) {
-                        StandardLibrary.printlnNoArgs -> {
-                            statements.add(CFunctionCall("puts", listOf(CString("")), Header.Stdio))
-                        }
-
-                        StandardLibrary.printlnOneArg -> {
-                            val arg = operation.arguments.first()
-                            when (arg.type) {
-                                is Type.String -> {
-                                    statements.add(CFunctionCall("puts", listOf(toExpression(arg, scope)), Header.Stdio))
-                                }
-
-                                else -> {
-                                    val args = toPrintfArgs(arg, scope)
-                                    statements.add(CFunctionCall("printf", args, Header.Stdio))
-                                }
-                            }
-                        }
-                    }
-                }
-
-                is VariableDeclaration -> {
-                    val value = operation.value
-                    val initializer = toExpression(value, scope)
-                    val header = if (operation.type is Type.Boolean) Header.Stdbool else null
-                    statements.add(CVariableDeclaration(operation, initializer, header))
-                }
-            }
         }
     }
 

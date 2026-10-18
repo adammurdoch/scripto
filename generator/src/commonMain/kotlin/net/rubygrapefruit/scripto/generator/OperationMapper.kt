@@ -2,62 +2,88 @@ package net.rubygrapefruit.scripto.generator
 
 import net.rubygrapefruit.scripto.ir.FunctionCall
 import net.rubygrapefruit.scripto.ir.Operation
-import net.rubygrapefruit.scripto.ir.VariableDeclaration
 import net.rubygrapefruit.scripto.ir.UnitFunctionDefinition
+import net.rubygrapefruit.scripto.ir.VariableDeclaration
 
+/**
+ * Maps a sequence of [Operation] to a sequence of type [T].
+ */
 class OperationMapper<T> private constructor(
-    private val mappings: Map<String, List<Mapping<T>>>,
-    private val varMap: ((VariableDeclaration) -> List<T>)?
+    private val mappings: Map<UnitFunctionDefinition, Context<T>.(FunctionCall) -> Unit>,
+    private val varMap: Context<T>.(VariableDeclaration) -> Unit,
+    private val collectDependencies: Context<T>.(T) -> Unit
 ) {
     fun map(operations: List<Operation>): List<T> {
         val result = mutableListOf<T>()
-        operations.forEach { operation ->
-            when (operation) {
-                is FunctionCall -> {
-                    val candidates = mappings[operation.target.name]
-                    val mapping = candidates?.find { it.definition.args == operation.target.args }
-                    if (mapping == null) {
-                        throw IllegalStateException("No mapping for function ${operation.target}")
-                    }
-                    result.add(mapping.map(operation))
-                }
-
-                is VariableDeclaration -> {
-                    if (varMap != null) {
-                        result.addAll(varMap(operation))
-                    }
-                }
-            }
+        val context = DefaultContext<T>(result, collectDependencies)
+        for (operation in operations) {
+            map(operation, context)
         }
         return result
     }
 
+    private fun map(operation: Operation, context: Context<T>) {
+        when (operation) {
+            is FunctionCall -> {
+                val mapping = mappings[operation.target] ?: throw IllegalArgumentException("No mapping for function ${operation.target}()")
+                mapping(context, operation)
+            }
+
+            is VariableDeclaration -> {
+                varMap(context, operation)
+            }
+        }
+    }
+
+    interface Context<T> {
+        fun add(operation: T)
+
+        fun addDependencies(operation: ExpressionWithDependencies<T>)
+
+        fun addDependencies(operations: List<ExpressionWithDependencies<T>>)
+    }
+
+    private class DefaultContext<T>(val result: MutableList<T>, val collectDependencies: Context<T>.(T) -> Unit) : Context<T> {
+        override fun add(operation: T) {
+            collectDependencies(operation)
+            result.add(operation)
+        }
+
+        override fun addDependencies(operation: ExpressionWithDependencies<T>) {
+            operation.visitDependencies(::add)
+        }
+
+        override fun addDependencies(operations: List<ExpressionWithDependencies<T>>) {
+            operations.forEach(::addDependencies)
+        }
+    }
+
     interface Builder<T> {
-        fun mapFun(definition: UnitFunctionDefinition, map: (FunctionCall) -> T)
+        fun mapFun(definition: UnitFunctionDefinition, map: Context<T>.(FunctionCall) -> Unit)
 
-        fun mapVar(map: (VariableDeclaration) -> T)
+        fun mapVar(map: Context<T>.(VariableDeclaration) -> Unit)
 
-        fun flatMapVar(map: (VariableDeclaration) -> List<T>)
+        fun collectDependencies(map: Context<T>.(T) -> Unit)
     }
 
     private class DefaultBuilder<T> : Builder<T> {
-        val mappings = mutableMapOf<String, MutableList<Mapping<T>>>()
-        var varMapping: ((VariableDeclaration) -> List<T>)? = null
+        private val mappings = mutableMapOf<UnitFunctionDefinition, Context<T>.(FunctionCall) -> Unit>()
+        private var varMapping: Context<T>.(VariableDeclaration) -> Unit = { throw IllegalArgumentException("No mapping for variable declaration") }
+        private var collectDependencies: Context<T>.(T) -> Unit = {}
 
-        override fun mapFun(definition: UnitFunctionDefinition, map: (FunctionCall) -> T) {
-            val mappingsForName = mappings.getOrPut(definition.name) { mutableListOf() }
-            mappingsForName.add(Mapping(definition, map))
+        override fun mapFun(definition: UnitFunctionDefinition, map: Context<T>.(FunctionCall) -> Unit) {
+            mappings[definition] = map
         }
 
-        override fun mapVar(map: (VariableDeclaration) -> T) {
-            varMapping = { listOf(map(it)) }
-        }
-
-        override fun flatMapVar(map: (VariableDeclaration) -> List<T>) {
+        override fun mapVar(map: Context<T>.(VariableDeclaration) -> Unit) {
             varMapping = map
         }
 
-        fun build() = OperationMapper(mappings, varMapping)
+        override fun collectDependencies(map: Context<T>.(T) -> Unit) {
+            collectDependencies = map
+        }
+
+        fun build() = OperationMapper(mappings, varMapping, collectDependencies)
     }
 
     companion object {

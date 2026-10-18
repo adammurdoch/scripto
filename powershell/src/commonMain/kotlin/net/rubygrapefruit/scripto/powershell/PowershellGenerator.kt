@@ -12,16 +12,16 @@ class PowershellGenerator {
         val scope = StatementScope()
         val mapping = OperationMapper.of {
             mapFun(StandardLibrary.printlnNoArgs) {
-                PsCommandInvocation("Write-Output", listOf(PsString("")))
+                add(PsCommandInvocation("Write-Output", listOf(PsString(""))))
             }
             mapFun(StandardLibrary.printlnOneArg) {
                 val args = it.arguments.map { toStringExpression(it, scope) }
-                PsCommandInvocation("Write-Output", args)
+                add(PsCommandInvocation("Write-Output", args))
             }
-            flatMapVar {
+            mapVar {
                 val value = it.value
                 val initializer = toExpression(value, scope)
-                listOf(PsVariableDeclaration(it, initializer))
+                add(PsVariableDeclaration(it, initializer))
             }
         }
 

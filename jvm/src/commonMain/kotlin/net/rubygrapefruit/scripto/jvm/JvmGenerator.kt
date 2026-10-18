@@ -34,15 +34,15 @@ class JvmGenerator {
 
         val mapping = OperationMapper.of {
             mapFun(StandardLibrary.printlnNoArgs) {
-                InstanceMethodCall(printStream, "println", voidMethod, systemOut, emptyList())
+                add(InstanceMethodCall(printStream, "println", voidMethod, systemOut, emptyList()))
             }
             mapFun(StandardLibrary.printlnOneArg) {
                 val args = it.arguments.map { toStringExpression(it) }
-                InstanceMethodCall(printStream, "println", stringToVoidMethod, systemOut, args)
+                add(InstanceMethodCall(printStream, "println", stringToVoidMethod, systemOut, args))
             }
             mapVar { declaration ->
                 val type = toTypeKind(declaration.type)
-                JvmVariableDeclaration(declaration, type, toExpression(declaration.value))
+                add(JvmVariableDeclaration(declaration, type, toExpression(declaration.value)))
             }
         }
 
