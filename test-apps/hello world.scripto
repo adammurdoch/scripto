@@ -1,6 +1,7 @@
 println()
-println("------------")
+val separator = "------------"
+println(separator)
 val message = "hello world!"
 println(message)
-println("------------")
+println(separator)
 println()

@@ -1,13 +1,13 @@
 plugins {
-    id("net.rubygrapefruit.jvm.lib")
+    id("net.rubygrapefruit.kmp.lib")
     id("scripto.test-suite")
 }
 
 library {
-    // Uses the JVM's ClassFile API
-    targetJvmVersion = 25
+    jvm()
+    macOS()
 
-    dependencies {
+    common {
         api(versions.libs.coordinates("file-io"))
         api(project(":ir"))
         implementation(project(":generator"))

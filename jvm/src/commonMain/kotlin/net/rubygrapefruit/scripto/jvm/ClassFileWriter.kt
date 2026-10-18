@@ -1,6 +1,7 @@
 package net.rubygrapefruit.scripto.jvm
 
 import net.rubygrapefruit.file.RegularFile
+import kotlin.jvm.JvmInline
 
 internal class ClassFileWriter {
     fun write(className: String, builder: ClassBuilder.() -> Unit): ByteArray {
@@ -555,7 +556,7 @@ private class ConstantPool {
         class Utf8(val text: String, val index: Int) : Entry {
             override fun appendTo(encoder: Encoder) {
                 encoder.u1(1)
-                val bytes = text.toByteArray()
+                val bytes = text.encodeToByteArray()
                 encoder.u2(bytes.size)
                 encoder.bytes(bytes)
             }
