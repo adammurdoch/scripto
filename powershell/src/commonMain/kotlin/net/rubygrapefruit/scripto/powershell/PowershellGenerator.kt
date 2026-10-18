@@ -147,7 +147,7 @@ class PowershellGenerator {
     }
 
     private fun SourceGenerator.append(statement: PsStatement) {
-        statement.visitStatements {
+        statement.visitDependencies {
             append(it)
         }
         when (statement) {

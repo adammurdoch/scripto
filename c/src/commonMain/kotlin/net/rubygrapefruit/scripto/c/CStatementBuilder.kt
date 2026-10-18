@@ -6,18 +6,14 @@ internal class CStatementBuilder {
 
     fun add(statement: CFunctionCall) {
         for (expression in statement.arguments) {
-            expression.visitSetup { add(it) }
+            expression.visitDependencies { add(it) }
         }
         statements.add(statement)
-        for (expression in statement.arguments) {
-            expression.visitCleanup { add(it) }
-        }
     }
 
     fun add(statement: CVariableDeclaration) {
-        statement.value.visitSetup { add(it) }
+        statement.value.visitDependencies { add(it) }
         statements.add(statement)
-        statement.value.visitCleanup { add(it) }
     }
 
     private fun add(statement: CStatement) {

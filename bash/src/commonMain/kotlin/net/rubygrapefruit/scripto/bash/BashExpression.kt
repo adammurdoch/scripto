@@ -1,9 +1,8 @@
 package net.rubygrapefruit.scripto.bash
 
-internal sealed interface BashExpression {
-    fun visitStatements(visitor: (BashStatement) -> Unit) {
-    }
-}
+import net.rubygrapefruit.scripto.generator.ExpressionWithDependencies
+
+internal sealed interface BashExpression : ExpressionWithDependencies<BashStatement>
 
 /**
  * A string that may need quoting or escaping.
@@ -19,9 +18,9 @@ internal class BashWord(val value: String) : BashExpression
  * A list of expressions concatenated together in the bash output.
  */
 internal class BashConcatenatedExpressions(val values: List<BashExpression>) : BashExpression {
-    override fun visitStatements(visitor: (BashStatement) -> Unit) {
+    override fun visitDependencies(visitor: (BashStatement) -> Unit) {
         for (expression in values) {
-            expression.visitStatements(visitor)
+            expression.visitDependencies(visitor)
         }
     }
 }
@@ -30,9 +29,9 @@ internal class BashConcatenatedExpressions(val values: List<BashExpression>) : B
  * An arithmetic expression.
  */
 internal class BashArithmetic(val left: BashExpression, val operator: String, val right: BashExpression) : BashExpression {
-    override fun visitStatements(visitor: (BashStatement) -> Unit) {
-        left.visitStatements(visitor)
-        right.visitStatements(visitor)
+    override fun visitDependencies(visitor: (BashStatement) -> Unit) {
+        left.visitDependencies(visitor)
+        right.visitDependencies(visitor)
     }
 }
 
@@ -40,7 +39,7 @@ internal class BashArithmetic(val left: BashExpression, val operator: String, va
  * An expression that requires a statement to be executed before it can be evaluated.
  */
 internal class BashCommandInvocationExpression(val intermediateVariable: String, val statement: BashStatement) : BashExpression {
-    override fun visitStatements(visitor: (BashStatement) -> Unit) {
+    override fun visitDependencies(visitor: (BashStatement) -> Unit) {
         visitor(statement)
     }
 }

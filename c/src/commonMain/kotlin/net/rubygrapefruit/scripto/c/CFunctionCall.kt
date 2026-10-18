@@ -12,11 +12,7 @@ internal class CFunctionCall(
         arguments.forEach { it.visitDeclarations(visitor) }
     }
 
-    override fun visitSetup(visitor: (CStatement) -> Unit) {
-        arguments.forEach { it.visitSetup(visitor) }
-    }
-
-    override fun visitCleanup(visitor: (CStatement) -> Unit) {
-        arguments.forEach { it.visitCleanup(visitor) }
+    override fun visitDependencies(visitor: (CStatement) -> Unit) {
+        arguments.forEach { it.visitDependencies(visitor) }
     }
 }

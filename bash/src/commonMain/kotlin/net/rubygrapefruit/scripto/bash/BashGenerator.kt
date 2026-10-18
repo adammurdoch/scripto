@@ -99,6 +99,9 @@ class BashGenerator {
     }
 
     private fun SourceGenerator.append(statement: BashStatement) {
+        statement.visitDependencies {
+            append(it)
+        }
         when (statement) {
             is BashVariableAssignment -> append(statement)
             is BashCommandInvocation -> append(statement)
@@ -107,9 +110,6 @@ class BashGenerator {
     }
 
     private fun SourceGenerator.append(declaration: BashVariableAssignment) {
-        declaration.visitStatements {
-            append(it)
-        }
         append(declaration.name)
         append("=")
         append(declaration.value)
@@ -117,9 +117,6 @@ class BashGenerator {
     }
 
     private fun SourceGenerator.append(statement: BashCommandInvocation) {
-        statement.visitStatements {
-            append(it)
-        }
         append(statement.command)
         for (arg in statement.args) {
             append(" ")

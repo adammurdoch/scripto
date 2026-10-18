@@ -124,4 +124,25 @@ println(File("${file1.absolutePath}").readText() + File("${file2.absolutePath}")
         }
     }
 
+    @Test
+    fun `compiles call to string compare with readText function as function argument`() {
+        val sourceFile = workDir.file("app.scripto")
+        val file1 = workDir.file("file1.txt")
+        file1.writeText("string")
+        val file2 = workDir.file("file2.txt")
+        file2.writeText("!")
+
+        sourceFile.writeText(
+            """
+println(File("${file1.absolutePath}").readText() == File("${file2.absolutePath}").readText())
+println(File("${file1.absolutePath}").readText() == File("${file1.absolutePath}").readText())
+        """
+        )
+
+        compileAndRun(sourceFile) {
+            statements(2)
+            output("false\ntrue\n")
+        }
+    }
+
 }

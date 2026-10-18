@@ -1,24 +1,28 @@
 package net.rubygrapefruit.scripto.bash
 
-internal sealed interface BashStatement
+import net.rubygrapefruit.scripto.generator.ExpressionWithDependencies
+
+internal sealed interface BashStatement : ExpressionWithDependencies<BashStatement>
 
 internal class BashCommandInvocation(
     val command: String,
     val args: List<BashExpression>,
     val redirectInput: BashExpression? = null
 ) : BashStatement {
-    fun visitStatements(visitor: (BashStatement) -> Unit) {
-        args.forEach { it.visitStatements(visitor) }
-        redirectInput?.visitStatements(visitor)
+    override fun visitDependencies(visitor: (BashStatement) -> Unit) {
+        args.forEach { it.visitDependencies(visitor) }
+        redirectInput?.visitDependencies(visitor)
     }
 }
 
 internal class BashIfStatement(val test: List<BashExpression>, val trueBranch: BashStatement, val falseBranch: BashStatement) : BashStatement {
-
+    override fun visitDependencies(visitor: (BashStatement) -> Unit) {
+        test.forEach { it.visitDependencies(visitor) }
+    }
 }
 
 internal class BashVariableAssignment(val name: String, val value: BashExpression) : BashStatement {
-    fun visitStatements(visitor: (BashStatement) -> Unit) {
-        value.visitStatements(visitor)
+    override fun visitDependencies(visitor: (BashStatement) -> Unit) {
+        value.visitDependencies(visitor)
     }
 }

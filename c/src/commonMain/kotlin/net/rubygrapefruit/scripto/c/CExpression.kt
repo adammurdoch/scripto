@@ -1,24 +1,13 @@
 package net.rubygrapefruit.scripto.c
 
+import net.rubygrapefruit.scripto.generator.ExpressionWithDependencies
 import net.rubygrapefruit.scripto.ir.VariableReference
 
-internal sealed interface CExpression {
+internal sealed interface CExpression : ExpressionWithDependencies<CStatement> {
     /**
      * Visit any headers or code snippets used by this expression.
      */
     fun visitDeclarations(visitor: (ExternalDeclaration) -> Unit) {
-    }
-
-    /**
-     * Visit any setup statements required by this expression.
-     */
-    fun visitSetup(visitor: (CStatement) -> Unit) {
-    }
-
-    /**
-     * Visit any cleanup statements required by this expression.
-     */
-    fun visitCleanup(visitor: (CStatement) -> Unit) {
     }
 }
 
@@ -48,14 +37,9 @@ internal class CInfixOperator(val left: CExpression, val operator: String, val r
         right.visitDeclarations(visitor)
     }
 
-    override fun visitSetup(visitor: (CStatement) -> Unit) {
-        left.visitSetup(visitor)
-        right.visitSetup(visitor)
-    }
-
-    override fun visitCleanup(visitor: (CStatement) -> Unit) {
-        left.visitCleanup(visitor)
-        right.visitCleanup(visitor)
+    override fun visitDependencies(visitor: (CStatement) -> Unit) {
+        left.visitDependencies(visitor)
+        right.visitDependencies(visitor)
     }
 }
 
@@ -66,16 +50,10 @@ internal class CTernaryExpression(val condition: CExpression, val left: CExpress
         right.visitDeclarations(visitor)
     }
 
-    override fun visitSetup(visitor: (CStatement) -> Unit) {
-        condition.visitSetup(visitor)
-        left.visitSetup(visitor)
-        right.visitSetup(visitor)
-    }
-
-    override fun visitCleanup(visitor: (CStatement) -> Unit) {
-        condition.visitCleanup(visitor)
-        left.visitCleanup(visitor)
-        right.visitCleanup(visitor)
+    override fun visitDependencies(visitor: (CStatement) -> Unit) {
+        condition.visitDependencies(visitor)
+        left.visitDependencies(visitor)
+        right.visitDependencies(visitor)
     }
 }
 
@@ -83,11 +61,7 @@ internal class CTernaryExpression(val condition: CExpression, val left: CExpress
  * An expression that uses the result of some statement(s).
  */
 internal class CPreCalculatedExpression(val setup: List<CStatement>, val value: CVariableReference, val cleanup: List<CStatement>) : CExpression {
-    override fun visitSetup(visitor: (CStatement) -> Unit) {
+    override fun visitDependencies(visitor: (CStatement) -> Unit) {
         setup.forEach(visitor)
-    }
-
-    override fun visitCleanup(visitor: (CStatement) -> Unit) {
-        cleanup.forEach(visitor)
     }
 }
