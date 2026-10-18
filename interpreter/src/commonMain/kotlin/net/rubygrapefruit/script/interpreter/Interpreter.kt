@@ -1,5 +1,6 @@
 package net.rubygrapefruit.script.interpreter
 
+import net.rubygrapefruit.file.FileSystem
 import net.rubygrapefruit.scripto.ir.*
 
 class Interpreter {
@@ -17,7 +18,7 @@ class Interpreter {
                         stdOut.println("")
                     } else if (operation.target == StandardLibrary.printlnOneArg) {
                         val arg = calculate(operation.arguments.first(), vars)
-                        stdOut.println(arg as String)
+                        stdOut.println(arg.toString())
                     }
                 }
             }
@@ -30,6 +31,28 @@ class Interpreter {
             is IntLiteral -> expression.value
             is BooleanLiteral -> expression.value
             is VariableReference -> vars.getValue(expression.target.name)
+            is FunctionCallExpression -> {
+                val args = expression.args.map { calculate(it, vars) }
+                when (expression.target) {
+                    StandardLibrary.fileConstructor -> args.first()
+                    StandardLibrary.readText -> FileSystem.local.currentDirectory.file(args.first() as String).readText()
+                    else -> throw IllegalArgumentException("unknown function ${expression.target}")
+                }
+            }
+
+            is InfixFunctionCall -> {
+                val left = calculate(expression.left, vars)
+                val right = calculate(expression.right, vars)
+                when (expression.target) {
+                    StandardLibrary.stringEquality -> left == right
+                    StandardLibrary.stringConcatenation -> "$left$right"
+                    StandardLibrary.intEquality -> left == right
+                    StandardLibrary.intAddition -> (left as Int) + (right as Int)
+                    StandardLibrary.booleanEquality -> left == right
+                    else -> throw IllegalArgumentException("unknown function ${expression.target}")
+                }
+            }
+
             is ReceiverFunctionCallExpression -> {
                 val receiver = calculate(expression.receiver, vars)
                 when (expression.target) {
@@ -38,8 +61,6 @@ class Interpreter {
                     else -> throw IllegalArgumentException("unknown function ${expression.receiver.type}.${expression.target}")
                 }
             }
-
-            else -> TODO()
         }
     }
 }
