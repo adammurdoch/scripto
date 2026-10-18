@@ -17,8 +17,13 @@ class Interpreter {
                     if (operation.target == StandardLibrary.printlnNoArgs) {
                         stdOut.println("")
                     } else if (operation.target == StandardLibrary.printlnOneArg) {
-                        val arg = calculate(operation.arguments.first(), vars)
-                        stdOut.println(arg.toString())
+                        val arg = operation.arguments.first()
+                        val value = calculate(arg, vars)
+                        val string = when(arg.type) {
+                            is Type.File -> "File($value)"
+                            else -> value.toString()
+                        }
+                        stdOut.println(string)
                     }
                 }
             }
@@ -59,7 +64,8 @@ class Interpreter {
                     StringFunctions.toString -> receiver.toString()
                     IntFunctions.toString -> receiver.toString()
                     BooleanFunctions.toString -> receiver.toString()
-                    else -> throw IllegalArgumentException("unknown function ${expression.receiver.type}.${expression.target}")
+                    FileFunctions.toString -> "File($receiver)"
+                    else -> throw IllegalArgumentException("unknown function ${expression.receiver.type}.${expression.target.name}()")
                 }
             }
         }

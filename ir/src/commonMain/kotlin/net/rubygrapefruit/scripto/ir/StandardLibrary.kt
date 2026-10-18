@@ -4,7 +4,7 @@ interface Functions {
     fun definitions(name: String): List<FunctionDefinition>
 }
 
-object StringFunctions : Functions {
+open class ObjectFunctions : Functions {
     val toString = TypedFunctionDefinition("toString", Type.String, emptyList())
 
     override fun definitions(name: String): List<FunctionDefinition> {
@@ -16,34 +16,18 @@ object StringFunctions : Functions {
     }
 }
 
-object IntFunctions : Functions {
-    val toString = TypedFunctionDefinition("toString", Type.String, emptyList())
+object StringFunctions : ObjectFunctions()
 
-    override fun definitions(name: String): List<FunctionDefinition> {
-        return if (name == "toString") {
-            listOf(toString)
-        } else {
-            emptyList()
-        }
-    }
-}
+object IntFunctions : ObjectFunctions()
 
-object BooleanFunctions : Functions {
-    val toString = TypedFunctionDefinition("toString", Type.String, emptyList())
+object BooleanFunctions : ObjectFunctions()
 
-    override fun definitions(name: String): List<FunctionDefinition> {
-        return if (name == "toString") {
-            listOf(toString)
-        } else {
-            emptyList()
-        }
-    }
-}
+object FileFunctions : ObjectFunctions()
 
 object StandardLibrary : Functions {
     val printlnNoArgs = UnitFunctionDefinition("println", emptyList())
     val printlnOneArg = UnitFunctionDefinition("println", listOf(IncomingType.Any))
-    val fileConstructor = TypedFunctionDefinition("File", Type.String, listOf(Type.String))
+    val fileConstructor = TypedFunctionDefinition("File", Type.File, listOf(Type.String))
     val readText = TypedFunctionDefinition("readText", Type.String, listOf(Type.String))
     val intAddition = OperatorDefinition(Operator.Plus, Type.Int, listOf(Type.Int, Type.Int))
     val stringConcatenation = OperatorDefinition(Operator.Plus, Type.String, listOf(Type.String, Type.String))
@@ -65,6 +49,7 @@ object StandardLibrary : Functions {
             is Type.String -> StringFunctions
             is Type.Int -> IntFunctions
             is Type.Boolean -> BooleanFunctions
+            is Type.File -> FileFunctions
         }
         return functions.definitions(name)
     }

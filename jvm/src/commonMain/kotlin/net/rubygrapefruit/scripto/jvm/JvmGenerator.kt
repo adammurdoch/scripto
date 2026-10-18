@@ -75,6 +75,7 @@ class JvmGenerator {
             is Type.Boolean -> TypeDescriptor.Boolean
             is Type.Int -> TypeDescriptor.Int
             is Type.String -> TypeDescriptor.String
+            is Type.File -> TypeDescriptor.String
         }
     }
 
@@ -95,7 +96,12 @@ class JvmGenerator {
             is Type.Int -> intToString(jvmExpression)
             is Type.Boolean -> booleanToString(jvmExpression)
             is Type.String -> jvmExpression
+            is Type.File -> fileToString(jvmExpression)
         }
+    }
+
+    private fun fileToString(jvmExpression: JvmExpression): JvmExpression {
+        return concatString(JvmString("File("), concatString(jvmExpression, JvmString(")")))
     }
 
     private fun intToString(expression: JvmExpression): JvmExpression {
@@ -149,26 +155,30 @@ class JvmGenerator {
                 }
             }
 
-            else -> throw IllegalArgumentException("Unknown function '${expression.target.name}'")
+            FileFunctions.toString -> fileToString(toExpression(expression.receiver))
+
+            else -> throw IllegalArgumentException("Unknown function '${expression.receiver.type}.${expression.target.name}()'")
         }
     }
 
     private fun mapInfix(expression: InfixFunctionCall): JvmExpression {
         return when (expression.target) {
             StandardLibrary.intAddition -> JvmIntAddition(toExpression(expression.left), toExpression(expression.right))
-            StandardLibrary.stringConcatenation -> VirtualMethodCall(
-                TypeDescriptor.String,
-                "concat",
-                stringToStringMethod,
-                toExpression(expression.left),
-                listOf(toExpression(expression.right))
-            )
+            StandardLibrary.stringConcatenation -> {
+                val left = toExpression(expression.left)
+                val right = toExpression(expression.right)
+                concatString(left, right)
+            }
 
             StandardLibrary.stringEquality -> JvmStringEquality(toExpression(expression.left), toExpression(expression.right))
             StandardLibrary.intEquality -> JvmIntEquality(toExpression(expression.left), toExpression(expression.right))
             StandardLibrary.booleanEquality -> JvmIntEquality(toExpression(expression.left), toExpression(expression.right))
             else -> throw IllegalArgumentException("Unknown operator '${expression.target.operator.operator}'")
         }
+    }
+
+    private fun concatString(left: JvmExpression, right: JvmExpression): JvmExpression {
+        return VirtualMethodCall(TypeDescriptor.String, "concat", stringToStringMethod, left, listOf(right))
     }
 
     private fun CodeBuilder.callMethod(methodCall: InstanceMethodCall, slots: Map<String, LocalVariable>) {

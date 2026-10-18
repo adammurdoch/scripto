@@ -54,9 +54,17 @@ class PowershellGenerator {
     private fun convertToString(expression: Expression, psExpression: PsExpression): PsExpression {
         return when (expression.type) {
             is Type.String -> psExpression
+            is Type.File -> fileToString(psExpression)
             is Type.Int -> psExpression
             is Type.Boolean -> convertBooleanToString(psExpression)
         }
+    }
+
+    private fun fileToString(psExpression: PsExpression): PsExpression {
+        return PsInfixOperation(
+            PsString("File("), "+",
+            PsInfixOperation(psExpression, "+", PsString(")"))
+        )
     }
 
     private fun convertBooleanToString(psExpression: PsExpression): PsExpression {
@@ -106,7 +114,11 @@ class PowershellGenerator {
                 }
             }
 
-            else -> throw IllegalArgumentException("Unknown function '${expression.target.name}'")
+            FileFunctions.toString -> {
+                fileToString(toExpression(expression.receiver))
+            }
+
+            else -> throw IllegalArgumentException("Unknown function '${expression.receiver.type}.${expression.target.name}()'")
         }
     }
 

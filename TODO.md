@@ -17,12 +17,14 @@ Stdlib
 
 JVM
 
+- Encode `File` as JVM `Path`
 - Include debug information
 
 C
 
 - Garbage collect strings created by `+` operator and `Int.toString()`
 - Add a helper function for `Int.toString()`, similar to `stringConcat()` 
+- Add a helper function to `File.toString()`
 - `Int.toString()`: Don't use a temporary variable when value is already a variable reference
   - Need some other `Int` typed expression to use for current test coverage, eg a function that returns `Int` or a property of type `Int`
 - Use `whar_t*` or `char16_t*` to represent strings?
@@ -30,8 +32,14 @@ C
 
 Bash
 
+- Don't wrap '+' operators in paren when already in arithmetic mode
 - Handle case where multiple expressions use a temporary variable
 - Use `declare -i` for int variables?
+
+PowerShell
+
+- Use string interpolation for `File.toString()`?
+- Don't wrap '+' operators in `$()` or `()` when already in arithmetic mode
 
 Webassembly
 

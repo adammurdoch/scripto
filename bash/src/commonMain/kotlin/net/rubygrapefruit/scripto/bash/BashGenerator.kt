@@ -64,8 +64,10 @@ class BashGenerator {
                     toExpression(expression.receiver)
                 } else if (expression.target == BooleanFunctions.toString) {
                     toExpression(expression.receiver)
+                } else if (expression.target == FileFunctions.toString) {
+                    BashConcatenatedExpressions(listOf(BashString("File("), toExpression(expression.receiver), BashString(")")))
                 } else {
-                    throw IllegalArgumentException("Unknown function '${expression.receiver}.${expression.target}'")
+                    throw IllegalArgumentException("Unknown function '${expression.receiver.type}.${expression.target.name}()'")
                 }
             }
         }
@@ -88,6 +90,7 @@ class BashGenerator {
     private fun varReferenceToBash(expression: VariableReference): BashWord {
         return when (expression.type) {
             Type.String -> BashWord("\"\$${expression.target.name}\"")
+            Type.File -> BashWord("\"File(\$${expression.target.name})\"")
             Type.Int, Type.Boolean -> BashWord("\$${expression.target.name}")
         }
     }

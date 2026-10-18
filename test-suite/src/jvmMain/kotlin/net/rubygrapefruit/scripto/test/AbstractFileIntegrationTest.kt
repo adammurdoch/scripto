@@ -13,7 +13,7 @@ println(t)
         """
         )
         compileAndRun(sourceFile) {
-            output("file.txt\n")
+            output("File(file.txt)\n")
         }
     }
 
@@ -27,7 +27,7 @@ println(t)
         """
         )
         compileAndRun(sourceFile) {
-            output("file.txt\n")
+            output("File(file.txt)\n")
         }
     }
 }

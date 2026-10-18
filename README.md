@@ -61,6 +61,7 @@ Boolean type
 
 File type
 - `File(String)`
+- `File.toString()`
 - `readText(String): String`
 
 Operators

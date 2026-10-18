@@ -109,6 +109,8 @@ class CGenerator {
     private fun mapFunctionCall(expression: ReceiverFunctionCallExpression, scope: CStatementScope): CExpression {
         return if (expression.target == StringFunctions.toString) {
             toExpression(expression.receiver, scope)
+        } else if (expression.target == FileFunctions.toString) {
+            concatString(CString("File("), concatString(toExpression(expression.receiver, scope), CString(")")))
         } else if (expression.target == IntFunctions.toString) {
             val receiver = expression.receiver
             when (receiver) {
@@ -150,30 +152,38 @@ class CGenerator {
                 }
             }
         } else {
-            throw IllegalArgumentException("Unknown function '${expression.target.name}'")
+            throw IllegalArgumentException("Unknown function '${expression.receiver.type}.${expression.target.name}()'")
         }
     }
 
     private fun mapInfix(expression: InfixFunctionCall, scope: CStatementScope): CExpression {
         return when (expression.target) {
-            StandardLibrary.stringConcatenation -> CFunctionCall(
-                "stringConcat",
-                listOf(toExpression(expression.left, scope), toExpression(expression.right, scope)),
-                SourceFragment.StringConcatenation
-            )
+            StandardLibrary.stringConcatenation -> {
+                val left = toExpression(expression.left, scope)
+                val right = toExpression(expression.right, scope)
+                concatString(left, right)
+            }
 
-            StandardLibrary.stringEquality -> CInfixOperator(
-                CFunctionCall(
-                    "strcmp",
-                    listOf(toExpression(expression.left, scope), toExpression(expression.right, scope)),
-                    Header.String
-                ),
-                "==",
-                CInt(0)
-            )
+            StandardLibrary.stringEquality -> {
+                val left = toExpression(expression.left, scope)
+                val right = toExpression(expression.right, scope)
+                CInfixOperator(
+                    CFunctionCall("strcmp", listOf(left, right), Header.String),
+                    "==",
+                    CInt(0)
+                )
+            }
 
-            else -> CInfixOperator(toExpression(expression.left, scope), expression.operator, toExpression(expression.right, scope))
+            else -> {
+                val left = toExpression(expression.left, scope)
+                val right = toExpression(expression.right, scope)
+                CInfixOperator(left, expression.operator, right)
+            }
         }
+    }
+
+    private fun concatString(left: CExpression, right: CExpression): CExpression {
+        return CFunctionCall("stringConcat", listOf(left, right), SourceFragment.StringConcatenation)
     }
 
     private fun toPrintfArgs(arg: Expression, scope: CStatementScope): List<CExpression> {
@@ -198,6 +208,7 @@ class CGenerator {
     private fun toPrintfArgs(expression: Expression, cExpression: CExpression): List<CExpression> {
         return when (expression.type) {
             is Type.String -> listOf(CString("%s\n"), cExpression)
+            is Type.File -> listOf(CString("File(%s)\n"), cExpression)
             is Type.Int -> listOf(CString("%d\n"), cExpression)
             is Type.Boolean -> listOf(CTernaryExpression(cExpression, CString("${BooleanLiteral.TRUE}\n"), CString("${BooleanLiteral.FALSE}\n")))
         }
@@ -206,7 +217,7 @@ class CGenerator {
     private fun SourceGenerator.append(declaration: CVariableDeclaration) {
         append("  ")
         when (declaration.type) {
-            is Type.String -> append("char *")
+            is Type.String, Type.File -> append("char *")
             is Type.Int -> append("int32_t")
             is Type.Boolean -> append("bool")
         }
