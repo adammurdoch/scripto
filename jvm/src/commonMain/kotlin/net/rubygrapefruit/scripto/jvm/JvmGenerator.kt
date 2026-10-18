@@ -59,7 +59,7 @@ class JvmGenerator {
 
         val systemOut = StaticField(system, "out", printStream)
 
-        val mapping = OperationMapper.of {
+        return OperationMapper.of {
             map(StandardLibrary.printlnNoArgs) {
                 InstanceMethodCall(printStream, "println", voidMethod, systemOut, emptyList())
             }
@@ -72,7 +72,6 @@ class JvmGenerator {
                 JvmVariableDeclaration(declaration, type, toExpression(declaration.value))
             }
         }
-        return mapping
     }
 
     private fun toTypeKind(type: Type): TypeDescriptor {

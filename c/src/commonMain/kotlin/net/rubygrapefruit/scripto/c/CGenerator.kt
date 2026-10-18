@@ -1,6 +1,7 @@
 package net.rubygrapefruit.scripto.c
 
 import net.rubygrapefruit.file.RegularFile
+import net.rubygrapefruit.scripto.generator.FunctionMapper
 import net.rubygrapefruit.scripto.generator.OperationMapper
 import net.rubygrapefruit.scripto.generator.SourceGenerator
 import net.rubygrapefruit.scripto.generator.writeTo
@@ -10,7 +11,8 @@ class CGenerator {
     fun generate(program: Program, outputFile: RegularFile) {
         val scope = CStatementScope()
 
-        val operationMapper = createOperationMapper(scope)
+        val functionMapper = createFunctionMapper(scope)
+        val operationMapper = createOperationMapper(scope, functionMapper)
 
         val statements = operationMapper.map(program.operations)
         val cProgram = CProgram(statements)
@@ -49,8 +51,8 @@ class CGenerator {
         }
     }
 
-    private fun CGenerator.createOperationMapper(scope: CStatementScope): OperationMapper<CStatement> {
-        val operationMapper = OperationMapper.of {
+    private fun createOperationMapper(scope: CStatementScope, functionMapper: FunctionMapper<CExpression>): OperationMapper<CStatement> {
+        return OperationMapper.of {
             map(StandardLibrary.printlnNoArgs) {
                 CFunctionCall("puts", listOf(CString("")), Header.Stdio)
             }
@@ -58,18 +60,18 @@ class CGenerator {
                 val arg = operation.arguments.first()
                 when (arg.type) {
                     is Type.String -> {
-                        CFunctionCall("puts", listOf(toExpression(arg, scope)), Header.Stdio)
+                        CFunctionCall("puts", listOf(toExpression(arg, scope, functionMapper)), Header.Stdio)
                     }
 
                     else -> {
-                        val args = toPrintfArgs(arg, scope)
+                        val args = toPrintfArgs(arg, scope, functionMapper)
                         CFunctionCall("printf", args, Header.Stdio)
                     }
                 }
             }
             map { operation ->
                 val value = operation.value
-                val initializer = toExpression(value, scope)
+                val initializer = toExpression(value, scope, functionMapper)
                 val header = if (operation.type is Type.Boolean) Header.Stdbool else null
                 CVariableDeclaration(operation, initializer, header)
             }
@@ -80,39 +82,39 @@ class CGenerator {
                 }
             }
         }
-        return operationMapper
     }
 
-    private fun toExpression(expression: Expression, scope: CStatementScope): CExpression {
+    private fun toExpression(expression: Expression, scope: CStatementScope, functionMapper: FunctionMapper<CExpression>): CExpression {
         return when (expression) {
             is StringLiteral -> CString(expression.value)
             is IntLiteral -> CInt(expression.value)
             is BooleanLiteral -> if (expression.value) CTrue else CFalse
             is VariableReference -> CVariableReference(expression)
-            is InfixFunctionCall -> mapInfix(expression, scope)
-            is FunctionCallExpression -> mapFunctionCall(expression, scope)
-            is ReceiverFunctionCallExpression -> mapFunctionCall(expression, scope)
+            is InfixFunctionCall -> mapInfix(expression, scope, functionMapper)
+            is FunctionCallExpression -> functionMapper.map(expression)
+            is ReceiverFunctionCallExpression -> mapFunctionCall(expression, scope, functionMapper)
         }
     }
 
-    private fun mapFunctionCall(expression: FunctionCallExpression, scope: CStatementScope): CExpression {
-        return when (expression.target) {
-            StandardLibrary.fileConstructor -> toExpression(expression.args.first(), scope)
-            else -> throw IllegalArgumentException("Unknown function '${expression.target.name}'")
+    private fun createFunctionMapper(scope: CStatementScope): FunctionMapper<CExpression> {
+        return FunctionMapper.of {
+            map(StandardLibrary.fileConstructor) { expression, functionMapper ->
+                toExpression(expression.args.first(), scope, functionMapper)
+            }
         }
     }
 
-    private fun mapFunctionCall(expression: ReceiverFunctionCallExpression, scope: CStatementScope): CExpression {
+    private fun mapFunctionCall(expression: ReceiverFunctionCallExpression, scope: CStatementScope, functionMapper: FunctionMapper<CExpression>): CExpression {
         return if (expression.target == StringFunctions.toString) {
-            toExpression(expression.receiver, scope)
+            toExpression(expression.receiver, scope, functionMapper)
         } else if (expression.target == FileFunctions.toString) {
-            concatString(CString("File("), concatString(toExpression(expression.receiver, scope), CString(")")))
+            concatString(CString("File("), concatString(toExpression(expression.receiver, scope, functionMapper), CString(")")))
         } else if (expression.target == IntFunctions.toString) {
             val receiver = expression.receiver
             when (receiver) {
                 is IntLiteral -> CString(receiver.value.toString())
                 else -> {
-                    val value = toExpression(expression.receiver, scope)
+                    val value = toExpression(expression.receiver, scope, functionMapper)
                     val valueVar = scope.newVarName("iVal")
                     val lengthVar = scope.newVarName("strLen")
                     val stringVar = scope.newVarName("str")
@@ -142,28 +144,28 @@ class CGenerator {
             when (receiver) {
                 is BooleanLiteral -> CString(receiver.value.toString())
                 else -> {
-                    val value = toExpression(expression.receiver, scope)
+                    val value = toExpression(expression.receiver, scope, functionMapper)
                     CTernaryExpression(value, CString(BooleanLiteral.TRUE), CString(BooleanLiteral.FALSE))
                 }
             }
         } else if (expression.target == FileFunctions.readText) {
-            CFunctionCall("readText", listOf(toExpression(expression.receiver, scope)), SourceFragment.ReadText)
+            CFunctionCall("readText", listOf(toExpression(expression.receiver, scope, functionMapper)), SourceFragment.ReadText)
         } else {
             throw IllegalArgumentException("Unknown function '${expression.receiver.type}.${expression.target.name}()'")
         }
     }
 
-    private fun mapInfix(expression: InfixFunctionCall, scope: CStatementScope): CExpression {
+    private fun mapInfix(expression: InfixFunctionCall, scope: CStatementScope, functionMapper: FunctionMapper<CExpression>): CExpression {
         return when (expression.target) {
             StandardLibrary.stringConcatenation -> {
-                val left = toExpression(expression.left, scope)
-                val right = toExpression(expression.right, scope)
+                val left = toExpression(expression.left, scope, functionMapper)
+                val right = toExpression(expression.right, scope, functionMapper)
                 concatString(left, right)
             }
 
             StandardLibrary.stringEquality -> {
-                val left = toExpression(expression.left, scope)
-                val right = toExpression(expression.right, scope)
+                val left = toExpression(expression.left, scope, functionMapper)
+                val right = toExpression(expression.right, scope, functionMapper)
                 CInfixOperator(
                     CFunctionCall("strcmp", listOf(left, right), Header.String),
                     "==",
@@ -172,8 +174,8 @@ class CGenerator {
             }
 
             else -> {
-                val left = toExpression(expression.left, scope)
-                val right = toExpression(expression.right, scope)
+                val left = toExpression(expression.left, scope, functionMapper)
+                val right = toExpression(expression.right, scope, functionMapper)
                 CInfixOperator(left, expression.operator, right)
             }
         }
@@ -183,7 +185,7 @@ class CGenerator {
         return CFunctionCall("stringConcat", listOf(left, right), SourceFragment.StringConcatenation)
     }
 
-    private fun toPrintfArgs(arg: Expression, scope: CStatementScope): List<CExpression> {
+    private fun toPrintfArgs(arg: Expression, scope: CStatementScope, functionMapper: FunctionMapper<CExpression>): List<CExpression> {
         return when (arg) {
             is StringLiteral -> {
                 if (arg.value.contains('%')) {
@@ -196,9 +198,9 @@ class CGenerator {
             is IntLiteral -> listOf(CString(arg.value.toString() + "\n"))
             is BooleanLiteral -> listOf(CString(arg.value.toString() + "\n"))
             is VariableReference -> toPrintfArgs(arg, CVariableReference(arg))
-            is InfixFunctionCall -> toPrintfArgs(arg, mapInfix(arg, scope))
-            is FunctionCallExpression -> listOf(CString("%s\n"), mapFunctionCall(arg, scope))
-            is ReceiverFunctionCallExpression -> listOf(CString("%s\n"), mapFunctionCall(arg, scope))
+            is InfixFunctionCall -> toPrintfArgs(arg, mapInfix(arg, scope, functionMapper))
+            is FunctionCallExpression -> listOf(CString("%s\n"), functionMapper.map(arg))
+            is ReceiverFunctionCallExpression -> listOf(CString("%s\n"), mapFunctionCall(arg, scope, functionMapper))
         }
     }
 

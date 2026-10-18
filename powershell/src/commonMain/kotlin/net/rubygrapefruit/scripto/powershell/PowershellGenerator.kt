@@ -10,7 +10,23 @@ import net.rubygrapefruit.scripto.ir.*
 class PowershellGenerator {
     fun generate(program: Program, outputFile: RegularFile) {
         val scope = StatementScope()
-        val mapping = OperationMapper.of {
+        val operationMapper = createOperationMapper(scope)
+
+        val statements = operationMapper.map(program.operations)
+        val powershellProgram = PsProgram(statements)
+
+        writeTo(outputFile) {
+            appendln("# generated file")
+            appendln()
+
+            for (statement in powershellProgram.statements) {
+                append(statement)
+            }
+        }
+    }
+
+    private fun createOperationMapper(scope: StatementScope): OperationMapper<PsStatement> {
+        return OperationMapper.of {
             map(StandardLibrary.printlnNoArgs) {
                 PsCommandInvocation("Write-Output", listOf(PsString("")))
             }
@@ -25,17 +41,6 @@ class PowershellGenerator {
             }
             collectDependencies { operation: PsStatement ->
                 addDependencies(operation)
-            }
-        }
-
-        val powershellProgram = PsProgram(mapping.map(program.operations))
-
-        writeTo(outputFile) {
-            appendln("# generated file")
-            appendln()
-
-            for (statement in powershellProgram.statements) {
-                append(statement)
             }
         }
     }

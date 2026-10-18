@@ -28,7 +28,7 @@ class BashGenerator {
     }
 
     private fun createOperationMapper(scope: StatementScope): OperationMapper<BashStatement> {
-        val operationMapper = OperationMapper.of {
+        return OperationMapper.of {
             map(StandardLibrary.printlnNoArgs) {
                 BashCommandInvocation("echo", emptyList())
             }
@@ -44,7 +44,6 @@ class BashGenerator {
                 addDependencies(statement)
             }
         }
-        return operationMapper
     }
 
     private fun toExpression(expression: Expression, scope: StatementScope): BashExpression {
