@@ -140,6 +140,15 @@ class CGenerator {
                     )
                 }
             }
+        } else if (expression.target == BooleanFunctions.toString) {
+            val receiver = expression.receiver
+            when (receiver) {
+                is BooleanLiteral -> CString(receiver.value.toString())
+                else -> {
+                    val value = toExpression(expression.receiver, scope)
+                    CTernaryExpression(value, CString(BooleanLiteral.TRUE), CString(BooleanLiteral.FALSE))
+                }
+            }
         } else {
             throw IllegalArgumentException("Unknown function '${expression.target.name}'")
         }

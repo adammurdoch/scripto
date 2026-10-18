@@ -62,6 +62,8 @@ class BashGenerator {
                     toExpression(expression.receiver)
                 } else if (expression.target == IntFunctions.toString) {
                     toExpression(expression.receiver)
+                } else if (expression.target == BooleanFunctions.toString) {
+                    toExpression(expression.receiver)
                 } else {
                     throw IllegalArgumentException("Unknown function '${expression.receiver}.${expression.target}'")
                 }

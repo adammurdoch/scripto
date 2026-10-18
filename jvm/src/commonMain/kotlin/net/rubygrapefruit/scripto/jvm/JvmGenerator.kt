@@ -135,23 +135,40 @@ class JvmGenerator {
     }
 
     private fun mapFunctionCall(expression: ReceiverFunctionCallExpression): JvmExpression {
-        return if (expression.target == StringFunctions.toString) {
-            toExpression(expression.receiver)
-        } else if (expression.target == IntFunctions.toString) {
-            val receiver = expression.receiver
-            when (receiver) {
-                is IntLiteral -> JvmString(receiver.value.toString())
-                else -> intToString(toExpression(receiver))
+        return when (expression.target) {
+            StringFunctions.toString -> toExpression(expression.receiver)
+
+            IntFunctions.toString -> {
+                val receiver = expression.receiver
+                when (receiver) {
+                    is IntLiteral -> JvmString(receiver.value.toString())
+                    else -> intToString(toExpression(receiver))
+                }
             }
-        } else {
-            throw IllegalArgumentException("Unknown function '${expression.target.name}'")
+
+            BooleanFunctions.toString -> {
+                val receiver = expression.receiver
+                when (receiver) {
+                    is BooleanLiteral -> JvmString(receiver.value.toString())
+                    else -> booleanToString(toExpression(receiver))
+                }
+            }
+
+            else -> throw IllegalArgumentException("Unknown function '${expression.target.name}'")
         }
     }
 
     private fun mapInfix(expression: InfixFunctionCall): JvmExpression {
         return when (expression.target) {
             StandardLibrary.intAddition -> JvmIntAddition(toExpression(expression.left), toExpression(expression.right))
-            StandardLibrary.stringConcatenation -> VirtualMethodCall(TypeDescriptor.String, "concat", stringToStringMethod, toExpression(expression.left), listOf(toExpression(expression.right)))
+            StandardLibrary.stringConcatenation -> VirtualMethodCall(
+                TypeDescriptor.String,
+                "concat",
+                stringToStringMethod,
+                toExpression(expression.left),
+                listOf(toExpression(expression.right))
+            )
+
             StandardLibrary.stringEquality -> JvmStringEquality(toExpression(expression.left), toExpression(expression.right))
             StandardLibrary.intEquality -> JvmIntEquality(toExpression(expression.left), toExpression(expression.right))
             StandardLibrary.booleanEquality -> JvmIntEquality(toExpression(expression.left), toExpression(expression.right))

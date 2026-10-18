@@ -51,7 +51,7 @@ e
     }
 
     @Test
-    fun `compiles call to string literal toString() function`() {
+    fun `compiles call to literal toString() function`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(

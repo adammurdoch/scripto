@@ -55,8 +55,12 @@ class PowershellGenerator {
         return when (expression.type) {
             is Type.String -> psExpression
             is Type.Int -> psExpression
-            is Type.Boolean -> PsTernaryExpression(psExpression, PsString(BooleanLiteral.TRUE), PsString(BooleanLiteral.FALSE))
+            is Type.Boolean -> convertBooleanToString(psExpression)
         }
+    }
+
+    private fun convertBooleanToString(psExpression: PsExpression): PsExpression {
+        return PsTernaryExpression(psExpression, PsString(BooleanLiteral.TRUE), PsString(BooleanLiteral.FALSE))
     }
 
     private fun toExpression(expression: Expression): PsExpression {
@@ -90,7 +94,15 @@ class PowershellGenerator {
                 val receiver = expression.receiver
                 when (receiver) {
                     is IntLiteral -> PsString(receiver.value.toString())
-                    else -> PsFunctionCall(toExpression(expression.receiver), "ToString")
+                    else -> PsFunctionCall(toExpression(receiver), "ToString")
+                }
+            }
+
+            BooleanFunctions.toString -> {
+                val receiver = expression.receiver
+                when (receiver) {
+                    is BooleanLiteral -> PsString(receiver.value.toString())
+                    else -> convertBooleanToString(toExpression(receiver))
                 }
             }
 

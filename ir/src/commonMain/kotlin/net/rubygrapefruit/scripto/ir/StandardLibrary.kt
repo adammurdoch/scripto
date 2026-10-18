@@ -28,6 +28,18 @@ object IntFunctions : Functions {
     }
 }
 
+object BooleanFunctions : Functions {
+    val toString = TypedFunctionDefinition("toString", Type.String, emptyList())
+
+    override fun definitions(name: String): List<FunctionDefinition> {
+        return if (name == "toString") {
+            listOf(toString)
+        } else {
+            emptyList()
+        }
+    }
+}
+
 object StandardLibrary : Functions {
     val printlnNoArgs = VoidFunctionDefinition("println", emptyList())
     val printlnOneArg = VoidFunctionDefinition("println", listOf(IncomingType.Any))
@@ -52,7 +64,7 @@ object StandardLibrary : Functions {
         val functions = when (receiver) {
             is Type.String -> StringFunctions
             is Type.Int -> IntFunctions
-            else -> return emptyList()
+            is Type.Boolean -> BooleanFunctions
         }
         return functions.definitions(name)
     }

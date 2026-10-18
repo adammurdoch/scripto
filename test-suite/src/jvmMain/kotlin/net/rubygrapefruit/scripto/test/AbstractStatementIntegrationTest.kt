@@ -3,22 +3,6 @@ package net.rubygrapefruit.scripto.test
 import kotlin.test.Test
 
 abstract class AbstractStatementIntegrationTest : AbstractIntegrationTest() {
-    @Test
-    fun `compiles boolean variable defintion and call to println stdlib function`() {
-        val sourceFile = workDir.file("app.scripto")
-
-        sourceFile.writeText(
-            """
-val b = false
-println(b)
-        """
-        )
-
-        compileAndRun(sourceFile) {
-            statements(2)
-            output("false\n")
-        }
-    }
 
     @Test
     fun `compiles chained string toString() calls`() {

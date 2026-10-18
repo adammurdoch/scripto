@@ -48,10 +48,22 @@ Standard library
 - `println(String)`
 - `println(Int)`
 - `println(Boolean)`
+- `println(File)`
+
+String type
 - `String.toString()`
+
+Int type
 - `Int.toString()`
+
+Boolean type
+- `Boolean.toString()`
+
+File type
 - `File(String)`
 - `readText(String): String`
+
+Operators
 - `Int + Int: Boolean`
 - `String + String: String`
 - `String == String: Boolean`

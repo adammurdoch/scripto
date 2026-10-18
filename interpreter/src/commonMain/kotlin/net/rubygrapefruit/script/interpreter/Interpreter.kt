@@ -58,6 +58,7 @@ class Interpreter {
                 when (expression.target) {
                     StringFunctions.toString -> receiver.toString()
                     IntFunctions.toString -> receiver.toString()
+                    BooleanFunctions.toString -> receiver.toString()
                     else -> throw IllegalArgumentException("unknown function ${expression.receiver.type}.${expression.target}")
                 }
             }
