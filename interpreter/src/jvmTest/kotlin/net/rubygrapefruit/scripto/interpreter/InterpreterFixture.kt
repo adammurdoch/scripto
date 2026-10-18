@@ -9,14 +9,17 @@ import java.io.StringWriter
 
 class InterpreterFixture(workDir: Directory) : AppFixture(workDir) {
     override fun generateAndRun(program: Program): String {
-        val writer = StringWriter()
-        val stdout = object : StdOut {
-            override fun println(text: String) {
-                writer.appendLine(text)
-            }
-        }
+        val stdout = CollectingStdOut()
         val interpreter = Interpreter()
         interpreter.run(program, stdout)
-        return writer.toString()
+        return stdout.writer.toString()
+    }
+
+    private class CollectingStdOut : StdOut {
+        val writer = StringWriter()
+
+        override fun println(text: String) {
+            writer.appendLine(text)
+        }
     }
 }

@@ -56,12 +56,7 @@ class RunAction : CliAction() {
         val program = compiler.compile(sourceFile).get()
 
         val interpreter = Interpreter()
-        val stdout = object : StdOut {
-            override fun println(text: String) {
-                kotlin.io.println(text)
-            }
-        }
-        interpreter.run(program, stdout)
+        interpreter.run(program, StdOut.Default)
     }
 }
 
