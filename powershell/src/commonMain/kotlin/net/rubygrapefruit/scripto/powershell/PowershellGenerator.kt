@@ -3,22 +3,24 @@ package net.rubygrapefruit.scripto.powershell
 import net.rubygrapefruit.file.RegularFile
 import net.rubygrapefruit.scripto.generator.OperationMapper
 import net.rubygrapefruit.scripto.generator.SourceGenerator
+import net.rubygrapefruit.scripto.generator.StatementScope
 import net.rubygrapefruit.scripto.generator.writeTo
 import net.rubygrapefruit.scripto.ir.*
 
 class PowershellGenerator {
     fun generate(program: Program, outputFile: RegularFile) {
+        val scope = StatementScope()
         val mapping = OperationMapper.of {
             mapFun(StandardLibrary.printlnNoArgs) {
                 PsCommandInvocation("Write-Output", listOf(PsString("")))
             }
             mapFun(StandardLibrary.printlnOneArg) {
-                val args = it.arguments.map { toStringExpression(it) }
+                val args = it.arguments.map { toStringExpression(it, scope) }
                 PsCommandInvocation("Write-Output", args)
             }
             flatMapVar {
                 val value = it.value
-                val initializer = toExpression(value)
+                val initializer = toExpression(value, scope)
                 listOf(PsVariableDeclaration(it, initializer))
             }
         }
@@ -35,15 +37,15 @@ class PowershellGenerator {
         }
     }
 
-    private fun toStringExpression(expression: Expression): PsExpression {
+    private fun toStringExpression(expression: Expression, scope: StatementScope): PsExpression {
         return when (expression) {
             is StringLiteral -> PsString(expression.value)
             is IntLiteral -> PsString(expression.value.toString())
             is BooleanLiteral -> PsString(expression.value.toString())
             is VariableReference -> convertToString(expression, PsVariableReference(expression.target.name))
-            is InfixFunctionCall -> convertToString(expression, mapInfix(expression))
-            is FunctionCallExpression -> convertToString(expression, mapFunctionCall(expression))
-            is ReceiverFunctionCallExpression -> convertToString(expression, mapFunctionCall(expression))
+            is InfixFunctionCall -> convertToString(expression, mapInfix(expression, scope))
+            is FunctionCallExpression -> convertToString(expression, mapFunctionCall(expression, scope))
+            is ReceiverFunctionCallExpression -> convertToString(expression, mapFunctionCall(expression, scope))
         }
     }
 
@@ -67,33 +69,33 @@ class PowershellGenerator {
         return PsTernaryExpression(psExpression, PsString(BooleanLiteral.TRUE), PsString(BooleanLiteral.FALSE))
     }
 
-    private fun toExpression(expression: Expression): PsExpression {
+    private fun toExpression(expression: Expression, scope: StatementScope): PsExpression {
         return when (expression) {
             is StringLiteral -> PsString(expression.value)
             is IntLiteral -> PsInt(expression.value)
             is BooleanLiteral -> if (expression.value) PsTrue else PsFalse
             is VariableReference -> PsVariableReference(expression.target.name)
-            is InfixFunctionCall -> mapInfix(expression)
-            is FunctionCallExpression -> mapFunctionCall(expression)
-            is ReceiverFunctionCallExpression -> mapFunctionCall(expression)
+            is InfixFunctionCall -> mapInfix(expression, scope)
+            is FunctionCallExpression -> mapFunctionCall(expression, scope)
+            is ReceiverFunctionCallExpression -> mapFunctionCall(expression, scope)
         }
     }
 
-    private fun mapFunctionCall(expression: FunctionCallExpression): PsExpression {
+    private fun mapFunctionCall(expression: FunctionCallExpression, scope: StatementScope): PsExpression {
         return when (expression.target) {
-            StandardLibrary.fileConstructor -> toExpression(expression.args.first())
+            StandardLibrary.fileConstructor -> toExpression(expression.args.first(), scope)
             else -> throw IllegalArgumentException("Unknown function '${expression.target.name}'")
         }
     }
 
-    private fun mapFunctionCall(expression: ReceiverFunctionCallExpression): PsExpression {
+    private fun mapFunctionCall(expression: ReceiverFunctionCallExpression, scope: StatementScope): PsExpression {
         return when (expression.target) {
-            StringFunctions.toString -> toExpression(expression.receiver)
+            StringFunctions.toString -> toExpression(expression.receiver, scope)
             IntFunctions.toString -> {
                 val receiver = expression.receiver
                 when (receiver) {
                     is IntLiteral -> PsString(receiver.value.toString())
-                    else -> PsFunctionCall(toExpression(receiver), "ToString")
+                    else -> PsFunctionCall(toExpression(receiver, scope), "ToString")
                 }
             }
 
@@ -101,26 +103,27 @@ class PowershellGenerator {
                 val receiver = expression.receiver
                 when (receiver) {
                     is BooleanLiteral -> PsString(receiver.value.toString())
-                    else -> convertBooleanToString(toExpression(receiver))
+                    else -> convertBooleanToString(toExpression(receiver, scope))
                 }
             }
 
             FileFunctions.toString -> {
-                fileToString(toExpression(expression.receiver))
+                fileToString(toExpression(expression.receiver, scope))
             }
 
             FileFunctions.readText -> {
-                val commands = readFileIntoVar(expression.receiver, "TMP_VAR")
-                PsCommandInvocationExpression("TMP_VAR", commands)
+                val varName = scope.newVarName("read_text")
+                val commands = readFileIntoVar(toExpression(expression.receiver, scope), varName)
+                PsCommandInvocationExpression(varName, commands)
             }
 
             else -> throw IllegalArgumentException("Unknown function '${expression.receiver.type}.${expression.target.name}()'")
         }
     }
 
-    private fun readFileIntoVar(file: Expression, varName: String): List<PsStatement> {
+    private fun readFileIntoVar(file: PsExpression, varName: String): List<PsStatement> {
         val readCommand = PsPipe(
-            PsCommandInvocation("Get-Content -raw", listOf(toExpression(file))),
+            PsCommandInvocation("Get-Content -raw", listOf(file)),
             PsCommandInvocation("Set-Variable $varName", emptyList())
         )
         // Does not set variable when file is empty
@@ -128,10 +131,10 @@ class PowershellGenerator {
         return listOf(readCommand, checkNotNull)
     }
 
-    private fun mapInfix(expression: InfixFunctionCall): PsExpression {
+    private fun mapInfix(expression: InfixFunctionCall, scope: StatementScope): PsExpression {
         return when (expression.target.operator) {
-            Operator.Plus -> PsInfixOperation(toExpression(expression.left), expression.operator, toExpression(expression.right))
-            Operator.Equality -> PsInfixOperation(toExpression(expression.left), "-ceq", toExpression(expression.right))
+            Operator.Plus -> PsInfixOperation(toExpression(expression.left, scope), expression.operator, toExpression(expression.right, scope))
+            Operator.Equality -> PsInfixOperation(toExpression(expression.left, scope), "-ceq", toExpression(expression.right, scope))
         }
     }
 

@@ -4,22 +4,24 @@ import net.rubygrapefruit.file.PosixPermissions
 import net.rubygrapefruit.file.RegularFile
 import net.rubygrapefruit.scripto.generator.OperationMapper
 import net.rubygrapefruit.scripto.generator.SourceGenerator
+import net.rubygrapefruit.scripto.generator.StatementScope
 import net.rubygrapefruit.scripto.generator.writeTo
 import net.rubygrapefruit.scripto.ir.*
 
 class BashGenerator {
     fun generate(program: Program, outputFile: RegularFile) {
+        val scope = StatementScope()
         val operationMapper = OperationMapper.of {
             mapFun(StandardLibrary.printlnNoArgs) {
                 BashCommandInvocation("echo", emptyList())
             }
             mapFun(StandardLibrary.printlnOneArg) {
-                val args = it.arguments.map { toExpression(it) }
+                val args = it.arguments.map { toExpression(it, scope) }
                 BashCommandInvocation("echo", args)
             }
             mapVar { declaration ->
                 val value = declaration.value
-                BashVariableAssignment(declaration.name, toExpression(value))
+                BashVariableAssignment(declaration.name, toExpression(value, scope))
             }
         }
 
@@ -35,16 +37,16 @@ class BashGenerator {
         outputFile.setPermissions(PosixPermissions.readWriteFile.executable())
     }
 
-    private fun toExpression(expression: Expression): BashExpression {
+    private fun toExpression(expression: Expression, scope: StatementScope): BashExpression {
         return when (expression) {
             is StringLiteral -> BashString(expression.value)
             is IntLiteral -> BashWord(expression.value.toString())
             is BooleanLiteral -> BashWord(expression.value.toString())
             is VariableReference -> varReferenceToBash(expression)
-            is InfixFunctionCall -> mapInfix(expression)
+            is InfixFunctionCall -> mapInfix(expression, scope)
             is FunctionCallExpression -> {
                 if (expression.target == StandardLibrary.fileConstructor) {
-                    toExpression(expression.args.first())
+                    toExpression(expression.args.first(), scope)
                 } else {
                     throw IllegalArgumentException("Unknown function '${expression.target}'")
                 }
@@ -52,16 +54,17 @@ class BashGenerator {
 
             is ReceiverFunctionCallExpression -> {
                 if (expression.target == StringFunctions.toString) {
-                    toExpression(expression.receiver)
+                    toExpression(expression.receiver, scope)
                 } else if (expression.target == IntFunctions.toString) {
-                    toExpression(expression.receiver)
+                    toExpression(expression.receiver, scope)
                 } else if (expression.target == BooleanFunctions.toString) {
-                    toExpression(expression.receiver)
+                    toExpression(expression.receiver, scope)
                 } else if (expression.target == FileFunctions.toString) {
-                    BashConcatenatedExpressions(listOf(BashString("File("), toExpression(expression.receiver), BashString(")")))
+                    BashConcatenatedExpressions(listOf(BashString("File("), toExpression(expression.receiver, scope), BashString(")")))
                 } else if (expression.target == FileFunctions.readText) {
-                    val readText = readFileIntoVar(expression.receiver, "TMP_VAR")
-                    BashCommandInvocationExpression("TMP_VAR", readText)
+                    val varName = scope.newVarName("READ_TEXT")
+                    val readText = readFileIntoVar(toExpression(expression.receiver, scope), varName)
+                    BashCommandInvocationExpression(varName, readText)
                 } else {
                     throw IllegalArgumentException("Unknown function '${expression.receiver.type}.${expression.target.name}()'")
                 }
@@ -69,12 +72,12 @@ class BashGenerator {
         }
     }
 
-    private fun mapInfix(expression: InfixFunctionCall): BashExpression {
+    private fun mapInfix(expression: InfixFunctionCall, scope: StatementScope): BashExpression {
         return when (expression.target) {
-            StandardLibrary.intAddition -> BashArithmetic(toExpression(expression.left), expression.operator, toExpression(expression.right))
-            StandardLibrary.stringConcatenation -> BashConcatenatedExpressions(listOf(toExpression(expression.left), toExpression(expression.right)))
+            StandardLibrary.intAddition -> BashArithmetic(toExpression(expression.left, scope), expression.operator, toExpression(expression.right, scope))
+            StandardLibrary.stringConcatenation -> BashConcatenatedExpressions(listOf(toExpression(expression.left, scope), toExpression(expression.right, scope)))
             else -> {
-                val test = listOf(toExpression(expression.left), BashWord("="), toExpression(expression.right))
+                val test = listOf(toExpression(expression.left, scope), BashWord("="), toExpression(expression.right, scope))
                 val trueBranch = BashVariableAssignment("TMP_VAR", BashWord("true"))
                 val falseBranch = BashVariableAssignment("TMP_VAR", BashWord("false"))
                 val statement = BashIfStatement(test, trueBranch, falseBranch)
@@ -91,8 +94,8 @@ class BashGenerator {
         }
     }
 
-    private fun readFileIntoVar(file: Expression, varName: String): BashCommandInvocation {
-        return BashCommandInvocation("IFS= read -rd '' $varName", emptyList(), redirectInput = toExpression(file))
+    private fun readFileIntoVar(file: BashExpression, varName: String): BashCommandInvocation {
+        return BashCommandInvocation("IFS= read -rd '' $varName", emptyList(), redirectInput = file)
     }
 
     private fun SourceGenerator.append(statement: BashStatement) {

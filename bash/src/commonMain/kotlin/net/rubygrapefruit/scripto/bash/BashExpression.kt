@@ -18,12 +18,23 @@ internal class BashWord(val value: String) : BashExpression
 /**
  * A list of expressions concatenated together in the bash output.
  */
-internal class BashConcatenatedExpressions(val values: List<BashExpression>) : BashExpression
+internal class BashConcatenatedExpressions(val values: List<BashExpression>) : BashExpression {
+    override fun visitStatements(visitor: (BashStatement) -> Unit) {
+        for (expression in values) {
+            expression.visitStatements(visitor)
+        }
+    }
+}
 
 /**
  * An arithmetic expression.
  */
-internal class BashArithmetic(val left: BashExpression, val operator: String, val right: BashExpression) : BashExpression
+internal class BashArithmetic(val left: BashExpression, val operator: String, val right: BashExpression) : BashExpression {
+    override fun visitStatements(visitor: (BashStatement) -> Unit) {
+        left.visitStatements(visitor)
+        right.visitStatements(visitor)
+    }
+}
 
 /**
  * An expression that requires a statement to be executed before it can be evaluated.

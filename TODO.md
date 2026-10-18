@@ -27,6 +27,7 @@ JVM
 C
 
 - Don't use a temporary variable to calculate variable initializer, e.g. for `Int.toString()`
+- Reuse temporary variables across statements
 - Garbage collect strings created by `+` operator, `Int.toString()` and `File.readText()`
 - Add a helper function for `Int.toString()`, similar to `stringConcat()` 
 - Add a helper function to `File.toString()`
@@ -38,13 +39,14 @@ C
 Bash
 
 - Don't use a temporary variable to calculate variable initializer, e.g. for `File.readText()`
+- Reuse temporary variables across statements
 - Don't wrap '+' operators in paren when already in arithmetic mode
-- Handle case where multiple expressions use a temporary variable
 - Use `declare -i` for int variables?
 
 PowerShell
 
 - Don't use a temporary variable to calculate variable initializer, e.g. for `File.readText()`
+- Reuse temporary variables across statements
 - Use string interpolation for `File.toString()`?
 - Don't wrap '+' operators in `$()` or `()` when already in arithmetic mode
 
