@@ -2,7 +2,6 @@ package net.rubygrapefruit.scripto.bash
 
 import net.rubygrapefruit.file.PosixPermissions
 import net.rubygrapefruit.file.RegularFile
-import net.rubygrapefruit.scripto.generator.OperationMapper
 import net.rubygrapefruit.scripto.generator.SourceGenerator
 import net.rubygrapefruit.scripto.generator.StatementScope
 import net.rubygrapefruit.scripto.generator.writeTo
@@ -11,21 +10,33 @@ import net.rubygrapefruit.scripto.ir.*
 class BashGenerator {
     fun generate(program: Program, outputFile: RegularFile) {
         val scope = StatementScope()
-        val operationMapper = OperationMapper.of {
-            mapFun(StandardLibrary.printlnNoArgs) {
-                BashCommandInvocation("echo", emptyList())
-            }
-            mapFun(StandardLibrary.printlnOneArg) {
-                val args = it.arguments.map { toExpression(it, scope) }
-                BashCommandInvocation("echo", args)
-            }
-            mapVar { declaration ->
-                val value = declaration.value
-                BashVariableAssignment(declaration.name, toExpression(value, scope))
+        val builder = BashStatementBuilder()
+        for (operation in program.operations) {
+            when (operation) {
+                is FunctionCall -> {
+                    val statement = when (operation.target) {
+                        StandardLibrary.printlnNoArgs -> {
+                            BashCommandInvocation("echo", emptyList())
+                        }
+
+                        StandardLibrary.printlnOneArg -> {
+                            val args = operation.arguments.map { toExpression(it, scope) }
+                            BashCommandInvocation("echo", args)
+                        }
+
+                        else -> throw IllegalArgumentException("Unknown function ${operation.target.name}()")
+                    }
+                    builder.add(statement)
+                }
+
+                is VariableDeclaration -> {
+                    val value = operation.value
+                    builder.add(BashVariableAssignment(operation.name, toExpression(value, scope)))
+                }
             }
         }
 
-        val bashProgram = BashProgram(operationMapper.map(program.operations))
+        val bashProgram = BashProgram(builder.statements)
 
         writeTo(outputFile) {
             appendln("# generated file")
@@ -99,9 +110,6 @@ class BashGenerator {
     }
 
     private fun SourceGenerator.append(statement: BashStatement) {
-        statement.visitDependencies {
-            append(it)
-        }
         when (statement) {
             is BashVariableAssignment -> append(statement)
             is BashCommandInvocation -> append(statement)

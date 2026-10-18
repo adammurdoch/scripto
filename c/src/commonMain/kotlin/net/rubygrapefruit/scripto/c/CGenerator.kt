@@ -136,8 +136,7 @@ class CGenerator {
                             ),
                             CFunctionCall("snprintf", listOf(stringVar, lengthVar, CString("%d"), valueVar), null)
                         ),
-                        stringVar,
-                        emptyList()
+                        stringVar
                     )
                 }
             }
