@@ -11,17 +11,17 @@ class PowershellGenerator {
     fun generate(program: Program, outputFile: RegularFile) {
         val scope = StatementScope()
         val mapping = OperationMapper.of {
-            mapFun(StandardLibrary.printlnNoArgs) {
-                add(PsCommandInvocation("Write-Output", listOf(PsString(""))))
+            map(StandardLibrary.printlnNoArgs) {
+                PsCommandInvocation("Write-Output", listOf(PsString("")))
             }
-            mapFun(StandardLibrary.printlnOneArg) {
+            map(StandardLibrary.printlnOneArg) {
                 val args = it.arguments.map { toStringExpression(it, scope) }
-                add(PsCommandInvocation("Write-Output", args))
+                PsCommandInvocation("Write-Output", args)
             }
-            mapVar {
+            map {
                 val value = it.value
                 val initializer = toExpression(value, scope)
-                add(PsVariableDeclaration(it, initializer))
+                PsVariableDeclaration(it, initializer)
             }
         }
 

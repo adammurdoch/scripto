@@ -33,16 +33,16 @@ class JvmGenerator {
         val systemOut = StaticField(system, "out", printStream)
 
         val mapping = OperationMapper.of {
-            mapFun(StandardLibrary.printlnNoArgs) {
-                add(InstanceMethodCall(printStream, "println", voidMethod, systemOut, emptyList()))
+            map(StandardLibrary.printlnNoArgs) {
+                InstanceMethodCall(printStream, "println", voidMethod, systemOut, emptyList())
             }
-            mapFun(StandardLibrary.printlnOneArg) {
+            map(StandardLibrary.printlnOneArg) {
                 val args = it.arguments.map { toStringExpression(it) }
-                add(InstanceMethodCall(printStream, "println", stringToVoidMethod, systemOut, args))
+                InstanceMethodCall(printStream, "println", stringToVoidMethod, systemOut, args)
             }
-            mapVar { declaration ->
+            map { declaration ->
                 val type = toTypeKind(declaration.type)
-                add(JvmVariableDeclaration(declaration, type, toExpression(declaration.value)))
+                JvmVariableDeclaration(declaration, type, toExpression(declaration.value))
             }
         }
 

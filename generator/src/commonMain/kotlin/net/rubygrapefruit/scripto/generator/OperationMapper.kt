@@ -15,7 +15,7 @@ class OperationMapper<T> private constructor(
 ) {
     fun map(operations: List<Operation>): List<T> {
         val result = mutableListOf<T>()
-        val context = DefaultContext<T>(result, collectDependencies)
+        val context = DefaultContext(result, collectDependencies)
         for (operation in operations) {
             map(operation, context)
         }
@@ -59,9 +59,13 @@ class OperationMapper<T> private constructor(
     }
 
     interface Builder<T> {
-        fun mapFun(definition: UnitFunctionDefinition, map: Context<T>.(FunctionCall) -> Unit)
+        fun map(definition: UnitFunctionDefinition, map: (FunctionCall) -> T)
 
-        fun mapVar(map: Context<T>.(VariableDeclaration) -> Unit)
+        fun mapN(definition: UnitFunctionDefinition, map: Context<T>.(FunctionCall) -> Unit)
+
+        fun map(map: (VariableDeclaration) -> T)
+
+        fun mapN(map: Context<T>.(VariableDeclaration) -> Unit)
 
         fun collectDependencies(map: Context<T>.(T) -> Unit)
     }
@@ -71,11 +75,19 @@ class OperationMapper<T> private constructor(
         private var varMapping: Context<T>.(VariableDeclaration) -> Unit = { throw IllegalArgumentException("No mapping for variable declaration") }
         private var collectDependencies: Context<T>.(T) -> Unit = {}
 
-        override fun mapFun(definition: UnitFunctionDefinition, map: Context<T>.(FunctionCall) -> Unit) {
+        override fun map(definition: UnitFunctionDefinition, map: (FunctionCall) -> T) {
+            mappings[definition] = { add(map(it)) }
+        }
+
+        override fun mapN(definition: UnitFunctionDefinition, map: Context<T>.(FunctionCall) -> Unit) {
             mappings[definition] = map
         }
 
-        override fun mapVar(map: Context<T>.(VariableDeclaration) -> Unit) {
+        override fun map(map: (VariableDeclaration) -> T) {
+            varMapping = { add(map(it)) }
+        }
+
+        override fun mapN(map: Context<T>.(VariableDeclaration) -> Unit) {
             varMapping = map
         }
 
@@ -93,6 +105,4 @@ class OperationMapper<T> private constructor(
             return mappings.build()
         }
     }
-
-    private class Mapping<T>(val definition: UnitFunctionDefinition, val map: (FunctionCall) -> T)
 }

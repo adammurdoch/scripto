@@ -10,37 +10,7 @@ class CGenerator {
     fun generate(program: Program, outputFile: RegularFile) {
         val scope = CStatementScope()
 
-        val operationMapper = OperationMapper.of {
-            mapFun(StandardLibrary.printlnNoArgs) {
-                add(CFunctionCall("puts", listOf(CString("")), Header.Stdio))
-            }
-            mapFun(StandardLibrary.printlnOneArg) { operation ->
-                val arg = operation.arguments.first()
-                when (arg.type) {
-                    is Type.String -> {
-                        add(CFunctionCall("puts", listOf(toExpression(arg, scope)), Header.Stdio))
-                    }
-
-                    else -> {
-                        val args = toPrintfArgs(arg, scope)
-                        add(CFunctionCall("printf", args, Header.Stdio))
-                    }
-                }
-            }
-            mapVar { operation ->
-                val value = operation.value
-                val initializer = toExpression(value, scope)
-                val header = if (operation.type is Type.Boolean) Header.Stdbool else null
-                add(CVariableDeclaration(operation, initializer, header))
-            }
-            collectDependencies { operation ->
-                when (operation) {
-                    is CFunctionCall -> addDependencies(operation.arguments)
-                    is CVariableDeclaration -> addDependencies(operation.value)
-                }
-            }
-        }
-
+        val operationMapper = createOperationMapper(scope)
         val statements = operationMapper.map(program.operations)
 
         val cProgram = CProgram(statements)
@@ -76,6 +46,40 @@ class CGenerator {
             appendln("  return 0;")
             appendln('}')
         }
+    }
+
+    private fun CGenerator.createOperationMapper(scope: CStatementScope): OperationMapper<CStatement> {
+        val operationMapper = OperationMapper.of {
+            map(StandardLibrary.printlnNoArgs) {
+                CFunctionCall("puts", listOf(CString("")), Header.Stdio)
+            }
+            map(StandardLibrary.printlnOneArg) { operation ->
+                val arg = operation.arguments.first()
+                when (arg.type) {
+                    is Type.String -> {
+                        CFunctionCall("puts", listOf(toExpression(arg, scope)), Header.Stdio)
+                    }
+
+                    else -> {
+                        val args = toPrintfArgs(arg, scope)
+                        CFunctionCall("printf", args, Header.Stdio)
+                    }
+                }
+            }
+            map { operation ->
+                val value = operation.value
+                val initializer = toExpression(value, scope)
+                val header = if (operation.type is Type.Boolean) Header.Stdbool else null
+                CVariableDeclaration(operation, initializer, header)
+            }
+            collectDependencies { operation ->
+                when (operation) {
+                    is CFunctionCall -> addDependencies(operation.arguments)
+                    is CVariableDeclaration -> addDependencies(operation.value)
+                }
+            }
+        }
+        return operationMapper
     }
 
     private fun toExpression(expression: Expression, scope: CStatementScope): CExpression {
