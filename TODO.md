@@ -38,8 +38,10 @@ C
 
 Bash
 
+- Strongly type expressions that can be used in bash commands and expressions that can be used in arithmetic contexts
 - Don't use a temporary variable to calculate variable initializer, e.g. for `File.readText()`
 - Reuse temporary variables across statements
+- Add a helper function for `List.toString()`?
 - Don't wrap '+' operators in paren when already in arithmetic mode
 - Use `declare -i` for int variables?
 

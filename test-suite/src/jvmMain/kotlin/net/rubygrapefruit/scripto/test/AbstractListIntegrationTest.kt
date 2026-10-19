@@ -98,7 +98,7 @@ println(l)
         """
         )
         compileAndRun(sourceFile) {
-            output("[1, 2, -123]\n")
+            output("[true, false]\n")
         }
     }
 

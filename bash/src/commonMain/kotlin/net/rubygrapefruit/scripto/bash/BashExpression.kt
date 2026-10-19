@@ -49,8 +49,8 @@ internal class BashArrayLiteral(val elements: List<BashExpression>) : BashExpres
 /**
  * An expression that requires a statement to be executed before it can be evaluated.
  */
-internal class BashCommandInvocationExpression(val intermediateVariable: String, val statement: BashStatement) : BashExpression {
+internal class BashCommandInvocationExpression(val intermediateVariable: String, val statements: List<BashStatement>) : BashExpression {
     override fun visitDependencies(visitor: (BashStatement) -> Unit) {
-        visitor(statement)
+        statements.forEach(visitor)
     }
 }

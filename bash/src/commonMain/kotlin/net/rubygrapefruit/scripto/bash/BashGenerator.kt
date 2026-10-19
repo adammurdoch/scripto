@@ -64,7 +64,7 @@ class BashGenerator {
                 val trueBranch = BashVariableAssignment("TMP_VAR", BashWord("true"), readOnly = false)
                 val falseBranch = BashVariableAssignment("TMP_VAR", BashWord("false"), readOnly = false)
                 val statement = BashIfStatement(test, trueBranch, falseBranch)
-                BashCommandInvocationExpression("TMP_VAR", statement)
+                BashCommandInvocationExpression("TMP_VAR", listOf(statement))
             }
             mapOperator(StandardLibrary.stringEquality, scope, equality)
             mapOperator(StandardLibrary.intEquality, scope, equality)
@@ -102,15 +102,28 @@ class BashGenerator {
                     BashConcatenatedExpressions(listOf(BashString("File("), toExpression(expression.receiver, scope, functionMapper), BashString(")")))
                 } else if (expression.target == ListFunctions.toString) {
                     val receiver = expression.receiver
-                    if (receiver is VariableReference) {
-                        BashWord("\${${receiver.target.name}[@]}")
-                    } else {
-                        TODO()
+                    when (receiver) {
+                        is VariableReference -> {
+                            val resultVarName = scope.newVarName("ARRAY_STR")
+                            val separatorVarName = scope.newVarName("SEPARATOR")
+                            val elementVarName = scope.newVarName("ELEMENT")
+                            BashCommandInvocationExpression(resultVarName, listOf(
+                                BashVariableAssignment(resultVarName, BashString("["), false),
+                                BashVariableAssignment(separatorVarName, BashString(""), false),
+                                BashForLoop(elementVarName, BashWord("\"\${${receiver.target.name}[@]}\""), listOf(
+                                    BashVariableAssignment(resultVarName, BashWord("\"\$$resultVarName\$$separatorVarName\$$elementVarName\""), false),
+                                    BashVariableAssignment(separatorVarName, BashString(", "), false)
+                                )),
+                                BashVariableAssignment(resultVarName, BashWord("\"\$$resultVarName]\""), false),
+                            ))
+                        }
+
+                        else -> throw IllegalArgumentException()
                     }
                 } else if (expression.target == FileFunctions.readText) {
                     val varName = scope.newVarName("READ_TEXT")
                     val readText = readFileIntoVar(toExpression(expression.receiver, scope, functionMapper), varName)
-                    BashCommandInvocationExpression(varName, readText)
+                    BashCommandInvocationExpression(varName, listOf(readText))
                 } else {
                     throw IllegalArgumentException("Unknown ${expression.target.displayName} for ${expression.receiver.type}")
                 }
@@ -134,6 +147,7 @@ class BashGenerator {
             is BashVariableAssignment -> append(statement)
             is BashCommandInvocation -> append(statement)
             is BashIfStatement -> append(statement)
+            is BashForLoop -> append(statement)
         }
     }
 
@@ -171,6 +185,18 @@ class BashGenerator {
         appendln("else")
         append(statement.falseBranch)
         appendln("fi")
+    }
+
+    private fun SourceGenerator.append(statement: BashForLoop) {
+        append("for ")
+        append(statement.elementVarName)
+        append(" in ")
+        append(statement.elements)
+        append("; do\n")
+        for (loopStatement in statement.statements) {
+            append(loopStatement)
+        }
+        append("done\n")
     }
 
     private fun SourceGenerator.append(expression: BashExpression) {

@@ -26,3 +26,9 @@ internal class BashVariableAssignment(val name: String, val value: BashExpressio
         value.visitDependencies(visitor)
     }
 }
+
+internal class BashForLoop(val elementVarName: String, val elements: BashExpression, val statements: List<BashStatement>) : BashStatement {
+    override fun visitDependencies(visitor: (BashStatement) -> Unit) {
+        elements.visitDependencies(visitor)
+    }
+}
