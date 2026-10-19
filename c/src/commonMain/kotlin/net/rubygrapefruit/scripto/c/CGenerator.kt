@@ -119,6 +119,16 @@ class CGenerator {
                 val right = toExpression(expression.args[1], scope, functionMapper)
                 CInfixOperator(left, "==", right)
             }
+            map(StandardLibrary.booleanEquality) { expression, functionMapper ->
+                val left = toExpression(expression.args[0], scope, functionMapper)
+                val right = toExpression(expression.args[1], scope, functionMapper)
+                CInfixOperator(left, "==", right)
+            }
+            map(StandardLibrary.intAddition) { expression, functionMapper ->
+                val left = toExpression(expression.args[0], scope, functionMapper)
+                val right = toExpression(expression.args[1], scope, functionMapper)
+                CInfixOperator(left, "+", right)
+            }
         }
     }
 
@@ -190,7 +200,7 @@ class CGenerator {
             is IntLiteral -> listOf(CString(arg.value.toString() + "\n"))
             is BooleanLiteral -> listOf(CString(arg.value.toString() + "\n"))
             is VariableReference -> toPrintfArgs(arg, CVariableReference(arg))
-            is FunctionCallExpression -> listOf(CString("%s\n"), functionMapper.map(arg))
+            is FunctionCallExpression -> toPrintfArgs(arg, functionMapper.map(arg))
             is ReceiverFunctionCallExpression -> listOf(CString("%s\n"), mapFunctionCall(arg, scope, functionMapper))
         }
     }
