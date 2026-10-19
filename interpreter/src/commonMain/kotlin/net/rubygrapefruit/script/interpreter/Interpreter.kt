@@ -41,6 +41,8 @@ class Interpreter {
                 val target = expression.target
                 when (target) {
                     StandardLibrary.fileConstructor -> args.first()
+                    StandardLibrary.listConstructor -> args
+
                     is OperatorDefinition -> {
                         val left = calculate(expression.args[0], vars)
                         val right = calculate(expression.args[1], vars)
@@ -50,12 +52,12 @@ class Interpreter {
                             StandardLibrary.intEquality -> left == right
                             StandardLibrary.intAddition -> (left as Int) + (right as Int)
                             StandardLibrary.booleanEquality -> left == right
-                            else -> throw IllegalArgumentException("unknown function ${expression.target}")
+                            else -> throw IllegalArgumentException("Unknown ${expression.target.displayName}")
                         }
 
                     }
 
-                    else -> throw IllegalArgumentException("unknown function ${expression.target}")
+                    else -> throw IllegalArgumentException("Unknown ${expression.target.displayName}")
                 }
             }
 
@@ -65,6 +67,7 @@ class Interpreter {
                     StringFunctions.toString -> receiver.toString()
                     IntFunctions.toString -> receiver.toString()
                     BooleanFunctions.toString -> receiver.toString()
+                    ListFunctions.toString -> receiver.toString()
                     FileFunctions.toString -> "File($receiver)"
                     FileFunctions.readText -> FileSystem.local.currentDirectory.file(receiver as String).readText()
                     else -> throw IllegalArgumentException("Unknown ${expression.target.displayName} for ${expression.receiver.type}")
