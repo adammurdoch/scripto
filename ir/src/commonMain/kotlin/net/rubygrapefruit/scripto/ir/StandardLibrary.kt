@@ -16,6 +16,12 @@ open class ObjectFunctions : Functions {
     }
 }
 
+object AnyFunctions : Functions {
+    override fun definitions(name: String): List<FunctionDefinition> {
+        return emptyList()
+    }
+}
+
 object StringFunctions : ObjectFunctions()
 
 object IntFunctions : ObjectFunctions()
@@ -34,9 +40,11 @@ object FileFunctions : ObjectFunctions() {
     }
 }
 
+object ListFunctions : ObjectFunctions()
+
 object StandardLibrary : Functions {
     val printlnNoArgs = UnitFunctionDefinition("println", emptyList())
-    val printlnOneArg = UnitFunctionDefinition("println", listOf(IncomingType.Any))
+    val printlnOneArg = UnitFunctionDefinition("println", listOf(Type.Any))
     val fileConstructor = NamedFunctionDefinition("File", Type.File, listOf(Type.String))
     val intAddition = OperatorDefinition(Operator.Plus, Type.Int, listOf(Type.Int, Type.Int))
     val stringConcatenation = OperatorDefinition(Operator.Plus, Type.String, listOf(Type.String, Type.String))
@@ -54,6 +62,7 @@ object StandardLibrary : Functions {
             is Type.Boolean -> FunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, BooleanFunctions.toString, emptyList())))
             is Type.Int -> FunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, IntFunctions.toString, emptyList())))
             is Type.File -> FunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, FileFunctions.toString, emptyList())))
+            else -> throw IllegalArgumentException()
         }
     }
 
@@ -66,13 +75,19 @@ object StandardLibrary : Functions {
     }
 
     fun definitions(receiver: Type, name: String): List<FunctionDefinition> {
-        val functions = when (receiver) {
+        val functions = functionsFor(receiver)
+        return functions.definitions(name)
+    }
+
+    private fun functionsFor(receiver: Type): Functions {
+        return when (receiver) {
+            is Type.Any -> AnyFunctions
             is Type.String -> StringFunctions
             is Type.Int -> IntFunctions
             is Type.Boolean -> BooleanFunctions
             is Type.File -> FileFunctions
+            is Type.List -> ListFunctions
         }
-        return functions.definitions(name)
     }
 
     fun operator(name: String): List<OperatorDefinition> {

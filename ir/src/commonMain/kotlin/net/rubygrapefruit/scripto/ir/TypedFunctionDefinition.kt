@@ -1,10 +1,10 @@
 package net.rubygrapefruit.scripto.ir
 
 sealed class FunctionDefinition {
-    abstract val args: List<IncomingType>
+    abstract val args: List<Type>
 }
 
-class UnitFunctionDefinition(val name: String, override val args: List<IncomingType>) : FunctionDefinition()
+class UnitFunctionDefinition(val name: String, override val args: List<Type>) : FunctionDefinition()
 
 sealed class TypedFunctionDefinition : FunctionDefinition() {
     abstract val displayName: String
@@ -12,7 +12,7 @@ sealed class TypedFunctionDefinition : FunctionDefinition() {
     abstract val returnType: Type
 }
 
-class NamedFunctionDefinition(val name: String, override val returnType: Type, override val args: List<IncomingType>) : TypedFunctionDefinition() {
+class NamedFunctionDefinition(val name: String, override val returnType: Type, override val args: List<Type>) : TypedFunctionDefinition() {
     override val displayName: String
         get() = "function $name()"
 }

@@ -81,6 +81,8 @@ class JvmGenerator {
             is Type.Int -> TypeDescriptor.Int
             is Type.String -> TypeDescriptor.String
             is Type.File -> TypeDescriptor.String
+            is Type.List -> throw IllegalArgumentException()
+            is Type.Any -> throw IllegalArgumentException()
         }
     }
 

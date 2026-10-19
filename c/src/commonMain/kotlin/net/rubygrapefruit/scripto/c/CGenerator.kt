@@ -180,6 +180,8 @@ class CGenerator {
             is Type.File -> listOf(CString("File(%s)\n"), cExpression)
             is Type.Int -> listOf(CString("%d\n"), cExpression)
             is Type.Boolean -> listOf(CTernaryExpression(cExpression, CString("${BooleanLiteral.TRUE}\n"), CString("${BooleanLiteral.FALSE}\n")))
+            is Type.List -> throw IllegalArgumentException()
+            is Type.Any -> throw IllegalArgumentException()
         }
     }
 
@@ -189,6 +191,8 @@ class CGenerator {
             is Type.String, Type.File -> append("char *")
             is Type.Int -> append("int32_t")
             is Type.Boolean -> append("bool")
+            is Type.List -> throw IllegalArgumentException()
+            is Type.Any -> throw IllegalArgumentException()
         }
         append(" ")
         append(declaration.name)

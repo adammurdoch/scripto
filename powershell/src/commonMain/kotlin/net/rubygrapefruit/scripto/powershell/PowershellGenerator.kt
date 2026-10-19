@@ -62,6 +62,8 @@ class PowershellGenerator {
             is Type.File -> fileToString(psExpression)
             is Type.Int -> psExpression
             is Type.Boolean -> convertBooleanToString(psExpression)
+            is Type.List -> throw IllegalArgumentException()
+            is Type.Any -> throw IllegalArgumentException()
         }
     }
 

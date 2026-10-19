@@ -31,6 +31,7 @@ class BashGenerator {
                 BashCommandInvocation("echo", emptyList())
             }
             map(StandardLibrary.printlnOneArg) { call ->
+                val call = StandardLibrary.convertPrintln(call)
                 val args = call.arguments.map { toExpression(it, scope, functionMapper) }
                 BashCommandInvocation("echo", args)
             }
@@ -110,8 +111,7 @@ class BashGenerator {
     private fun varReferenceToBash(expression: VariableReference): BashWord {
         return when (expression.type) {
             Type.String -> BashWord("\"\$${expression.target.name}\"")
-            Type.File -> BashWord("\"File(\$${expression.target.name})\"")
-            Type.Int, Type.Boolean -> BashWord("\$${expression.target.name}")
+            else -> BashWord("\$${expression.target.name}")
         }
     }
 
