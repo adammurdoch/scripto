@@ -108,22 +108,22 @@ class Compiler {
         val argsSuffix = sequence(optionalWhitespace, literal(')'))
         val argsList = surrounded(argsPrefix, zeroOrMore(expression, separator = argSeparator), argsSuffix)
 
-        val functionCall = sequence(position(), identifier, argsList) { pos, name, args -> FunctionCallTree(pos, name, args) }
-
-        val functionReceiver = oneOf(intLiteral, stringLiteral, trueLiteral, falseLiteral, functionCall, variableReference)
-
-        val receiverSeparator = sequence(optionalWhitespace, literal('.'), optionalWhitespace)
-        val receiverFunctionCall = sequence(functionReceiver, zeroOrMore(prefixed(receiverSeparator, functionCall))) { receiver, calls ->
-            calls.fold(receiver) { r, c -> ReceiverFunctionCallTree(r, c) }
-        }
-
         val listLiteralPrefix = sequence(literal('['), optionalWhitespace)
         val listLiteralSuffix = sequence(optionalWhitespace, literal(']'))
         val listLiteral = map(surrounded(listLiteralPrefix, zeroOrMore(expression, separator = argSeparator), listLiteralSuffix)) { elements ->
             ListLiteralTree(elements)
         }
 
-        val infixArgument = oneOf(receiverFunctionCall, listLiteral)
+        val functionCall = sequence(position(), identifier, argsList) { pos, name, args -> FunctionCallTree(pos, name, args) }
+
+        val functionReceiver = oneOf(intLiteral, stringLiteral, trueLiteral, falseLiteral, functionCall, variableReference, listLiteral)
+
+        val receiverSeparator = sequence(optionalWhitespace, literal('.'), optionalWhitespace)
+        val receiverFunctionCall = sequence(functionReceiver, zeroOrMore(prefixed(receiverSeparator, functionCall))) { receiver, calls ->
+            calls.fold(receiver) { r, c -> ReceiverFunctionCallTree(r, c) }
+        }
+
+        val infixArgument = receiverFunctionCall
 
         val operator = oneOf(
             literal("+", "+"),

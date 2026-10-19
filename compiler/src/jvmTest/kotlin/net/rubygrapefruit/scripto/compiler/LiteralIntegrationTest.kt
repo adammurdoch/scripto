@@ -93,7 +93,7 @@ println(${candidate.first})
 
         compileFails("""1 | println(2147483648)
             ^
-Expected ")", "-", "0", "false", "true", '"', an identifier, an integer, space, tab""")
+Expected ")", "-", "0", "[", "false", "true", '"', an identifier, an integer, space, tab""")
     }
 
     @Test

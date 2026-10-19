@@ -37,7 +37,7 @@ class BashGenerator {
             }
             map { declaration ->
                 val value = declaration.value
-                BashVariableAssignment(declaration.name, toExpression(value, scope, functionMapper))
+                BashVariableAssignment(declaration.name, toExpression(value, scope, functionMapper), readOnly = true)
             }
             collectDependencies { statement: BashStatement ->
                 addDependencies(statement)
@@ -50,6 +50,9 @@ class BashGenerator {
             map(StandardLibrary.fileConstructor) { expression, functionMapper ->
                 toExpression(expression.args.first(), scope, functionMapper)
             }
+            map(StandardLibrary.listConstructor) { expression, functionMapper ->
+                BashArrayLiteral(expression.args.map { toExpression(it, scope, functionMapper) })
+            }
             mapOperator(StandardLibrary.intAddition, scope) { left, right ->
                 BashArithmetic(left, "+", right)
             }
@@ -58,8 +61,8 @@ class BashGenerator {
             }
             val equality = { left: BashExpression, right: BashExpression ->
                 val test = listOf(left, BashWord("="), right)
-                val trueBranch = BashVariableAssignment("TMP_VAR", BashWord("true"))
-                val falseBranch = BashVariableAssignment("TMP_VAR", BashWord("false"))
+                val trueBranch = BashVariableAssignment("TMP_VAR", BashWord("true"), readOnly = false)
+                val falseBranch = BashVariableAssignment("TMP_VAR", BashWord("false"), readOnly = false)
                 val statement = BashIfStatement(test, trueBranch, falseBranch)
                 BashCommandInvocationExpression("TMP_VAR", statement)
             }
@@ -97,6 +100,13 @@ class BashGenerator {
                     toExpression(expression.receiver, scope, functionMapper)
                 } else if (expression.target == FileFunctions.toString) {
                     BashConcatenatedExpressions(listOf(BashString("File("), toExpression(expression.receiver, scope, functionMapper), BashString(")")))
+                } else if (expression.target == ListFunctions.toString) {
+                    val receiver = expression.receiver
+                    if (receiver is VariableReference) {
+                        BashWord("\${${receiver.target.name}[@]}")
+                    } else {
+                        TODO()
+                    }
                 } else if (expression.target == FileFunctions.readText) {
                     val varName = scope.newVarName("READ_TEXT")
                     val readText = readFileIntoVar(toExpression(expression.receiver, scope, functionMapper), varName)
@@ -128,6 +138,9 @@ class BashGenerator {
     }
 
     private fun SourceGenerator.append(declaration: BashVariableAssignment) {
+        if (declaration.readOnly) {
+            append("readonly ")
+        }
         append(declaration.name)
         append("=")
         append(declaration.value)
@@ -191,6 +204,17 @@ class BashGenerator {
                 append(expression.operator)
                 append(expression.right)
                 append("))")
+            }
+
+            is BashArrayLiteral -> {
+                append("(")
+                expression.elements.forEachIndexed { index, element ->
+                    if (index > 0) {
+                        append(" ")
+                    }
+                    append(element)
+                }
+                append(")")
             }
 
             is BashCommandInvocationExpression -> {

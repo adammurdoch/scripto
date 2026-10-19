@@ -5,7 +5,7 @@ interface Functions {
 }
 
 open class ObjectFunctions : Functions {
-    val toString = NamedFunctionDefinition("toString", Type.String, emptyList())
+    val toString = NamedFunctionDefinition("toString", Type.String)
 
     override fun definitions(name: String): List<FunctionDefinition> {
         return if (name == "toString") {
@@ -43,15 +43,15 @@ object FileFunctions : ObjectFunctions() {
 object ListFunctions : ObjectFunctions()
 
 object StandardLibrary : Functions {
-    val printlnNoArgs = UnitFunctionDefinition("println", emptyList())
-    val printlnOneArg = UnitFunctionDefinition("println", listOf(Type.Any))
-    val fileConstructor = NamedFunctionDefinition("File", Type.File, listOf(Type.String))
-    val intAddition = OperatorDefinition(Operator.Plus, Type.Int, listOf(Type.Int, Type.Int))
-    val stringConcatenation = OperatorDefinition(Operator.Plus, Type.String, listOf(Type.String, Type.String))
-    val stringEquality = OperatorDefinition(Operator.Equality, Type.Boolean, listOf(Type.String, Type.String))
-    val intEquality = OperatorDefinition(Operator.Equality, Type.Boolean, listOf(Type.Int, Type.Int))
-    val booleanEquality = OperatorDefinition(Operator.Equality, Type.Boolean, listOf(Type.Boolean, Type.Boolean))
-    val listConstructor = NamedFunctionDefinition("List", Type.List(Type.String), emptyList())
+    val printlnNoArgs = UnitFunctionDefinition("println")
+    val printlnOneArg = UnitFunctionDefinition("println", Type.Any)
+    val fileConstructor = NamedFunctionDefinition("File", Type.File, Type.String)
+    val intAddition = OperatorDefinition(Operator.Plus, Type.Int, Type.Int, Type.Int)
+    val stringConcatenation = OperatorDefinition(Operator.Plus, Type.String, Type.String, Type.String)
+    val stringEquality = OperatorDefinition(Operator.Equality, Type.Boolean, Type.String, Type.String)
+    val intEquality = OperatorDefinition(Operator.Equality, Type.Boolean, Type.Int, Type.Int)
+    val booleanEquality = OperatorDefinition(Operator.Equality, Type.Boolean, Type.Boolean, Type.Boolean)
+    val listConstructor = NamedFunctionDefinition("List", Type.List(Type.String), listOf(Parameter(Type.String, true)))
 
     /**
      * Replaces println(Any) with println(String)
@@ -72,6 +72,7 @@ object StandardLibrary : Functions {
         return when (name) {
             printlnNoArgs.name -> listOf(printlnNoArgs, printlnOneArg)
             fileConstructor.name -> listOf(fileConstructor)
+            listConstructor.name -> listOf(listConstructor)
             else -> emptyList()
         }
     }

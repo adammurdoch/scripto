@@ -60,14 +60,15 @@ internal class ClassFileWriter {
 internal sealed interface TypeDescriptor {
     val descriptor: TypeDescriptorString
 
+    fun arrayType(): ArrayType {
+        return ArrayType(BinaryName("[${descriptor.value}"), TypeDescriptorString("[${descriptor.value}"), this)
+    }
+
     sealed interface ReferenceType : TypeDescriptor {
         val binaryName: BinaryName
     }
 
     class ObjectType(override val binaryName: BinaryName, override val descriptor: TypeDescriptorString, val isInterface: kotlin.Boolean) : ReferenceType {
-        fun arrayType(): ArrayType {
-            return ArrayType(BinaryName("[${descriptor.value}"), TypeDescriptorString("[${descriptor.value}"), this)
-        }
 
         override fun hashCode(): kotlin.Int {
             return descriptor.hashCode()
@@ -84,7 +85,7 @@ internal sealed interface TypeDescriptor {
         }
     }
 
-    class ArrayType(override val binaryName: BinaryName, override val descriptor: TypeDescriptorString, val elementType: ObjectType) : ReferenceType {
+    class ArrayType(override val binaryName: BinaryName, override val descriptor: TypeDescriptorString, val elementType: TypeDescriptor) : ReferenceType {
         override fun hashCode(): kotlin.Int {
             return descriptor.hashCode()
         }
@@ -234,8 +235,7 @@ internal interface CodeBuilder {
 
     fun dup()
 
-    // Should handle any type
-    fun newArray(type: TypeDescriptor.ObjectType)
+    fun newArray(elementType: TypeDescriptor)
 
     fun arrayStore()
 
@@ -484,11 +484,28 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
         push(stack.last())
     }
 
-    override fun newArray(type: TypeDescriptor.ObjectType) {
-        val classInfo = constantPool.addClassInfo(type)
+    override fun newArray(elementType: TypeDescriptor) {
+        when (elementType) {
+            is TypeDescriptor.Int -> {
+                encoder.u1(0xbc) // newarray
+                encoder.u1(10) // int[]
+            }
 
-        encoder.u1(0xbd) // anewarray
-        encoder.u2(classInfo.index)
+            is TypeDescriptor.Boolean -> {
+                encoder.u1(0xbc) // newarray
+                encoder.u1(4) // boolean[]
+            }
+
+            is TypeDescriptor.ReferenceType -> {
+                val classInfo = constantPool.addClassInfo(elementType)
+
+                encoder.u1(0xbd) // anewarray
+                encoder.u2(classInfo.index)
+            }
+        }
+
+        pop()
+        push(elementType.arrayType())
     }
 
     override fun arrayStore() {

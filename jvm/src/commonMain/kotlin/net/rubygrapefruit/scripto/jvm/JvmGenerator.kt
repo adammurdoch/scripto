@@ -126,7 +126,8 @@ class JvmGenerator {
 
             StandardLibrary.listConstructor -> {
                 val args = expression.args.map { toExpression(it) }
-                NewArray(args)
+                val elementType = (expression.type as Type.List).param
+                NewArray(toTypeDescriptor(elementType), args)
             }
 
             StandardLibrary.intAddition -> JvmIntAddition(toExpression(expression.args[0]), toExpression(expression.args[1]))
@@ -244,7 +245,7 @@ class JvmGenerator {
 
             is NewArray -> {
                 loadConstant(expression.elements.size)
-                newArray(TypeDescriptor.Object)
+                newArray(expression.elementType)
                 expression.elements.forEachIndexed { index, element ->
                     dup()
                     loadConstant(index)

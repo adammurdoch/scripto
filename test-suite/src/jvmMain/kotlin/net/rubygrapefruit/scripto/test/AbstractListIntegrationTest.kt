@@ -23,7 +23,21 @@ println(l)
         sourceFile.writeText(
             """
 val s = "some text"
-val l = ["a", s]
+val l = ["a", s, 123.toString()]
+println(l)
+        """
+        )
+        compileAndRun(sourceFile) {
+            output("[a, some text, 123]\n")
+        }
+    }
+
+    @Test
+    fun `compiles list constructor call with string literal arguments`() {
+        val sourceFile = workDir.file("app.scripto")
+        sourceFile.writeText(
+            """
+val l = List("a", "some text")
 println(l)
         """
         )
@@ -61,6 +75,20 @@ println(l)
     }
 
     @Test
+    fun `compiles list constructor call with int literal arguments`() {
+        val sourceFile = workDir.file("app.scripto")
+        sourceFile.writeText(
+            """
+val l = List(1, -50)
+println(l)
+        """
+        )
+        compileAndRun(sourceFile) {
+            output("[1, -50]\n")
+        }
+    }
+
+    @Test
     fun `compiles list literal of boolean literals`() {
         val sourceFile = workDir.file("app.scripto")
         sourceFile.writeText(
@@ -88,4 +116,16 @@ println(l)
         }
     }
 
+    @Test
+    fun `compiles call to string list literal toString()`() {
+        val sourceFile = workDir.file("app.scripto")
+        sourceFile.writeText(
+            """
+println(["a", "some text"].toString())
+        """
+        )
+        compileAndRun(sourceFile) {
+            output("[a, some text]\n")
+        }
+    }
 }

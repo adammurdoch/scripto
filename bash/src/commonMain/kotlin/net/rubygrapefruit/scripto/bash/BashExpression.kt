@@ -10,7 +10,7 @@ internal sealed interface BashExpression : ExpressionWithDependencies<BashStatem
 internal class BashString(val value: String) : BashExpression
 
 /**
- * A literal string to include in the bash output.
+ * A raw string to include in the bash output.
  */
 internal class BashWord(val value: String) : BashExpression
 
@@ -32,6 +32,17 @@ internal class BashArithmetic(val left: BashExpression, val operator: String, va
     override fun visitDependencies(visitor: (BashStatement) -> Unit) {
         left.visitDependencies(visitor)
         right.visitDependencies(visitor)
+    }
+}
+
+/**
+ * A list of expressions
+ */
+internal class BashArrayLiteral(val elements: List<BashExpression>) : BashExpression {
+    override fun visitDependencies(visitor: (BashStatement) -> Unit) {
+        for (expression in elements) {
+            expression.visitDependencies(visitor)
+        }
     }
 }
 

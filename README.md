@@ -53,12 +53,15 @@ Standard library
 - `println(File)`
 
 String type
+- `"` quoted literal
 - `String.toString()`
 
 Int type
+- Int literal
 - `Int.toString()`
 
 Boolean type
+- `true` or `false` literal
 - `Boolean.toString()`
 
 File type
@@ -67,7 +70,9 @@ File type
 - `File.readText(): String`
 
 List Type
-- `[...]` constructor
+- `[...]` literal
+- `List(...)` constructor
+- `List.toString()`
 
 Operators
 - `Int + Int: Boolean`

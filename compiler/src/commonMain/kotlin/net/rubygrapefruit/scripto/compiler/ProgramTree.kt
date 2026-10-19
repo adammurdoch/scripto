@@ -125,7 +125,7 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         if (definitions.isEmpty()) {
             return NotResolved.of(operation.position, "Unknown function ${operation.name}()")
         }
-        val definition = definitions.find { it.args.size == operation.arguments.size }
+        val definition = resolveFunction(definitions, operation.arguments)
         if (definition == null) {
             return NotResolved.of(operation.position, "Incorrect number of parameters for function ${operation.name}()")
         }
@@ -137,11 +137,23 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         if (definitions.isEmpty()) {
             return NotResolved.of(operation.position, "Unknown function ${receiver}.${operation.name}()")
         }
-        val definition = definitions.find { it.args.size == operation.arguments.size }
+        val definition = resolveFunction(definitions, operation.arguments)
         if (definition == null) {
             return NotResolved.of(operation.position, "Incorrect number of parameters for function ${receiver}.${operation.name}()")
         }
         return Resolved(definition)
+    }
+
+    private fun resolveFunction(definitions: List<FunctionDefinition>, arguments: List<ExpressionTree>): FunctionDefinition? {
+        for (definition in definitions) {
+            if (arguments.size == definition.parameters.size) {
+                return definition
+            }
+            if (arguments.size > definition.parameters.size && definition.parameters.isNotEmpty() && definition.parameters.last().isVarargs) {
+                return definition
+            }
+        }
+        return null
     }
 
     private fun resolveInfixOperator(
@@ -156,15 +168,15 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         val left = resolve(expression.left, variables, library)
         val right = resolve(expression.right, variables, library)
         return zipping(left, right) { left, right ->
-            val function = functions.find { left.type == it.args[0] && right.type == it.args[1] }
+            val function = functions.find { left.type == it.parameters[0].type && right.type == it.parameters[1].type }
             if (function == null) {
                 val definition = functions.first()
                 val problems = mutableListOf<String>()
-                if (left.type != definition.args[0]) {
-                    problems.add("Argument is not of type ${definition.args[0]}")
+                if (left.type != definition.parameters[0].type) {
+                    problems.add("Argument is not of type ${definition.parameters[0].type}")
                 }
-                if (right.type != definition.args[1]) {
-                    problems.add("Argument is not of type ${definition.args[1]}")
+                if (right.type != definition.parameters[1].type) {
+                    problems.add("Argument is not of type ${definition.parameters[1].type}")
                 }
                 NotResolved.of(problems)
             } else {
