@@ -6,7 +6,7 @@ abstract class AbstractFileIoIntegrationTest : AbstractIntegrationTest() {
     @Test
     fun `compiles call to readText function`() {
         val sourceFile = workDir.file("app.scripto")
-        val textFile = workDir.file("file.txt")
+        val textFile = workDir.file("some file.txt")
         textFile.writeText("string")
 
         sourceFile.writeText(
@@ -25,7 +25,7 @@ println(t)
     @Test
     fun `reads file with leading and trailing end line characters`() {
         val sourceFile = workDir.file("app.scripto")
-        val textFile = workDir.file("file.txt")
+        val textFile = workDir.file("some file.txt")
 
         val text = "\n  string\n\n  123\n"
         textFile.writeText(text)
@@ -46,7 +46,7 @@ println(t)
     @Test
     fun `reads empty file`() {
         val sourceFile = workDir.file("app.scripto")
-        val textFile = workDir.file("file.txt")
+        val textFile = workDir.file("some file.txt")
 
         textFile.writeText("")
 
@@ -66,7 +66,7 @@ println(t)
     @Test
     fun `compiles chained calls to readText function as function argument`() {
         val sourceFile = workDir.file("app.scripto")
-        val textFile = workDir.file("file.txt")
+        val textFile = workDir.file("some file.txt")
         textFile.writeText("string")
         val pathFile = workDir.file("path.txt")
         pathFile.writeText(textFile.absolutePath)
@@ -86,7 +86,7 @@ println(File(File("${pathFile.absolutePath}").readText()).readText())
     @Test
     fun `compiles chained calls to readText function as variable value`() {
         val sourceFile = workDir.file("app.scripto")
-        val textFile = workDir.file("file.txt")
+        val textFile = workDir.file("some file.txt")
         textFile.writeText("string")
         val pathFile = workDir.file("path.txt")
         pathFile.writeText(textFile.absolutePath)

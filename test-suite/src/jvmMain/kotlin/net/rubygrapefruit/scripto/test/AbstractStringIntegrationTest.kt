@@ -9,14 +9,14 @@ abstract class AbstractStringIntegrationTest : AbstractIntegrationTest() {
 
         sourceFile.writeText(
             """
-val s = "string"
+val s = "some text"
 println(s)
         """
         )
 
         compileAndRun(sourceFile) {
             statements(2)
-            output("string\n")
+            output("some text\n")
         }
     }
 
@@ -56,12 +56,12 @@ e
 
         sourceFile.writeText(
             """
-println("text".toString())
+println("some text".toString())
         """
         )
 
         compileAndRun(sourceFile) {
-            output("text\n")
+            output("some text\n")
         }
     }
 
@@ -71,13 +71,13 @@ println("text".toString())
 
         sourceFile.writeText(
             """
-val string = "text"
+val string = "some text"
 println(string.toString())
         """
         )
 
         compileAndRun(sourceFile) {
-            output("text\n")
+            output("some text\n")
         }
     }
 }

@@ -110,7 +110,7 @@ class BashGenerator {
 
     private fun varReferenceToBash(expression: VariableReference): BashWord {
         return when (expression.type) {
-            Type.String -> BashWord("\"\$${expression.target.name}\"")
+            Type.String, Type.File -> BashWord("\"\$${expression.target.name}\"")
             else -> BashWord("\$${expression.target.name}")
         }
     }

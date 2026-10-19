@@ -12,12 +12,13 @@ abstract class AbstractStringConcatenationIntegrationTest : AbstractIntegrationT
 println("ab" + "c")
 println("" + "abc")
 println("" + "")
+println("some " + "text")
         """
         )
 
         compileAndRun(sourceFile) {
-            statements(3)
-            output("abc\nabc\n\n")
+            statements(4)
+            output("abc\nabc\n\nsome text\n")
         }
     }
 
@@ -28,12 +29,13 @@ println("" + "")
         sourceFile.writeText(
 """
 println("a" + "b" + "c")
+println("some" + " " + "text")
 """
         )
 
         compileAndRun(sourceFile) {
-            statements(1)
-            output("abc\n")
+            statements(2)
+            output("abc\nsome text\n")
         }
     }
 
@@ -43,14 +45,16 @@ println("a" + "b" + "c")
 
         sourceFile.writeText(
             """
-val s = "ab" + "c"
-println(s)
+val a = "ab" + "c"
+val b = "some " + "text"
+println(a)
+println(b)
         """
         )
 
         compileAndRun(sourceFile) {
-            statements(2)
-            output("abc\n")
+            statements(4)
+            output("abc\nsome text\n")
         }
     }
 

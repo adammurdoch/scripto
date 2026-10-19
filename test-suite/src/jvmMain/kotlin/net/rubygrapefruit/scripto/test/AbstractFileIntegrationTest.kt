@@ -8,12 +8,12 @@ abstract class AbstractFileIntegrationTest : AbstractIntegrationTest() {
         val sourceFile = workDir.file("app.scripto")
         sourceFile.writeText(
             """
-val t = File("file.txt")
+val t = File("some file.txt")
 println(t)
         """
         )
         compileAndRun(sourceFile) {
-            output("File(file.txt)\n")
+            output("File(some file.txt)\n")
         }
     }
 
@@ -22,12 +22,12 @@ println(t)
         val sourceFile = workDir.file("app.scripto")
         sourceFile.writeText(
             """
-val t = File("file.txt").toString()
+val t = File("some file.txt").toString()
 println(t)
         """
         )
         compileAndRun(sourceFile) {
-            output("File(file.txt)\n")
+            output("File(some file.txt)\n")
         }
     }
 }

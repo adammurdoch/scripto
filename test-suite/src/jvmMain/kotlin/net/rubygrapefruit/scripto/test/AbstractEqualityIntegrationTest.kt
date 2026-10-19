@@ -13,12 +13,13 @@ println("abc" == "abc")
 println("abc" == "123")
 println("abc" == "a")
 println("abc" == "aBc")
+println("some text" == "some text")
         """
         )
 
         compileAndRun(sourceFile) {
-            statements(4)
-            output("true\nfalse\nfalse\nfalse\n")
+            statements(5)
+            output("true\nfalse\nfalse\nfalse\ntrue\n")
         }
     }
 
@@ -30,14 +31,16 @@ println("abc" == "aBc")
             """
 val a = "abc" == "abc"
 val b = "abc" == "123"
+val c = "some text" == "some text"
 println(a)
 println(b)
+println(c)
         """
         )
 
         compileAndRun(sourceFile) {
-            statements(4)
-            output("true\nfalse\n")
+            statements(6)
+            output("true\nfalse\ntrue\n")
         }
     }
 
@@ -49,15 +52,16 @@ println(b)
             """
 val a = "abc"
 val b = "abc"
-val c = "A"
+val c = "some text"
 println(a == b)
 println(a == c)
+println(c == c)
         """
         )
 
         compileAndRun(sourceFile) {
-            statements(5)
-            output("true\nfalse\n")
+            statements(6)
+            output("true\nfalse\ntrue\n")
         }
     }
 
@@ -67,8 +71,8 @@ println(a == c)
 
         sourceFile.writeText(
             """
-val a = "abc"
-val b = "ab" + "c"
+val a = "some text"
+val b = "some" + " " + "text"
 println(a == b)
         """
         )
