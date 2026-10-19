@@ -17,7 +17,7 @@ internal class Header(val name: String) : ExternalDeclaration() {
     }
 }
 
-internal class SourceFragment(val headers: List<Header>, text: String) : ExternalDeclaration() {
+internal class FunctionSnippet(val name: String, val headers: List<Header>, text: String) : ExternalDeclaration() {
     val text: String = text.trim() + "\n"
 
     override fun visitHeaders(visitor: (Header) -> Unit) {
@@ -25,10 +25,11 @@ internal class SourceFragment(val headers: List<Header>, text: String) : Externa
     }
 
     companion object {
-        val ReadText = SourceFragment(
+        val ReadText = FunctionSnippet(
+            "_read_text",
             listOf(Header.Stdlib, Header.Fcntl, Header.Unistd, Header.Stat),
             """
-char* readText(const char* fileName) {
+char* _read_text(const char* fileName) {
     int fd = open(fileName, O_RDONLY);
     if (fd < 0) {
         return "ERROR";
@@ -59,9 +60,10 @@ char* readText(const char* fileName) {
         """
         )
 
-        val StringConcatenation = SourceFragment(
+        val StringConcatenation = FunctionSnippet(
+            "_string_concat",
             listOf(Header.String, Header.Stdlib), """
-const char* stringConcat(const char* left, const char* right) {
+const char* _string_concat(const char* left, const char* right) {
     size_t leftLen = strlen(left);
     if (leftLen == 0) {
         return right;
@@ -73,6 +75,18 @@ const char* stringConcat(const char* left, const char* right) {
     return buffer;
 }
         """.trimIndent()
+        )
+
+        val IntToString = FunctionSnippet(
+            "_int_to_string",
+            listOf(Header.Stdlib), """
+const char* _int_to_string(int value) {
+    size_t len = snprintf(NULL, 0, "%d", value) + 1;
+    char* buffer = malloc(len);
+    snprintf(buffer, len, "%d", value);
+    return buffer;
+}
+            """.trimIndent()
         )
     }
 }

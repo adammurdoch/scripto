@@ -56,12 +56,3 @@ internal class CTernaryExpression(val condition: CExpression, val left: CExpress
         right.visitDependencies(visitor)
     }
 }
-
-/**
- * An expression that uses the result of some statement(s).
- */
-internal class CPreCalculatedExpression(val setup: List<CStatement>, val value: CVariableReference) : CExpression {
-    override fun visitDependencies(visitor: (CStatement) -> Unit) {
-        setup.forEach(visitor)
-    }
-}
