@@ -2,17 +2,15 @@ package net.rubygrapefruit.scripto.bash
 
 import net.rubygrapefruit.file.PosixPermissions
 import net.rubygrapefruit.file.RegularFile
-import net.rubygrapefruit.scripto.generator.OperationMapper
-import net.rubygrapefruit.scripto.generator.SourceGenerator
-import net.rubygrapefruit.scripto.generator.StatementScope
-import net.rubygrapefruit.scripto.generator.writeTo
+import net.rubygrapefruit.scripto.generator.*
 import net.rubygrapefruit.scripto.ir.*
 
 class BashGenerator {
     fun generate(program: Program, outputFile: RegularFile) {
         val scope = StatementScope()
 
-        val operationMapper = createOperationMapper(scope)
+        val functionMapper = createFunctionMapper(scope)
+        val operationMapper = createOperationMapper(scope, functionMapper)
 
         val statements = operationMapper.map(program.operations)
         val bashProgram = BashProgram(statements)
@@ -27,18 +25,18 @@ class BashGenerator {
         outputFile.setPermissions(PosixPermissions.readWriteFile.executable())
     }
 
-    private fun createOperationMapper(scope: StatementScope): OperationMapper<BashStatement> {
+    private fun createOperationMapper(scope: StatementScope, functionMapper: FunctionMapper<BashExpression>): OperationMapper<BashStatement> {
         return OperationMapper.of {
             map(StandardLibrary.printlnNoArgs) {
                 BashCommandInvocation("echo", emptyList())
             }
             map(StandardLibrary.printlnOneArg) { call ->
-                val args = call.arguments.map { toExpression(it, scope) }
+                val args = call.arguments.map { toExpression(it, scope, functionMapper) }
                 BashCommandInvocation("echo", args)
             }
             map { declaration ->
                 val value = declaration.value
-                BashVariableAssignment(declaration.name, toExpression(value, scope))
+                BashVariableAssignment(declaration.name, toExpression(value, scope, functionMapper))
             }
             collectDependencies { statement: BashStatement ->
                 addDependencies(statement)
@@ -46,43 +44,61 @@ class BashGenerator {
         }
     }
 
-    private fun toExpression(expression: Expression, scope: StatementScope): BashExpression {
+    private fun createFunctionMapper(scope: StatementScope): FunctionMapper<BashExpression> {
+        return FunctionMapper.of {
+            map(StandardLibrary.fileConstructor) { expression, functionMapper ->
+                toExpression(expression.args.first(), scope, functionMapper)
+            }
+            mapOperator(StandardLibrary.intAddition, scope) { left, right ->
+                BashArithmetic(left, "+", right)
+            }
+            mapOperator(StandardLibrary.stringConcatenation, scope) { left, right ->
+                BashConcatenatedExpressions(listOf(left, right))
+            }
+            val equality = { left: BashExpression, right: BashExpression ->
+                val test = listOf(left, BashWord("="), right)
+                val trueBranch = BashVariableAssignment("TMP_VAR", BashWord("true"))
+                val falseBranch = BashVariableAssignment("TMP_VAR", BashWord("false"))
+                val statement = BashIfStatement(test, trueBranch, falseBranch)
+                BashCommandInvocationExpression("TMP_VAR", statement)
+            }
+            mapOperator(StandardLibrary.stringEquality, scope, equality)
+            mapOperator(StandardLibrary.intEquality, scope, equality)
+            mapOperator(StandardLibrary.booleanEquality, scope, equality)
+        }
+    }
+
+    private fun FunctionMapper.Builder<BashExpression>.mapOperator(
+        operator: OperatorDefinition,
+        scope: StatementScope,
+        builder: (BashExpression, BashExpression) -> BashExpression
+    ) {
+        map(operator) { expression, functionMapper ->
+            val left = toExpression(expression.args[0], scope, functionMapper)
+            val right = toExpression(expression.args[1], scope, functionMapper)
+            builder(left, right)
+        }
+    }
+
+    private fun toExpression(expression: Expression, scope: StatementScope, functionMapper: FunctionMapper<BashExpression>): BashExpression {
         return when (expression) {
             is StringLiteral -> BashString(expression.value)
             is IntLiteral -> BashWord(expression.value.toString())
             is BooleanLiteral -> BashWord(expression.value.toString())
             is VariableReference -> varReferenceToBash(expression)
-            is FunctionCallExpression -> {
-                when (expression.target) {
-                    StandardLibrary.fileConstructor -> toExpression(expression.args.first(), scope)
-                    StandardLibrary.intAddition -> BashArithmetic(toExpression(expression.args[0], scope), "+", toExpression(expression.args[1], scope))
-                    StandardLibrary.stringConcatenation -> BashConcatenatedExpressions(listOf(toExpression(expression.args[0], scope), toExpression(expression.args[1], scope)))
-                    StandardLibrary.intEquality, StandardLibrary.booleanEquality, StandardLibrary.stringEquality -> {
-                        val test = listOf(toExpression(expression.args[0], scope), BashWord("="), toExpression(expression.args[1], scope))
-                        val trueBranch = BashVariableAssignment("TMP_VAR", BashWord("true"))
-                        val falseBranch = BashVariableAssignment("TMP_VAR", BashWord("false"))
-                        val statement = BashIfStatement(test, trueBranch, falseBranch)
-                        BashCommandInvocationExpression("TMP_VAR", statement)
-                    }
-
-                    else -> {
-                        throw IllegalArgumentException("Unknown function '${expression.target}'")
-                    }
-                }
-            }
-
+            is FunctionCallExpression -> functionMapper.map(expression)
             is ReceiverFunctionCallExpression -> {
                 if (expression.target == StringFunctions.toString) {
-                    toExpression(expression.receiver, scope)
+                    toExpression(expression.receiver, scope, functionMapper)
                 } else if (expression.target == IntFunctions.toString) {
-                    toExpression(expression.receiver, scope)
+                    toExpression(expression.receiver, scope, functionMapper)
                 } else if (expression.target == BooleanFunctions.toString) {
-                    toExpression(expression.receiver, scope)
+                    toExpression(expression.receiver, scope, functionMapper)
                 } else if (expression.target == FileFunctions.toString) {
-                    BashConcatenatedExpressions(listOf(BashString("File("), toExpression(expression.receiver, scope), BashString(")")))
+                    BashConcatenatedExpressions(listOf(BashString("File("), toExpression(expression.receiver, scope, functionMapper), BashString(")")))
                 } else if (expression.target == FileFunctions.readText) {
                     val varName = scope.newVarName("READ_TEXT")
-                    val readText = readFileIntoVar(toExpression(expression.receiver, scope), varName)
+                    val readText = readFileIntoVar(toExpression(expression.receiver, scope, functionMapper), varName)
                     BashCommandInvocationExpression(varName, readText)
                 } else {
                     throw IllegalArgumentException("Unknown ${expression.target.displayName} for ${expression.receiver.type}")
