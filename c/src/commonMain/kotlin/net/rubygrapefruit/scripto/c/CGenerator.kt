@@ -84,6 +84,35 @@ class CGenerator {
         }
     }
 
+    private fun createFunctionMapper(scope: CStatementScope): FunctionMapper<CExpression> {
+        return FunctionMapper.of {
+            map(StandardLibrary.fileConstructor) { expression, functionMapper ->
+                toExpression(expression.args.first(), scope, functionMapper)
+            }
+            mapOperator(StandardLibrary.stringConcatenation, scope) { left, right ->
+                concatString(left, right)
+            }
+            mapOperator(StandardLibrary.stringEquality, scope) { left, right ->
+                CInfixOperator(
+                    CFunctionCall("strcmp", listOf(left, right), Header.String),
+                    "==",
+                    CInt(0)
+                )
+            }
+            mapOperator(StandardLibrary.intEquality, scope) { left, right -> CInfixOperator(left, "==", right) }
+            mapOperator(StandardLibrary.intAddition, scope) { left, right -> CInfixOperator(left, "+", right) }
+            mapOperator(StandardLibrary.booleanEquality, scope) { left, right -> CInfixOperator(left, "==", right) }
+        }
+    }
+
+    private fun FunctionMapper.Builder<CExpression>.mapOperator(operator: OperatorDefinition, scope: CStatementScope, builder: (CExpression, CExpression) -> CExpression) {
+        map(operator) { expression, functionMapper ->
+            val left = toExpression(expression.args[0], scope, functionMapper)
+            val right = toExpression(expression.args[1], scope, functionMapper)
+            builder(left, right)
+        }
+    }
+
     private fun toExpression(expression: Expression, scope: CStatementScope, functionMapper: FunctionMapper<CExpression>): CExpression {
         return when (expression) {
             is StringLiteral -> CString(expression.value)
@@ -92,43 +121,6 @@ class CGenerator {
             is VariableReference -> CVariableReference(expression)
             is FunctionCallExpression -> functionMapper.map(expression)
             is ReceiverFunctionCallExpression -> mapFunctionCall(expression, scope, functionMapper)
-        }
-    }
-
-    private fun createFunctionMapper(scope: CStatementScope): FunctionMapper<CExpression> {
-        return FunctionMapper.of {
-            map(StandardLibrary.fileConstructor) { expression, functionMapper ->
-                toExpression(expression.args.first(), scope, functionMapper)
-            }
-            map(StandardLibrary.stringConcatenation) { expression, functionMapper ->
-                val left = toExpression(expression.args[0], scope, functionMapper)
-                val right = toExpression(expression.args[1], scope, functionMapper)
-                concatString(left, right)
-            }
-            map(StandardLibrary.stringEquality) { expression, functionMapper ->
-                val left = toExpression(expression.args[0], scope, functionMapper)
-                val right = toExpression(expression.args[1], scope, functionMapper)
-                CInfixOperator(
-                    CFunctionCall("strcmp", listOf(left, right), Header.String),
-                    "==",
-                    CInt(0)
-                )
-            }
-            map(StandardLibrary.intEquality) { expression, functionMapper ->
-                val left = toExpression(expression.args[0], scope, functionMapper)
-                val right = toExpression(expression.args[1], scope, functionMapper)
-                CInfixOperator(left, "==", right)
-            }
-            map(StandardLibrary.booleanEquality) { expression, functionMapper ->
-                val left = toExpression(expression.args[0], scope, functionMapper)
-                val right = toExpression(expression.args[1], scope, functionMapper)
-                CInfixOperator(left, "==", right)
-            }
-            map(StandardLibrary.intAddition) { expression, functionMapper ->
-                val left = toExpression(expression.args[0], scope, functionMapper)
-                val right = toExpression(expression.args[1], scope, functionMapper)
-                CInfixOperator(left, "+", right)
-            }
         }
     }
 
