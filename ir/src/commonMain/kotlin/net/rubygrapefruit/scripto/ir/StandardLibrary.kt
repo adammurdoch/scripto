@@ -44,6 +44,19 @@ object StandardLibrary : Functions {
     val intEquality = OperatorDefinition(Operator.Equality, Type.Boolean, listOf(Type.Int, Type.Int))
     val booleanEquality = OperatorDefinition(Operator.Equality, Type.Boolean, listOf(Type.Boolean, Type.Boolean))
 
+    /**
+     * Replaces println(Any) with println(String)
+     */
+    fun convertPrintln(call: FunctionCall): FunctionCall {
+        val arg = call.arguments.first()
+        return when (arg.type) {
+            is Type.String -> call
+            is Type.Boolean -> FunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, BooleanFunctions.toString, emptyList())))
+            is Type.Int -> FunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, IntFunctions.toString, emptyList())))
+            is Type.File -> FunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, FileFunctions.toString, emptyList())))
+        }
+    }
+
     override fun definitions(name: String): List<FunctionDefinition> {
         return when (name) {
             printlnNoArgs.name -> listOf(printlnNoArgs, printlnOneArg)

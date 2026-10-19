@@ -30,14 +30,14 @@ class PowershellGenerator {
             map(StandardLibrary.printlnNoArgs) {
                 PsCommandInvocation("Write-Output", listOf(PsString("")))
             }
-            map(StandardLibrary.printlnOneArg) {
-                val args = it.arguments.map { toStringExpression(it, scope) }
+            map(StandardLibrary.printlnOneArg) { call ->
+                val args = call.arguments.map { toStringExpression(it, scope) }
                 PsCommandInvocation("Write-Output", args)
             }
-            map {
-                val value = it.value
+            map { declaration ->
+                val value = declaration.value
                 val initializer = toExpression(value, scope)
-                PsVariableDeclaration(it, initializer)
+                PsVariableDeclaration(declaration, initializer)
             }
             collectDependencies { operation: PsStatement ->
                 addDependencies(operation)

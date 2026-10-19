@@ -56,8 +56,8 @@ class CGenerator {
             map(StandardLibrary.printlnNoArgs) {
                 CFunctionCall("puts", listOf(CString("")), Header.Stdio)
             }
-            map(StandardLibrary.printlnOneArg) { operation ->
-                val arg = operation.arguments.first()
+            map(StandardLibrary.printlnOneArg) { call ->
+                val arg = call.arguments.first()
                 when (arg.type) {
                     is Type.String -> {
                         CFunctionCall("puts", listOf(toExpression(arg, scope, functionMapper)), Header.Stdio)
@@ -69,11 +69,11 @@ class CGenerator {
                     }
                 }
             }
-            map { operation ->
-                val value = operation.value
+            map { declaration ->
+                val value = declaration.value
                 val initializer = toExpression(value, scope, functionMapper)
-                val header = if (operation.type is Type.Boolean) Header.Stdbool else null
-                CVariableDeclaration(operation, initializer, header)
+                val header = if (declaration.type is Type.Boolean) Header.Stdbool else null
+                CVariableDeclaration(declaration, initializer, header)
             }
             collectDependencies { operation ->
                 when (operation) {

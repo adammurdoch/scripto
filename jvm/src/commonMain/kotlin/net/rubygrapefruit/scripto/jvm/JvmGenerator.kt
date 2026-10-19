@@ -63,8 +63,9 @@ class JvmGenerator {
             map(StandardLibrary.printlnNoArgs) {
                 InstanceMethodCall(printStream, "println", voidMethod, systemOut, emptyList())
             }
-            map(StandardLibrary.printlnOneArg) {
-                val args = it.arguments.map { toStringExpression(it) }
+            map(StandardLibrary.printlnOneArg) { call ->
+                val call = StandardLibrary.convertPrintln(call)
+                val args = call.arguments.map { toExpression(it) }
                 InstanceMethodCall(printStream, "println", stringToVoidMethod, systemOut, args)
             }
             map { declaration ->
@@ -80,27 +81,6 @@ class JvmGenerator {
             is Type.Int -> TypeDescriptor.Int
             is Type.String -> TypeDescriptor.String
             is Type.File -> TypeDescriptor.String
-        }
-    }
-
-    private fun toStringExpression(expression: Expression): JvmExpression {
-        return when (expression) {
-            is StringLiteral -> JvmString(expression.value)
-            is IntLiteral -> JvmString(expression.value.toString())
-            is BooleanLiteral -> JvmString(expression.value.toString())
-            is VariableReference -> convertToString(expression, JvmVariableReference(expression))
-            is InfixFunctionCall -> convertToString(expression, mapInfix(expression))
-            is FunctionCallExpression -> convertToString(expression, mapFunctionCall(expression))
-            is ReceiverFunctionCallExpression -> convertToString(expression, mapFunctionCall(expression))
-        }
-    }
-
-    private fun convertToString(expression: Expression, jvmExpression: JvmExpression): JvmExpression {
-        return when (expression.type) {
-            is Type.Int -> intToString(jvmExpression)
-            is Type.Boolean -> booleanToString(jvmExpression)
-            is Type.String -> jvmExpression
-            is Type.File -> fileToString(jvmExpression)
         }
     }
 

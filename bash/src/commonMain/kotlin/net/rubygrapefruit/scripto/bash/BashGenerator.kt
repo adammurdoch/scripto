@@ -32,13 +32,13 @@ class BashGenerator {
             map(StandardLibrary.printlnNoArgs) {
                 BashCommandInvocation("echo", emptyList())
             }
-            map(StandardLibrary.printlnOneArg) { operation ->
-                val args = operation.arguments.map { toExpression(it, scope) }
+            map(StandardLibrary.printlnOneArg) { call ->
+                val args = call.arguments.map { toExpression(it, scope) }
                 BashCommandInvocation("echo", args)
             }
-            map { operation ->
-                val value = operation.value
-                BashVariableAssignment(operation.name, toExpression(value, scope))
+            map { declaration ->
+                val value = declaration.value
+                BashVariableAssignment(declaration.name, toExpression(value, scope))
             }
             collectDependencies { statement: BashStatement ->
                 addDependencies(statement)
