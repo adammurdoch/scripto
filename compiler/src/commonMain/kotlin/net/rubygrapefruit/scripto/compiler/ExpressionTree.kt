@@ -10,3 +10,5 @@ internal class VariableReferenceTree(val position: Position, val name: String) :
 internal class LiteralTree(val literal: Literal) : ExpressionTree
 
 internal class InfixOperatorTree(val left: ExpressionTree, val operator: String, val right: ExpressionTree) : ExpressionTree
+
+internal class ListLiteralTree(val elements: List<ExpressionTree>) : ExpressionTree

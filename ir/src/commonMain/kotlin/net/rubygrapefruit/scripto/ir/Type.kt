@@ -7,5 +7,9 @@ sealed interface Type {
     data object Boolean : Type
     data object File : Type
 
-    sealed class List(val param: Type) : Type
+    class List(val param: Type) : Type {
+        override fun toString(): kotlin.String {
+            return "List<$param>"
+        }
+    }
 }

@@ -81,6 +81,23 @@ class WhitespaceIntegrationTest : AbstractCompilerIntegrationTest() {
     }
 
     @Test
+    fun `ignores whitespace around function operator`() {
+        val candidates = listOf(
+            "println(123.toString())",
+            "println(123 . toString())",
+            "println(123+123)",
+            "println(123 + 123)"
+        )
+
+        for (candidate in candidates) {
+            sourceFile.writeText(candidate)
+
+            val program = compile()
+            assertEquals(1, program.operations.size)
+        }
+    }
+
+    @Test
     fun `parses script with no trailing end-of-line`() {
         sourceFile.writeText("println()")
 

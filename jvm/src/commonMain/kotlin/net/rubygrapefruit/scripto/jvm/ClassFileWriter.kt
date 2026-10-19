@@ -232,8 +232,12 @@ internal interface CodeBuilder {
 
     fun loadConstant(value: Boolean)
 
+    fun dup()
+
     // Should handle any type
     fun newArray(type: TypeDescriptor.ObjectType)
+
+    fun arrayStore()
 
     fun iadd()
 
@@ -475,11 +479,21 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
         startFrame()
     }
 
+    override fun dup() {
+        encoder.u1(0x59) // dup
+        push(stack.last())
+    }
+
     override fun newArray(type: TypeDescriptor.ObjectType) {
         val classInfo = constantPool.addClassInfo(type)
 
         encoder.u1(0xbd) // anewarray
         encoder.u2(classInfo.index)
+    }
+
+    override fun arrayStore() {
+        encoder.u1(0x53) // aastore
+        pop(3)
     }
 
     override fun getStaticField(owner: TypeDescriptor.ObjectType, name: String, type: TypeDescriptor) {

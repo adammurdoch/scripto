@@ -103,20 +103,27 @@ class Compiler {
 
         val expression = recursive<TextInput, ExpressionTree>()
 
-        val argSeparator = sequence(optionalWhitespace, literal(","), optionalWhitespace)
-        val argsPrefix = sequence(literal("("), optionalWhitespace)
-        val argsSuffix = sequence(optionalWhitespace, literal(")"))
+        val argSeparator = sequence(optionalWhitespace, literal(','), optionalWhitespace)
+        val argsPrefix = sequence(literal('('), optionalWhitespace)
+        val argsSuffix = sequence(optionalWhitespace, literal(')'))
         val argsList = surrounded(argsPrefix, zeroOrMore(expression, separator = argSeparator), argsSuffix)
 
         val functionCall = sequence(position(), identifier, argsList) { pos, name, args -> FunctionCallTree(pos, name, args) }
 
         val functionReceiver = oneOf(intLiteral, stringLiteral, trueLiteral, falseLiteral, functionCall, variableReference)
 
-        val receiverFunctionCall = sequence(functionReceiver, zeroOrMore(prefixed(literal('.'), functionCall))) { receiver, calls ->
+        val receiverSeparator = sequence(optionalWhitespace, literal('.'), optionalWhitespace)
+        val receiverFunctionCall = sequence(functionReceiver, zeroOrMore(prefixed(receiverSeparator, functionCall))) { receiver, calls ->
             calls.fold(receiver) { r, c -> ReceiverFunctionCallTree(r, c) }
         }
 
-        val infixArgument = receiverFunctionCall
+        val listLiteralPrefix = sequence(literal('['), optionalWhitespace)
+        val listLiteralSuffix = sequence(optionalWhitespace, literal(']'))
+        val listLiteral = map(surrounded(listLiteralPrefix, zeroOrMore(expression, separator = argSeparator), listLiteralSuffix)) { elements ->
+            ListLiteralTree(elements)
+        }
+
+        val infixArgument = oneOf(receiverFunctionCall, listLiteral)
 
         val operator = oneOf(
             literal("+", "+"),

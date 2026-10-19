@@ -14,13 +14,15 @@ function call = (expression `.` )? identifier `(` expression (`,` expression)* `
 
 expression = literal | variable reference | infix | function call
 
-literal = string literal | int literal | boolean literal
+literal = string literal | int literal | boolean literal | list literal
 
 string literal = `"` text `"`
 
 int literal = `0` | `-`? `1`-`9` (`0`-`9`)*
 
 boolean literal = `true` | `false`
+
+list literal = `[` expression* `]`
 
 infix = equality | addition
 
@@ -60,9 +62,12 @@ Boolean type
 - `Boolean.toString()`
 
 File type
-- `File(String)`
+- `File(String)` constructor
 - `File.toString()`
 - `File.readText(): String`
+
+List Type
+- `[...]` constructor
 
 Operators
 - `Int + Int: Boolean`

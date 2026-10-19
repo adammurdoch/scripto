@@ -51,6 +51,7 @@ object StandardLibrary : Functions {
     val stringEquality = OperatorDefinition(Operator.Equality, Type.Boolean, listOf(Type.String, Type.String))
     val intEquality = OperatorDefinition(Operator.Equality, Type.Boolean, listOf(Type.Int, Type.Int))
     val booleanEquality = OperatorDefinition(Operator.Equality, Type.Boolean, listOf(Type.Boolean, Type.Boolean))
+    val listConstructor = NamedFunctionDefinition("List", Type.List(Type.String), emptyList())
 
     /**
      * Replaces println(Any) with println(String)
@@ -62,6 +63,7 @@ object StandardLibrary : Functions {
             is Type.Boolean -> FunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, BooleanFunctions.toString, emptyList())))
             is Type.Int -> FunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, IntFunctions.toString, emptyList())))
             is Type.File -> FunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, FileFunctions.toString, emptyList())))
+            is Type.List -> FunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, ListFunctions.toString, emptyList())))
             else -> throw IllegalArgumentException()
         }
     }

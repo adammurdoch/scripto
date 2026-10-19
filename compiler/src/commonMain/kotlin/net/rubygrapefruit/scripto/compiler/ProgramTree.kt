@@ -72,6 +72,12 @@ internal class ProgramTree(val operations: List<OperationTree>) {
             is LiteralTree -> Resolved(expression.literal)
             is VariableReferenceTree -> resolveVariableReference(variables, expression)
             is InfixOperatorTree -> resolveInfixOperator(library, expression, variables)
+            is ListLiteralTree -> {
+                val arguments = resolveExpressions(expression.elements, variables, library)
+                arguments.mapping { arguments ->
+                    Resolved(FunctionCallExpression(StandardLibrary.listConstructor, arguments))
+                }
+            }
 
             is FunctionCallTree -> {
                 val definition = locateFunction(expression, library)

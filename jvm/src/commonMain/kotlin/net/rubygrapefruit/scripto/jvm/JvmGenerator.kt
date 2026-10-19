@@ -9,12 +9,15 @@ class JvmGenerator {
     private val boolean = TypeDescriptor.ofClass("java.lang.Boolean")
     private val files = TypeDescriptor.ofClass("java.nio.file.Files")
     private val path = TypeDescriptor.ofInterface("java.nio.file.Path")
+    private val arrays = TypeDescriptor.ofClass("java.util.Arrays")
+    private val objectArray = TypeDescriptor.Object.arrayType()
     private val intToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.Int)
     private val boolToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.Boolean)
     private val objectToBoolMethod = MethodDescriptor.of(TypeDescriptor.Boolean, TypeDescriptor.Object)
     private val pathToStringMethod = MethodDescriptor.of(TypeDescriptor.String, path)
     private val stringToPathMethod = MethodDescriptor.of(path, TypeDescriptor.String, TypeDescriptor.String.arrayType())
     private val stringToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.String)
+    private val objectArrayToStringMethod = MethodDescriptor.of(TypeDescriptor.String, objectArray)
 
     fun generate(program: Program, output: RegularFile): GeneratedClass {
         ClassFileWriter().writeTo("App", output) { generate(program) }
@@ -69,20 +72,20 @@ class JvmGenerator {
                 InstanceMethodCall(printStream, "println", stringToVoidMethod, systemOut, args)
             }
             map { declaration ->
-                val type = toTypeKind(declaration.type)
+                val type = toTypeDescriptor(declaration.type)
                 JvmVariableDeclaration(declaration, type, toExpression(declaration.value))
             }
         }
     }
 
-    private fun toTypeKind(type: Type): TypeDescriptor {
+    private fun toTypeDescriptor(type: Type): TypeDescriptor {
         return when (type) {
             is Type.Boolean -> TypeDescriptor.Boolean
             is Type.Int -> TypeDescriptor.Int
             is Type.String -> TypeDescriptor.String
             is Type.File -> TypeDescriptor.String
-            is Type.List -> throw IllegalArgumentException()
-            is Type.Any -> throw IllegalArgumentException()
+            is Type.List -> objectArray
+            is Type.Any -> TypeDescriptor.Object
         }
     }
 
@@ -97,6 +100,10 @@ class JvmGenerator {
 
     private fun booleanToString(expression: JvmExpression): JvmExpression {
         return StaticMethodCall(boolean, "toString", boolToStringMethod, listOf(expression))
+    }
+
+    private fun listToString(expression: JvmExpression): JvmExpression {
+        return StaticMethodCall(arrays, "toString", objectArrayToStringMethod, listOf(expression))
     }
 
     private fun toExpression(expression: Expression): JvmExpression {
@@ -115,6 +122,11 @@ class JvmGenerator {
             StandardLibrary.fileConstructor -> {
                 val value = toExpression(expression.args.first())
                 StaticMethodCall(path, "of", stringToPathMethod, listOf(value, EmptyStringArray))
+            }
+
+            StandardLibrary.listConstructor -> {
+                val args = expression.args.map { toExpression(it) }
+                NewArray(args)
             }
 
             StandardLibrary.intAddition -> JvmIntAddition(toExpression(expression.args[0]), toExpression(expression.args[1]))
@@ -150,6 +162,8 @@ class JvmGenerator {
                     else -> booleanToString(toExpression(receiver))
                 }
             }
+
+            ListFunctions.toString -> listToString(toExpression(expression.receiver))
 
             FileFunctions.toString -> fileToString(toExpression(expression.receiver))
             FileFunctions.readText -> {
@@ -226,6 +240,17 @@ class JvmGenerator {
             is EmptyStringArray -> {
                 loadConstant(0)
                 newArray(TypeDescriptor.String)
+            }
+
+            is NewArray -> {
+                loadConstant(expression.elements.size)
+                newArray(TypeDescriptor.Object)
+                expression.elements.forEachIndexed { index, element ->
+                    dup()
+                    loadConstant(index)
+                    push(element, slots)
+                    arrayStore()
+                }
             }
         }
     }

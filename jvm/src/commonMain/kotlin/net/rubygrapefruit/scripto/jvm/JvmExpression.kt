@@ -43,3 +43,5 @@ internal class VirtualMethodCall(
 ) : JvmExpression
 
 internal data object EmptyStringArray : JvmExpression
+
+internal class NewArray(val elements: List<JvmExpression>) : JvmExpression

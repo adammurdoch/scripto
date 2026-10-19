@@ -1,38 +1,38 @@
-
 General
 
+- Lists
+  - Infer element type  
+  - `toString()` delegates to correct implementation
+  - Add `==`
+  - Inline list literal `List.toString()` and `println(List)`
 - Improve error message when operator called with arguments of incorrect type
 - Inline constants
-  - Evaluate functions with constant args at compile time
-  - Need some way to initialize variables to arbitrary value in order to test this, e.g. function defs or args to main
+    - Evaluate functions with constant args at compile time
+    - Need some way to initialize variables to arbitrary value in order to test this, e.g. function defs or args to main
 - Eliminate unused variables
 - Escapes in strings
 - Define int size
-- Consistent formatting for parse errors and semantic errors 
+- Consistent formatting for parse errors and semantic errors
 
 Stdlib
 
-- Split println() into type specific overloads
-- readText() fails when file cannot be read
+- Split `println()` into type specific overloads
+- `readText()` fails when file cannot be read
 
 Interpreter
 
 - Encode `File` as `RegularFile`
-  - Need to get relative path for `toString()` implementation
+    - Need to get relative path for `toString()` implementation
 
 JVM
 
+- Use boolean and int arrays for `List<Boolean>` and `List<Int>`
 - Include debug information
 
 C
 
-- Don't use a temporary variable to calculate variable initializer, e.g. for `Int.toString()`
-- Reuse temporary variables across statements
 - Garbage collect strings created by `+` operator, `Int.toString()` and `File.readText()`
-- Add a helper function for `Int.toString()`, similar to `stringConcat()` 
-- Add a helper function to `File.toString()`
-- `Int.toString()`: Don't use a temporary variable when value is already a variable reference
-  - Need some other `Int` typed expression to use for current test coverage, eg a function that returns `Int` or a property of type `Int`
+- Add a helper function for `File.toString()`?
 - Use `whar_t*` or `char16_t*` to represent strings?
 - Interesting reference counting approach https://www.microsoft.com/en-us/research/wp-content/uploads/2020/11/perceus-tr-v1.pdf
 
