@@ -90,7 +90,6 @@ class CGenerator {
             is IntLiteral -> CInt(expression.value)
             is BooleanLiteral -> if (expression.value) CTrue else CFalse
             is VariableReference -> CVariableReference(expression)
-            is InfixFunctionCall -> mapInfix(expression, scope, functionMapper)
             is FunctionCallExpression -> functionMapper.map(expression)
             is ReceiverFunctionCallExpression -> mapFunctionCall(expression, scope, functionMapper)
         }
@@ -100,6 +99,25 @@ class CGenerator {
         return FunctionMapper.of {
             map(StandardLibrary.fileConstructor) { expression, functionMapper ->
                 toExpression(expression.args.first(), scope, functionMapper)
+            }
+            map(StandardLibrary.stringConcatenation) { expression, functionMapper ->
+                val left = toExpression(expression.args[0], scope, functionMapper)
+                val right = toExpression(expression.args[1], scope, functionMapper)
+                concatString(left, right)
+            }
+            map(StandardLibrary.stringEquality) { expression, functionMapper ->
+                val left = toExpression(expression.args[0], scope, functionMapper)
+                val right = toExpression(expression.args[1], scope, functionMapper)
+                CInfixOperator(
+                    CFunctionCall("strcmp", listOf(left, right), Header.String),
+                    "==",
+                    CInt(0)
+                )
+            }
+            map(StandardLibrary.intEquality) { expression, functionMapper ->
+                val left = toExpression(expression.args[0], scope, functionMapper)
+                val right = toExpression(expression.args[1], scope, functionMapper)
+                CInfixOperator(left, "==", right)
             }
         }
     }
@@ -151,33 +169,7 @@ class CGenerator {
         } else if (expression.target == FileFunctions.readText) {
             CFunctionCall("readText", listOf(toExpression(expression.receiver, scope, functionMapper)), SourceFragment.ReadText)
         } else {
-            throw IllegalArgumentException("Unknown function '${expression.receiver.type}.${expression.target.name}()'")
-        }
-    }
-
-    private fun mapInfix(expression: InfixFunctionCall, scope: CStatementScope, functionMapper: FunctionMapper<CExpression>): CExpression {
-        return when (expression.target) {
-            StandardLibrary.stringConcatenation -> {
-                val left = toExpression(expression.left, scope, functionMapper)
-                val right = toExpression(expression.right, scope, functionMapper)
-                concatString(left, right)
-            }
-
-            StandardLibrary.stringEquality -> {
-                val left = toExpression(expression.left, scope, functionMapper)
-                val right = toExpression(expression.right, scope, functionMapper)
-                CInfixOperator(
-                    CFunctionCall("strcmp", listOf(left, right), Header.String),
-                    "==",
-                    CInt(0)
-                )
-            }
-
-            else -> {
-                val left = toExpression(expression.left, scope, functionMapper)
-                val right = toExpression(expression.right, scope, functionMapper)
-                CInfixOperator(left, expression.operator, right)
-            }
+            throw IllegalArgumentException("Unknown ${expression.target.displayName} for ${expression.receiver.type}")
         }
     }
 
@@ -198,7 +190,6 @@ class CGenerator {
             is IntLiteral -> listOf(CString(arg.value.toString() + "\n"))
             is BooleanLiteral -> listOf(CString(arg.value.toString() + "\n"))
             is VariableReference -> toPrintfArgs(arg, CVariableReference(arg))
-            is InfixFunctionCall -> toPrintfArgs(arg, mapInfix(arg, scope, functionMapper))
             is FunctionCallExpression -> listOf(CString("%s\n"), functionMapper.map(arg))
             is ReceiverFunctionCallExpression -> listOf(CString("%s\n"), mapFunctionCall(arg, scope, functionMapper))
         }

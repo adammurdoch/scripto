@@ -52,12 +52,22 @@ class BashGenerator {
             is IntLiteral -> BashWord(expression.value.toString())
             is BooleanLiteral -> BashWord(expression.value.toString())
             is VariableReference -> varReferenceToBash(expression)
-            is InfixFunctionCall -> mapInfix(expression, scope)
             is FunctionCallExpression -> {
-                if (expression.target == StandardLibrary.fileConstructor) {
-                    toExpression(expression.args.first(), scope)
-                } else {
-                    throw IllegalArgumentException("Unknown function '${expression.target}'")
+                when (expression.target) {
+                    StandardLibrary.fileConstructor -> toExpression(expression.args.first(), scope)
+                    StandardLibrary.intAddition -> BashArithmetic(toExpression(expression.args[0], scope), "+", toExpression(expression.args[1], scope))
+                    StandardLibrary.stringConcatenation -> BashConcatenatedExpressions(listOf(toExpression(expression.args[0], scope), toExpression(expression.args[1], scope)))
+                    StandardLibrary.intEquality, StandardLibrary.booleanEquality, StandardLibrary.stringEquality -> {
+                        val test = listOf(toExpression(expression.args[0], scope), BashWord("="), toExpression(expression.args[1], scope))
+                        val trueBranch = BashVariableAssignment("TMP_VAR", BashWord("true"))
+                        val falseBranch = BashVariableAssignment("TMP_VAR", BashWord("false"))
+                        val statement = BashIfStatement(test, trueBranch, falseBranch)
+                        BashCommandInvocationExpression("TMP_VAR", statement)
+                    }
+
+                    else -> {
+                        throw IllegalArgumentException("Unknown function '${expression.target}'")
+                    }
                 }
             }
 
@@ -75,22 +85,8 @@ class BashGenerator {
                     val readText = readFileIntoVar(toExpression(expression.receiver, scope), varName)
                     BashCommandInvocationExpression(varName, readText)
                 } else {
-                    throw IllegalArgumentException("Unknown function '${expression.receiver.type}.${expression.target.name}()'")
+                    throw IllegalArgumentException("Unknown ${expression.target.displayName} for ${expression.receiver.type}")
                 }
-            }
-        }
-    }
-
-    private fun mapInfix(expression: InfixFunctionCall, scope: StatementScope): BashExpression {
-        return when (expression.target) {
-            StandardLibrary.intAddition -> BashArithmetic(toExpression(expression.left, scope), expression.operator, toExpression(expression.right, scope))
-            StandardLibrary.stringConcatenation -> BashConcatenatedExpressions(listOf(toExpression(expression.left, scope), toExpression(expression.right, scope)))
-            else -> {
-                val test = listOf(toExpression(expression.left, scope), BashWord("="), toExpression(expression.right, scope))
-                val trueBranch = BashVariableAssignment("TMP_VAR", BashWord("true"))
-                val falseBranch = BashVariableAssignment("TMP_VAR", BashWord("false"))
-                val statement = BashIfStatement(test, trueBranch, falseBranch)
-                BashCommandInvocationExpression("TMP_VAR", statement)
             }
         }
     }

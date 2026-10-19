@@ -129,7 +129,7 @@ internal class ProgramTree(val operations: List<OperationTree>) {
     private fun locateFunction(receiver: Type, operation: FunctionCallTree, library: StandardLibrary): ResolveResult<FunctionDefinition> {
         val definitions = library.definitions(receiver, operation.name)
         if (definitions.isEmpty()) {
-            return NotResolved.of(operation.position,"Unknown function ${receiver}.${operation.name}()")
+            return NotResolved.of(operation.position, "Unknown function ${receiver}.${operation.name}()")
         }
         val definition = definitions.find { it.args.size == operation.arguments.size }
         if (definition == null) {
@@ -142,7 +142,7 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         library: StandardLibrary,
         expression: InfixOperatorTree,
         variables: Map<String, VariableDeclaration>
-    ): ResolveResult<InfixFunctionCall> {
+    ): ResolveResult<FunctionCallExpression> {
         val functions = library.operator(expression.operator)
         if (functions.isEmpty()) {
             return NotResolved.of("Unknown operator '${expression.operator}")
@@ -162,7 +162,7 @@ internal class ProgramTree(val operations: List<OperationTree>) {
                 }
                 NotResolved.of(problems)
             } else {
-                Resolved(InfixFunctionCall(function, left, right))
+                Resolved(FunctionCallExpression(function, listOf(left, right)))
             }
         }
     }

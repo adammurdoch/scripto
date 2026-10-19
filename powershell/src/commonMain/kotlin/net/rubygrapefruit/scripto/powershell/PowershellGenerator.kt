@@ -51,7 +51,6 @@ class PowershellGenerator {
             is IntLiteral -> PsString(expression.value.toString())
             is BooleanLiteral -> PsString(expression.value.toString())
             is VariableReference -> convertToString(expression, PsVariableReference(expression.target.name))
-            is InfixFunctionCall -> convertToString(expression, mapInfix(expression, scope))
             is FunctionCallExpression -> convertToString(expression, mapFunctionCall(expression, scope))
             is ReceiverFunctionCallExpression -> convertToString(expression, mapFunctionCall(expression, scope))
         }
@@ -83,16 +82,23 @@ class PowershellGenerator {
             is IntLiteral -> PsInt(expression.value)
             is BooleanLiteral -> if (expression.value) PsTrue else PsFalse
             is VariableReference -> PsVariableReference(expression.target.name)
-            is InfixFunctionCall -> mapInfix(expression, scope)
             is FunctionCallExpression -> mapFunctionCall(expression, scope)
             is ReceiverFunctionCallExpression -> mapFunctionCall(expression, scope)
         }
     }
 
     private fun mapFunctionCall(expression: FunctionCallExpression, scope: StatementScope): PsExpression {
-        return when (expression.target) {
+        val target = expression.target
+        return when (target) {
             StandardLibrary.fileConstructor -> toExpression(expression.args.first(), scope)
-            else -> throw IllegalArgumentException("Unknown function '${expression.target.name}'")
+            is OperatorDefinition -> {
+                when (target.operator) {
+                    Operator.Plus -> PsInfixOperation(toExpression(expression.args[0], scope), target.operator.operator, toExpression(expression.args[1], scope))
+                    Operator.Equality -> PsInfixOperation(toExpression(expression.args[0], scope), "-ceq", toExpression(expression.args[1], scope))
+                }
+            }
+
+            else -> throw IllegalArgumentException("Unknown ${target.displayName}")
         }
     }
 
@@ -125,7 +131,7 @@ class PowershellGenerator {
                 PsCommandInvocationExpression(varName, commands)
             }
 
-            else -> throw IllegalArgumentException("Unknown function '${expression.receiver.type}.${expression.target.name}()'")
+            else -> throw IllegalArgumentException("Unknown ${expression.target.displayName} for ${expression.receiver.type}")
         }
     }
 
@@ -137,13 +143,6 @@ class PowershellGenerator {
         // Does not set variable when file is empty
         val checkNotNull = PsIf(PsIsNull(PsVariableReference(varName)), PsCommandInvocation("Set-Variable $varName \"\"", emptyList()))
         return listOf(readCommand, checkNotNull)
-    }
-
-    private fun mapInfix(expression: InfixFunctionCall, scope: StatementScope): PsExpression {
-        return when (expression.target.operator) {
-            Operator.Plus -> PsInfixOperation(toExpression(expression.left, scope), expression.operator, toExpression(expression.right, scope))
-            Operator.Equality -> PsInfixOperation(toExpression(expression.left, scope), "-ceq", toExpression(expression.right, scope))
-        }
     }
 
     private fun SourceGenerator.appendDeclaration(declaration: PsVariableDeclaration) {

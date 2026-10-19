@@ -103,18 +103,29 @@ class JvmGenerator {
             is IntLiteral -> JvmInt(expression.value)
             is BooleanLiteral -> if (expression.value) JvmTrue else JvmFalse
             is VariableReference -> JvmVariableReference(expression)
-            is InfixFunctionCall -> mapInfix(expression)
             is FunctionCallExpression -> mapFunctionCall(expression)
             is ReceiverFunctionCallExpression -> mapFunctionCall(expression)
         }
     }
 
     private fun mapFunctionCall(expression: FunctionCallExpression): JvmExpression {
-        return if (expression.target == StandardLibrary.fileConstructor) {
-            val value = toExpression(expression.args.first())
-            StaticMethodCall(path, "of", stringToPathMethod, listOf(value, EmptyStringArray))
-        } else {
-            throw IllegalArgumentException("Unknown function '${expression.target.name}'")
+        return when (expression.target) {
+            StandardLibrary.fileConstructor -> {
+                val value = toExpression(expression.args.first())
+                StaticMethodCall(path, "of", stringToPathMethod, listOf(value, EmptyStringArray))
+            }
+
+            StandardLibrary.intAddition -> JvmIntAddition(toExpression(expression.args[0]), toExpression(expression.args[1]))
+            StandardLibrary.stringConcatenation -> {
+                val left = toExpression(expression.args[0])
+                val right = toExpression(expression.args[1])
+                concatString(left, right)
+            }
+
+            StandardLibrary.stringEquality -> JvmStringEquality(toExpression(expression.args[0]), toExpression(expression.args[1]))
+            StandardLibrary.intEquality -> JvmIntEquality(toExpression(expression.args[0]), toExpression(expression.args[1]))
+            StandardLibrary.booleanEquality -> JvmIntEquality(toExpression(expression.args[0]), toExpression(expression.args[1]))
+            else -> throw IllegalArgumentException("Unknown ${expression.target.displayName}")
         }
     }
 
@@ -143,23 +154,7 @@ class JvmGenerator {
                 StaticMethodCall(files, "readString", pathToStringMethod, listOf(toExpression(expression.receiver)))
             }
 
-            else -> throw IllegalArgumentException("Unknown function '${expression.receiver.type}.${expression.target.name}()'")
-        }
-    }
-
-    private fun mapInfix(expression: InfixFunctionCall): JvmExpression {
-        return when (expression.target) {
-            StandardLibrary.intAddition -> JvmIntAddition(toExpression(expression.left), toExpression(expression.right))
-            StandardLibrary.stringConcatenation -> {
-                val left = toExpression(expression.left)
-                val right = toExpression(expression.right)
-                concatString(left, right)
-            }
-
-            StandardLibrary.stringEquality -> JvmStringEquality(toExpression(expression.left), toExpression(expression.right))
-            StandardLibrary.intEquality -> JvmIntEquality(toExpression(expression.left), toExpression(expression.right))
-            StandardLibrary.booleanEquality -> JvmIntEquality(toExpression(expression.left), toExpression(expression.right))
-            else -> throw IllegalArgumentException("Unknown operator '${expression.target.operator.operator}'")
+            else -> throw IllegalArgumentException("Unknown ${expression.target.displayName} for ${expression.receiver.type}")
         }
     }
 

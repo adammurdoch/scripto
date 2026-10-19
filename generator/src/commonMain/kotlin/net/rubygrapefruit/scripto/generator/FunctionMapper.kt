@@ -7,7 +7,7 @@ class FunctionMapper<T>(
     private val mappings: Map<TypedFunctionDefinition, (FunctionCallExpression, FunctionMapper<T>) -> T>
 ) {
     fun map(expression: FunctionCallExpression): T {
-        val mapping = mappings[expression.target] ?: throw IllegalArgumentException("Unknown function '${expression.target.name}'")
+        val mapping = mappings[expression.target] ?: throw IllegalArgumentException("Unknown ${expression.target.displayName}")
         return mapping(expression, this)
     }
 

@@ -6,7 +6,16 @@ sealed class FunctionDefinition {
 
 class UnitFunctionDefinition(val name: String, override val args: List<IncomingType>) : FunctionDefinition()
 
-class TypedFunctionDefinition(val name: String, val returnType: Type, override val args: List<IncomingType>) : FunctionDefinition()
+sealed class TypedFunctionDefinition : FunctionDefinition() {
+    abstract val displayName: String
+
+    abstract val returnType: Type
+}
+
+class NamedFunctionDefinition(val name: String, override val returnType: Type, override val args: List<IncomingType>) : TypedFunctionDefinition() {
+    override val displayName: String
+        get() = "function $name()"
+}
 
 sealed class Operator {
     abstract val operator: String
@@ -22,4 +31,7 @@ sealed class Operator {
     }
 }
 
-class OperatorDefinition(val operator: Operator, val returnType: Type, override val args: List<Type>) : FunctionDefinition()
+class OperatorDefinition(val operator: Operator, override val returnType: Type, override val args: List<Type>) : TypedFunctionDefinition() {
+    override val displayName: String
+        get() = "operator '${operator.operator}'"
+}

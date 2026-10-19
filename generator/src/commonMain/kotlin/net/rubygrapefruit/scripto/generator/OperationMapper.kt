@@ -25,7 +25,7 @@ class OperationMapper<T> private constructor(
     private fun map(operation: Operation, context: Context<T>) {
         when (operation) {
             is FunctionCall -> {
-                val mapping = mappings[operation.target] ?: throw IllegalArgumentException("No mapping for function ${operation.target}()")
+                val mapping = mappings[operation.target] ?: throw IllegalArgumentException("No mapping for function ${operation.target.name}()")
                 mapping(context, operation)
             }
 

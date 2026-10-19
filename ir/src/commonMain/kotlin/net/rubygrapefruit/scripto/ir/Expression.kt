@@ -9,14 +9,6 @@ class VariableReference(val target: VariableDeclaration) : Expression {
         get() = target.type
 }
 
-class InfixFunctionCall(val target: OperatorDefinition, val left: Expression, val right: Expression) : Expression {
-    override val type: Type
-        get() = target.returnType
-
-    val operator: String
-        get() = target.operator.operator
-}
-
 class FunctionCallExpression(val target: TypedFunctionDefinition, val args: List<Expression>) : Expression {
     override val type: Type
         get() = target.returnType
