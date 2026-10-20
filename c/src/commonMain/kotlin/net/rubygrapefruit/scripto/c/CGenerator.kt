@@ -17,7 +17,16 @@ class CGenerator {
 
         val variableState = VariableState()
         val declarations = mutableSetOf<ExternalDeclaration>()
-        for (statement in statements) {
+        var index = 0
+        while (index < statements.size) {
+            val original = statements[index]
+            val statement = if (original is CVariableDeclaration && original.value is CTemporaryValue) {
+                val replacement = CVariableDeclaration(original.name, original.type, original.value.value, original.declaredBy)
+                statements[index] = replacement
+                replacement
+            } else {
+                original
+            }
             statement.visitDeclarations { declaration ->
                 declaration.visitHeaders {
                     declarations.add(it)
@@ -26,9 +35,12 @@ class CGenerator {
             }
             statement.visitExpressions { expression ->
                 if (expression is CTemporaryValue) {
-                    variableState.assign(expression)
+                    val varName = variableState.assign(expression)
+                    statements.add(index, CVariableDeclaration(varName, expression.type, expression.value, expression.declaredBy))
+                    index++
                 }
             }
+            index++
         }
 
         writeTo(outputFile) {
@@ -65,8 +77,18 @@ class CGenerator {
                 val value = declaration.value
                 val initializer = toExpression(value, functionMapper)
                 val header = if (declaration.type is Type.Boolean) Header.Stdbool else null
-                CVariableDeclaration(declaration, initializer, header)
+                CVariableDeclaration(declaration.name, toCType(declaration.type), initializer, header)
             }
+        }
+    }
+
+    private fun toCType(type: Type): String {
+        return when (type) {
+            is Type.String, Type.File -> "const char *"
+            is Type.Int -> "int32_t"
+            is Type.Boolean -> "bool"
+            is Type.List -> TypeSnippet.ListStruct.name
+            is Type.Any -> throw IllegalArgumentException()
         }
     }
 
@@ -75,9 +97,15 @@ class CGenerator {
             map(StandardLibrary.fileConstructor) { expression, functionMapper ->
                 toExpression(expression.args.first(), functionMapper)
             }
-            map(StandardLibrary.listConstructor) { expression, target, functionMapper ->
-                val elements = CTemporaryValue("char**", CString("??"))
-                CTemporaryValue(TypeSnippet.ListStruct, elements)
+            map(StandardLibrary.listConstructor) { expression, _, functionMapper ->
+                val elements = expression.args.map { toExpression(it, functionMapper) }
+                CTemporaryValue(
+                    TypeSnippet.ListStruct,
+                    CTemporaryValue(
+                        "char**",
+                        CArrayInitializer(elements)
+                    )
+                )
             }
             mapOperator(StandardLibrary.stringConcatenation) { left, right ->
                 concatString(left, right)
@@ -187,20 +215,11 @@ class CGenerator {
 
     private fun SourceGenerator.append(declaration: CVariableDeclaration, state: VariableState) {
         append("  ")
-        when (declaration.type) {
-            is Type.String, Type.File -> append("char *")
-            is Type.Int -> append("int32_t")
-            is Type.Boolean -> append("bool")
-            is Type.List -> append(TypeSnippet.ListStruct.name)
-            is Type.Any -> throw IllegalArgumentException()
-        }
+        append(declaration.type)
         append(" ")
         append(declaration.name)
         append(" = ")
-        when (declaration.value) {
-            is CTemporaryValue -> append(declaration.value.value, state)
-            else -> append(declaration.value, state)
-        }
+        append(declaration.value, state)
         appendln(";")
     }
 
@@ -263,6 +282,17 @@ class CGenerator {
                 append(expression.right, state)
             }
 
+            is CArrayInitializer -> {
+                append("{")
+                expression.elements.forEachIndexed { index, element ->
+                    if (index > 0) {
+                        append(", ")
+                    }
+                    append(element, state)
+                }
+                append("}")
+            }
+
             is CFunctionCall -> {
                 appendCall(expression, state)
             }
@@ -276,11 +306,10 @@ class CGenerator {
     private class VariableState {
         private val expressions = mutableMapOf<CTemporaryValue, String>()
 
-        fun assign(expression: CTemporaryValue) {
-            if (!expressions.containsKey(expression)) {
-                val varName = "_tmp_${expressions.size + 1}"
-                expressions[expression] = varName
-            }
+        fun assign(expression: CTemporaryValue): String {
+            val varName = "_tmp_${expressions.size + 1}"
+            expressions[expression] = varName
+            return varName
         }
 
         fun varFor(expression: CTemporaryValue): String {

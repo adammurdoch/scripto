@@ -39,10 +39,10 @@ internal class CVariableReference(val name: String) : CExpression {
 
 internal sealed class CCompositeExpression : CExpression {
     override fun visitExpressions(visitor: (CExpression) -> Unit) {
-        visitor(this)
         visitChildren { child ->
             child.visitExpressions(visitor)
         }
+        visitor(this)
     }
 
     override fun visitDeclarations(visitor: (ExternalDeclaration) -> Unit) {
@@ -70,6 +70,12 @@ internal class CTernaryExpression(val condition: CExpression, val left: CExpress
         visitor(condition)
         visitor(left)
         visitor(right)
+    }
+}
+
+internal class CArrayInitializer(val elements: List<CExpression>): CCompositeExpression() {
+    override fun visitChildren(visitor: (CExpression) -> Unit) {
+        elements.forEach(visitor)
     }
 }
 
