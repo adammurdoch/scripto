@@ -1,17 +1,28 @@
 package net.rubygrapefruit.scripto.ir
 
-sealed interface FunctionKind
+sealed interface FunctionKind {
+    val parameterCount: Int
+    val isVarargs: Boolean
+}
 
 sealed interface FunctionDefinition : FunctionKind {
     val displayName: String
 
     val parameters: List<Parameter>
+
+    override val parameterCount: Int
+        get() = parameters.size
+
+    override val isVarargs: Boolean
+        get() = parameters.isNotEmpty() && parameters.last().isVarargs
 }
 
 sealed interface ParameterFunction {
+    val isVarargs: Boolean
+
     fun evaluate(arg: Type): Parameter
 
-    class UseFunctionParameter(val isVarargs: Boolean) : ParameterFunction {
+    class UseFunctionParameter(override val isVarargs: Boolean) : ParameterFunction {
         override fun evaluate(arg: Type): Parameter {
             return Parameter(arg, isVarargs)
         }
@@ -39,12 +50,23 @@ class NamedFunctionDefinition(val name: String, override val returnType: Type, o
 }
 
 class NamedParameterizedFunctionDefinition(val name: String, val returnType: TypeFunction, val parameters: List<ParameterFunction>) : FunctionKind {
+    override val parameterCount: Int
+        get() = parameters.size
+
+    override val isVarargs: Boolean
+        get() = parameters.isNotEmpty() && parameters.last().isVarargs
+
     fun evaluate(arg: Type): RealizedFunctionDefinition {
         return RealizedFunctionDefinition(this, arg, returnType.evaluate(arg), parameters.map { it.evaluate(arg) })
     }
 }
 
-class RealizedFunctionDefinition(val definition: NamedParameterizedFunctionDefinition, val argument: Type, override val returnType: Type, override val parameters: List<Parameter>) :
+class RealizedFunctionDefinition(
+    val definition: NamedParameterizedFunctionDefinition,
+    val argument: Type,
+    override val returnType: Type,
+    override val parameters: List<Parameter>
+) :
     TypedFunctionDefinition {
     override val displayName: String
         get() = "function ${definition.name}()"

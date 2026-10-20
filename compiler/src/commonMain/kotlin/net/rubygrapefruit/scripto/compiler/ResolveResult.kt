@@ -3,6 +3,7 @@ package net.rubygrapefruit.scripto.compiler
 import net.rubygrapefruit.parse.Position
 
 internal sealed interface ResolveResult<out T> {
+    // May contain duplicates
     val problems: List<Problem>
 }
 
@@ -56,7 +57,6 @@ internal fun <S, T, U> zipping(s: ResolveResult<S>, t: ResolveResult<T>, map: (S
     } else {
         NotResolved(s.problems + t.problems)
     }
-
 }
 
 internal fun <S, T, U, V> zipping(s: ResolveResult<S>, t: ResolveResult<T>, u: ResolveResult<U>, map: (S, T, U) -> ResolveResult<V>): ResolveResult<V> {
