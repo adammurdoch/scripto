@@ -167,7 +167,7 @@ class BashGenerator {
 
     private fun SourceGenerator.append(statement: BashCommandInvocation) {
         append(statement.command)
-        for (arg in statement.args) {
+        for (arg in statement.arguments) {
             append(" ")
             append(arg)
         }
@@ -238,10 +238,7 @@ class BashGenerator {
 
             is BashArrayLiteral -> {
                 append("(")
-                expression.elements.forEachIndexed { index, element ->
-                    if (index > 0) {
-                        append(" ")
-                    }
+                append(expression.elements, " ") { element ->
                     append(element)
                 }
                 append(")")

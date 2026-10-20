@@ -1,10 +1,7 @@
 package net.rubygrapefruit.scripto.c
 
 import net.rubygrapefruit.file.RegularFile
-import net.rubygrapefruit.scripto.generator.FunctionMapper
-import net.rubygrapefruit.scripto.generator.OperationMapper
-import net.rubygrapefruit.scripto.generator.SourceGenerator
-import net.rubygrapefruit.scripto.generator.writeTo
+import net.rubygrapefruit.scripto.generator.*
 import net.rubygrapefruit.scripto.ir.*
 
 class CGenerator {
@@ -232,11 +229,7 @@ class CGenerator {
     private fun SourceGenerator.appendCall(statement: CFunctionCall, state: VariableState) {
         append(statement.name)
         append('(')
-        for (index in statement.arguments.indices) {
-            val argument = statement.arguments[index]
-            if (index > 0) {
-                append(", ")
-            }
+        append(statement.arguments, ",") { argument ->
             append(argument, state)
         }
         append(")")
@@ -268,9 +261,9 @@ class CGenerator {
 
             is CTernaryExpression -> {
                 append(expression.condition, state)
-                append("?")
+                append(" ? ")
                 append(expression.left, state)
-                append(":")
+                append(" : ")
                 append(expression.right, state)
             }
 
@@ -284,10 +277,7 @@ class CGenerator {
 
             is CArrayInitializer -> {
                 append("{")
-                expression.elements.forEachIndexed { index, element ->
-                    if (index > 0) {
-                        append(", ")
-                    }
+                append(expression.elements, ", ") { element ->
                     append(element, state)
                 }
                 append("}")

@@ -11,9 +11,20 @@ fun writeTo(file: RegularFile, builder: SourceGenerator.() -> Unit) {
 interface SourceGenerator {
     fun append(ch: Char)
     fun append(text: String)
+
     fun appendln(ch: Char)
     fun appendln(text: String)
     fun appendln()
+
+}
+
+inline fun <T> SourceGenerator.append(elements: Iterable<T>, separator: String, builder: SourceGenerator.(T) -> Unit) {
+    elements.forEachIndexed { index, t ->
+        if (index > 0) {
+            append(separator)
+        }
+        builder(t)
+    }
 }
 
 private class DefaultSourceGenerator(val builder: StringBuilder) : SourceGenerator {

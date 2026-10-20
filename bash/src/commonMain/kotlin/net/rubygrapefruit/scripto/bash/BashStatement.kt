@@ -6,11 +6,11 @@ internal sealed interface BashStatement : ExpressionWithDependencies<BashStateme
 
 internal class BashCommandInvocation(
     val command: String,
-    val args: List<BashExpression>,
+    val arguments: List<BashExpression>,
     val redirectInput: BashExpression? = null
 ) : BashStatement {
     override fun visitDependencies(visitor: (BashStatement) -> Unit) {
-        args.forEach { it.visitDependencies(visitor) }
+        arguments.forEach { it.visitDependencies(visitor) }
         redirectInput?.visitDependencies(visitor)
     }
 }

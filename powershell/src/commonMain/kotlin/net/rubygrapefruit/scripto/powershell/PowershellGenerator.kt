@@ -1,10 +1,7 @@
 package net.rubygrapefruit.scripto.powershell
 
 import net.rubygrapefruit.file.RegularFile
-import net.rubygrapefruit.scripto.generator.OperationMapper
-import net.rubygrapefruit.scripto.generator.SourceGenerator
-import net.rubygrapefruit.scripto.generator.StatementScope
-import net.rubygrapefruit.scripto.generator.writeTo
+import net.rubygrapefruit.scripto.generator.*
 import net.rubygrapefruit.scripto.ir.*
 
 class PowershellGenerator {
@@ -280,10 +277,7 @@ class PowershellGenerator {
                     }
 
                     else -> {
-                        expression.elements.forEachIndexed { index, element ->
-                            if (index > 0) {
-                                append(',')
-                            }
+                        append(expression.elements, ",") { element ->
                             append(element)
                         }
                     }
