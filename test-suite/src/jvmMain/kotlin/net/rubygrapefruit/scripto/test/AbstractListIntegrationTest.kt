@@ -4,7 +4,7 @@ import kotlin.test.Test
 
 abstract class AbstractListIntegrationTest : AbstractIntegrationTest() {
     @Test
-    fun `compiles list literal of string literals`() {
+    fun `compiles list variable initialized with literal of string literals`() {
         val sourceFile = workDir.file("app.scripto")
         sourceFile.writeText(
             """
@@ -20,22 +20,36 @@ println(l2)
     }
 
     @Test
-    fun `compiles list literal of string values`() {
+    fun `compiles list variable initialized with literal of string values`() {
         val sourceFile = workDir.file("app.scripto")
         sourceFile.writeText(
             """
 val s = "some text"
-val l = ["a", s, 123.toString()]
+val l = ["a", s, 123.toString(), "a" + "bc"]
 println(l)
         """
         )
         compileAndRun(sourceFile) {
-            output("[a, some text, 123]\n")
+            output("[a, some text, 123, abc]\n")
         }
     }
 
     @Test
-    fun `compiles list constructor call with string literal arguments`() {
+    fun `compiles function call with list literal argument of string literals`() {
+        val sourceFile = workDir.file("app.scripto")
+        sourceFile.writeText(
+            """
+println(["a", "some text"])
+println(["some text"]) // single element for PowerShell generation
+        """
+        )
+        compileAndRun(sourceFile) {
+            output("[a, some text]\n[some text]\n")
+        }
+    }
+
+    @Test
+    fun `compiles list variable initialized with List constructor argument with string literal arguments`() {
         val sourceFile = workDir.file("app.scripto")
         sourceFile.writeText(
             """
@@ -49,7 +63,7 @@ println(l)
     }
 
     @Test
-    fun `compiles empty list literal`() {
+    fun `compiles list variable initialized with empty list literal`() {
         val sourceFile = workDir.file("app.scripto")
         sourceFile.writeText(
             """
@@ -63,7 +77,7 @@ println(l)
     }
 
     @Test
-    fun `compiles list literal of int literals`() {
+    fun `compiles list variable initialized with literal of int literals`() {
         val sourceFile = workDir.file("app.scripto")
         sourceFile.writeText(
             """
@@ -77,7 +91,7 @@ println(l)
     }
 
     @Test
-    fun `compiles list constructor call with int literal arguments`() {
+    fun `compiles list variable with List constructor argument with int literal arguments`() {
         val sourceFile = workDir.file("app.scripto")
         sourceFile.writeText(
             """
@@ -91,7 +105,7 @@ println(l)
     }
 
     @Test
-    fun `compiles list literal of boolean literals`() {
+    fun `compiles list variable initialized with literal of boolean literals`() {
         val sourceFile = workDir.file("app.scripto")
         sourceFile.writeText(
             """
@@ -105,7 +119,7 @@ println(l)
     }
 
     @Test
-    fun `compiles list literal of list literals`() {
+    fun `compiles list variable initialized with list literal of list literals`() {
         val sourceFile = workDir.file("app.scripto")
         sourceFile.writeText(
             """

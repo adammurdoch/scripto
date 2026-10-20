@@ -17,4 +17,8 @@ internal class CVariableDeclaration(
         }
         value.visitDeclarations(visitor)
     }
+
+    override fun visitExpressions(visitor: (CExpression) -> Unit) {
+        value.visitExpressions(visitor)
+    }
 }

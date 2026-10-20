@@ -41,12 +41,14 @@ println(e)
 
         compileAndRun(sourceFile) {
             statements(10)
-            output("""1
+            output(
+                """1
 2
 3
 4
 5
-""")
+"""
+            )
         }
     }
 
@@ -62,6 +64,22 @@ println(123.toString())
 
         compileAndRun(sourceFile) {
             output("123\n")
+        }
+    }
+
+    @Test
+    fun `compiles function call with int literal argument`() {
+        val sourceFile = workDir.file("app.scripto")
+
+        sourceFile.writeText(
+            """
+println(40)
+        """
+        )
+
+        compileAndRun(sourceFile) {
+            statements(1)
+            output("40\n")
         }
     }
 

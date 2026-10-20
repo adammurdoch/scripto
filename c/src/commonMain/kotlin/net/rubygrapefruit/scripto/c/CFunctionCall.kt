@@ -11,6 +11,14 @@ internal class CFunctionCall(
         if (declaredBy != null) {
             visitor(declaredBy)
         }
-        arguments.forEach { it.visitDeclarations(visitor) }
+        for (argument in arguments) {
+            argument.visitDeclarations(visitor)
+        }
+    }
+
+    override fun visitExpressions(visitor: (CExpression) -> Unit) {
+        for (argument in arguments) {
+            argument.visitExpressions(visitor)
+        }
     }
 }

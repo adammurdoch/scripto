@@ -12,21 +12,28 @@ class CGenerator {
         val functionMapper = createFunctionMapper()
         val operationMapper = createOperationMapper(functionMapper)
 
-        val statements = operationMapper.map(program.operations)
-        val cProgram = CProgram(statements)
+        val statements = mutableListOf<CStatement>()
+        operationMapper.mapInto(program.operations, statements)
+
+        val variableState = VariableState()
+        val declarations = mutableSetOf<ExternalDeclaration>()
+        for (statement in statements) {
+            statement.visitDeclarations { declaration ->
+                declaration.visitHeaders {
+                    declarations.add(it)
+                }
+                declarations.add(declaration)
+            }
+            statement.visitExpressions { expression ->
+                if (expression is CTemporaryValue) {
+                    variableState.assign(expression)
+                }
+            }
+        }
 
         writeTo(outputFile) {
             appendln("// generated file")
 
-            val declarations = mutableSetOf<ExternalDeclaration>()
-            for (statement in cProgram.statements) {
-                statement.visitDeclarations { declaration ->
-                    declaration.visitHeaders {
-                        declarations.add(it)
-                    }
-                    declarations.add(declaration)
-                }
-            }
             for (header in declarations.filterIsInstance<Header>()) {
                 append("#include ")
                 appendln(header.name)
@@ -38,11 +45,8 @@ class CGenerator {
 
             appendln()
             appendln("int main() {")
-            for (statement in cProgram.statements) {
-                when (statement) {
-                    is CVariableDeclaration -> append(statement)
-                    is CFunctionCall -> append(statement)
-                }
+            for (statement in statements) {
+                append(statement, variableState)
             }
             appendln("  return 0;")
             appendln('}')
@@ -72,7 +76,8 @@ class CGenerator {
                 toExpression(expression.args.first(), functionMapper)
             }
             map(StandardLibrary.listConstructor) { expression, target, functionMapper ->
-                CTemporaryValue(TypeSnippet.ListStruct, CString("??"))
+                val elements = CTemporaryValue("char**", CString("??"))
+                CTemporaryValue(TypeSnippet.ListStruct, elements)
             }
             mapOperator(StandardLibrary.stringConcatenation) { left, right ->
                 concatString(left, right)
@@ -173,7 +178,14 @@ class CGenerator {
         return concatString(CString("File("), concatString(toExpression(expression, functionMapper), CString(")")))
     }
 
-    private fun SourceGenerator.append(declaration: CVariableDeclaration) {
+    private fun SourceGenerator.append(statement: CStatement, state: VariableState) {
+        when (statement) {
+            is CVariableDeclaration -> append(statement, state)
+            is CFunctionCall -> append(statement, state)
+        }
+    }
+
+    private fun SourceGenerator.append(declaration: CVariableDeclaration, state: VariableState) {
         append("  ")
         when (declaration.type) {
             is Type.String, Type.File -> append("char *")
@@ -186,19 +198,19 @@ class CGenerator {
         append(declaration.name)
         append(" = ")
         when (declaration.value) {
-            is CTemporaryValue -> append(declaration.value.value)
-            else -> append(declaration.value)
+            is CTemporaryValue -> append(declaration.value.value, state)
+            else -> append(declaration.value, state)
         }
         appendln(";")
     }
 
-    private fun SourceGenerator.append(statement: CFunctionCall) {
+    private fun SourceGenerator.append(statement: CFunctionCall, state: VariableState) {
         append("  ")
-        appendCall(statement)
+        appendCall(statement, state)
         appendln(";")
     }
 
-    private fun SourceGenerator.appendCall(statement: CFunctionCall) {
+    private fun SourceGenerator.appendCall(statement: CFunctionCall, state: VariableState) {
         append(statement.name)
         append('(')
         for (index in statement.arguments.indices) {
@@ -206,12 +218,12 @@ class CGenerator {
             if (index > 0) {
                 append(", ")
             }
-            append(argument)
+            append(argument, state)
         }
         append(")")
     }
 
-    private fun SourceGenerator.append(expression: CExpression) {
+    private fun SourceGenerator.append(expression: CExpression, state: VariableState) {
         when (expression) {
             is CNull -> append("NULL")
 
@@ -236,28 +248,43 @@ class CGenerator {
             }
 
             is CTernaryExpression -> {
-                append(expression.condition)
+                append(expression.condition, state)
                 append("?")
-                append(expression.left)
+                append(expression.left, state)
                 append(":")
-                append(expression.right)
+                append(expression.right, state)
             }
 
             is CInfixOperator -> {
-                append(expression.left)
+                append(expression.left, state)
                 append(' ')
                 append(expression.operator)
                 append(' ')
-                append(expression.right)
+                append(expression.right, state)
             }
 
             is CFunctionCall -> {
-                appendCall(expression)
+                appendCall(expression, state)
             }
 
             is CTemporaryValue -> {
-                append("??")
+                append(state.varFor(expression))
             }
+        }
+    }
+
+    private class VariableState {
+        private val expressions = mutableMapOf<CTemporaryValue, String>()
+
+        fun assign(expression: CTemporaryValue) {
+            if (!expressions.containsKey(expression)) {
+                val varName = "_tmp_${expressions.size + 1}"
+                expressions[expression] = varName
+            }
+        }
+
+        fun varFor(expression: CTemporaryValue): String {
+            return expressions.getValue(expression)
         }
     }
 }

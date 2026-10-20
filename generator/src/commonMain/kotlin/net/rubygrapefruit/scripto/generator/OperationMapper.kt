@@ -15,11 +15,15 @@ class OperationMapper<T> private constructor(
 ) {
     fun map(operations: List<Operation>): List<T> {
         val result = mutableListOf<T>()
+        mapInto(operations, result)
+        return result
+    }
+
+    fun mapInto(operations: List<Operation>, result: MutableList<T>) {
         val context = DefaultContext(result, collectDependencies)
         for (operation in operations) {
             map(operation, context)
         }
-        return result
     }
 
     private fun map(operation: Operation, context: Context<T>) {

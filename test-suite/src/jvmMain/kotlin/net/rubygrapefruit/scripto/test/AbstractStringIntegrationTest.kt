@@ -41,12 +41,30 @@ println(e)
 
         compileAndRun(sourceFile) {
             statements(10)
-            output("""a
+            output(
+                """a
 b
 c
 d
 e
-""")
+"""
+            )
+        }
+    }
+
+    @Test
+    fun `compiles function call with string literal argument`() {
+        val sourceFile = workDir.file("app.scripto")
+
+        sourceFile.writeText(
+            """
+println("some text")
+        """
+        )
+
+        compileAndRun(sourceFile) {
+            statements(1)
+            output("some text\n")
         }
     }
 
