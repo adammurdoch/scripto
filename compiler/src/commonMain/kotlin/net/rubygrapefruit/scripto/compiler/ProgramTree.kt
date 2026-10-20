@@ -75,7 +75,12 @@ internal class ProgramTree(val operations: List<OperationTree>) {
             is ListLiteralTree -> {
                 val arguments = resolveExpressions(expression.elements, variables, library)
                 arguments.mapping { arguments ->
-                    Resolved(FunctionCallExpression(StandardLibrary.listConstructor, arguments))
+                    val elementType = if (arguments.isEmpty()) {
+                        Type.Any
+                    } else {
+                        arguments.first().type
+                    }
+                    Resolved(FunctionCallExpression(StandardLibrary.listConstructor.evaluate(elementType), arguments))
                 }
             }
 
@@ -144,8 +149,12 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         return Resolved(definition)
     }
 
-    private fun resolveFunction(definitions: List<FunctionDefinition>, arguments: List<ExpressionTree>): FunctionDefinition? {
-        for (definition in definitions) {
+    private fun resolveFunction(candidates: List<FunctionKind>, arguments: List<ExpressionTree>): FunctionDefinition? {
+        for (candidate in candidates) {
+            val definition = when (candidate) {
+                is FunctionDefinition -> candidate
+                is NamedParameterizedFunctionDefinition -> candidate.evaluate(Type.String)
+            }
             if (arguments.size == definition.parameters.size) {
                 return definition
             }

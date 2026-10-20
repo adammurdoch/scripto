@@ -118,16 +118,11 @@ class JvmGenerator {
     }
 
     private fun mapFunctionCall(expression: FunctionCallExpression): JvmExpression {
-        return when (expression.target) {
+        val target = expression.target
+        return when (target) {
             StandardLibrary.fileConstructor -> {
                 val value = toExpression(expression.args.first())
                 StaticMethodCall(path, "of", stringToPathMethod, listOf(value, EmptyStringArray))
-            }
-
-            StandardLibrary.listConstructor -> {
-                val args = expression.args.map { toExpression(it) }
-                val elementType = (expression.type as Type.List).param
-                NewArray(toTypeDescriptor(elementType), args)
             }
 
             StandardLibrary.intAddition -> JvmIntAddition(toExpression(expression.args[0]), toExpression(expression.args[1]))
@@ -140,7 +135,20 @@ class JvmGenerator {
             StandardLibrary.stringEquality -> JvmStringEquality(toExpression(expression.args[0]), toExpression(expression.args[1]))
             StandardLibrary.intEquality -> JvmIntEquality(toExpression(expression.args[0]), toExpression(expression.args[1]))
             StandardLibrary.booleanEquality -> JvmIntEquality(toExpression(expression.args[0]), toExpression(expression.args[1]))
-            else -> throw IllegalArgumentException("Unknown ${expression.target.displayName}")
+
+            is RealizedFunctionDefinition -> {
+                when (target.definition) {
+                    StandardLibrary.listConstructor -> {
+                        val args = expression.args.map { toExpression(it) }
+                        val elementType = (target.returnType as Type.List).param
+                        NewArray(toTypeDescriptor(elementType), args)
+                    }
+
+                    else -> throw IllegalArgumentException("Unknown ${target.displayName}")
+                }
+            }
+
+            else -> throw IllegalArgumentException("Unknown ${target.displayName}")
         }
     }
 

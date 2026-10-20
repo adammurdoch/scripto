@@ -50,7 +50,7 @@ class BashGenerator {
             map(StandardLibrary.fileConstructor) { expression, functionMapper ->
                 toExpression(expression.args.first(), scope, functionMapper)
             }
-            map(StandardLibrary.listConstructor) { expression, functionMapper ->
+            map(StandardLibrary.listConstructor) { expression, _, functionMapper ->
                 BashArrayLiteral(expression.args.map { toExpression(it, scope, functionMapper) })
             }
             mapOperator(StandardLibrary.intAddition, scope) { left, right ->
@@ -107,15 +107,19 @@ class BashGenerator {
                             val resultVarName = scope.newVarName("ARRAY_STR")
                             val separatorVarName = scope.newVarName("SEPARATOR")
                             val elementVarName = scope.newVarName("ELEMENT")
-                            BashCommandInvocationExpression(resultVarName, listOf(
-                                BashVariableAssignment(resultVarName, BashString("["), false),
-                                BashVariableAssignment(separatorVarName, BashString(""), false),
-                                BashForLoop(elementVarName, BashWord("\"\${${receiver.target.name}[@]}\""), listOf(
-                                    BashVariableAssignment(resultVarName, BashWord("\"\$$resultVarName\$$separatorVarName\$$elementVarName\""), false),
-                                    BashVariableAssignment(separatorVarName, BashString(", "), false)
-                                )),
-                                BashVariableAssignment(resultVarName, BashWord("\"\$$resultVarName]\""), false),
-                            ))
+                            BashCommandInvocationExpression(
+                                resultVarName, listOf(
+                                    BashVariableAssignment(resultVarName, BashString("["), false),
+                                    BashVariableAssignment(separatorVarName, BashString(""), false),
+                                    BashForLoop(
+                                        elementVarName, BashWord("\"\${${receiver.target.name}[@]}\""), listOf(
+                                            BashVariableAssignment(resultVarName, BashWord("\"\$$resultVarName\$$separatorVarName\$$elementVarName\""), false),
+                                            BashVariableAssignment(separatorVarName, BashString(", "), false)
+                                        )
+                                    ),
+                                    BashVariableAssignment(resultVarName, BashWord("\"\$$resultVarName]\""), false),
+                                )
+                            )
                         }
 
                         else -> throw IllegalArgumentException()

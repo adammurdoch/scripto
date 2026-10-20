@@ -41,7 +41,6 @@ class Interpreter {
                 val target = expression.target
                 when (target) {
                     StandardLibrary.fileConstructor -> args.first()
-                    StandardLibrary.listConstructor -> args
 
                     is OperatorDefinition -> {
                         val left = calculate(expression.args[0], vars)
@@ -52,12 +51,18 @@ class Interpreter {
                             StandardLibrary.intEquality -> left == right
                             StandardLibrary.intAddition -> (left as Int) + (right as Int)
                             StandardLibrary.booleanEquality -> left == right
-                            else -> throw IllegalArgumentException("Unknown ${expression.target.displayName}")
+                            else -> throw IllegalArgumentException("Unknown ${target.displayName}")
                         }
-
                     }
 
-                    else -> throw IllegalArgumentException("Unknown ${expression.target.displayName}")
+                    is RealizedFunctionDefinition -> {
+                        when (target.definition) {
+                            StandardLibrary.listConstructor -> args // already a list
+                            else -> throw IllegalArgumentException("Unknown ${target.displayName}")
+                        }
+                    }
+
+                    else -> throw IllegalArgumentException("Unknown ${target.displayName}")
                 }
             }
 

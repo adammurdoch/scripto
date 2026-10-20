@@ -1,7 +1,7 @@
 package net.rubygrapefruit.scripto.ir
 
 interface Functions {
-    fun definitions(name: String): List<FunctionDefinition>
+    fun definitions(name: String): List<FunctionKind>
 }
 
 open class ObjectFunctions : Functions {
@@ -51,7 +51,7 @@ object StandardLibrary : Functions {
     val stringEquality = OperatorDefinition(Operator.Equality, Type.Boolean, Type.String, Type.String)
     val intEquality = OperatorDefinition(Operator.Equality, Type.Boolean, Type.Int, Type.Int)
     val booleanEquality = OperatorDefinition(Operator.Equality, Type.Boolean, Type.Boolean, Type.Boolean)
-    val listConstructor = NamedFunctionDefinition("List", Type.List(Type.String), listOf(Parameter(Type.String, true)))
+    val listConstructor = NamedParameterizedFunctionDefinition("List", TypeFunction.List, listOf(ParameterFunction.UseFunctionParameter(true)))
 
     /**
      * Replaces println(Any) with println(String)
@@ -68,7 +68,7 @@ object StandardLibrary : Functions {
         }
     }
 
-    override fun definitions(name: String): List<FunctionDefinition> {
+    override fun definitions(name: String): List<FunctionKind> {
         return when (name) {
             printlnNoArgs.name -> listOf(printlnNoArgs, printlnOneArg)
             fileConstructor.name -> listOf(fileConstructor)
@@ -77,7 +77,7 @@ object StandardLibrary : Functions {
         }
     }
 
-    fun definitions(receiver: Type, name: String): List<FunctionDefinition> {
+    fun definitions(receiver: Type, name: String): List<FunctionKind> {
         val functions = functionsFor(receiver)
         return functions.definitions(name)
     }
