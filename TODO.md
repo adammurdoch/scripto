@@ -38,7 +38,7 @@ C
 
 Bash
 
-- Strongly type expressions that can be used in bash commands and expressions that can be used in arithmetic contexts
+- Strongly type `BashExpression` types that can be used in bash commands and those that can be used in arithmetic contexts
 - Don't use a temporary variable to calculate variable initializer, e.g. for `File.readText()`
 - Reuse temporary variables across statements
 - Add a helper function for `List.toString()`?
@@ -47,6 +47,7 @@ Bash
 
 PowerShell
 
+- Strongly type array variables 
 - Don't use a temporary variable to calculate variable initializer, e.g. for `File.readText()`
 - Reuse temporary variables across statements
 - Use string interpolation for `File.toString()`?

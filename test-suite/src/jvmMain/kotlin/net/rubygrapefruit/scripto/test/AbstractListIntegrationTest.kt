@@ -8,12 +8,14 @@ abstract class AbstractListIntegrationTest : AbstractIntegrationTest() {
         val sourceFile = workDir.file("app.scripto")
         sourceFile.writeText(
             """
-val l = ["a", "some text"]
-println(l)
+val l1 = ["a", "some text"]
+println(l1)
+val l2 = ["some text"] // single element for PowerShell generation
+println(l2)
         """
         )
         compileAndRun(sourceFile) {
-            output("[a, some text]\n")
+            output("[a, some text]\n[some text]\n")
         }
     }
 

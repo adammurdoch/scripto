@@ -37,6 +37,12 @@ internal class PsFunctionCall(val receiver: PsExpression, val name: String) : Ps
     }
 }
 
+internal class PsArrayOperator(val elements: List<PsExpression>) : PsExpression {
+    override fun visitDependencies(visitor: (PsStatement) -> Unit) {
+        elements.forEach { it.visitDependencies(visitor) }
+    }
+}
+
 internal class PsCommandInvocationExpression(val intermediateVariable: String, val statements: List<PsStatement>) : PsExpression {
     override fun visitDependencies(visitor: (PsStatement) -> Unit) {
         statements.forEach(visitor)

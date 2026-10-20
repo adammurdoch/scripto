@@ -61,20 +61,36 @@ class PowershellGenerator {
             is Type.String -> psExpression
             is Type.File -> fileToString(psExpression)
             is Type.Int -> psExpression
-            is Type.Boolean -> convertBooleanToString(psExpression)
-            is Type.List -> throw IllegalArgumentException()
+            is Type.Boolean -> booleanToString(psExpression)
+            is Type.List -> listToString(psExpression)
             is Type.Any -> throw IllegalArgumentException()
         }
     }
 
-    private fun fileToString(psExpression: PsExpression): PsExpression {
+    private fun listToString(expression: PsExpression): PsExpression {
+        val list = PsInfixOperation(
+            expression,
+            "-join",
+            PsString(", ")
+        )
+        return surroundWith("[", list, "]")
+    }
+
+    private fun fileToString(expression: PsExpression): PsExpression {
+        return surroundWith("File(", expression, ")")
+    }
+
+    private fun surroundWith(prefix: String, expression: PsExpression, suffix: String): PsExpression {
         return PsInfixOperation(
-            PsString("File("), "+",
-            PsInfixOperation(psExpression, "+", PsString(")"))
+            PsString(prefix),
+            "+",
+            PsInfixOperation(
+                expression, "+", PsString(suffix)
+            )
         )
     }
 
-    private fun convertBooleanToString(psExpression: PsExpression): PsExpression {
+    private fun booleanToString(psExpression: PsExpression): PsExpression {
         return PsTernaryExpression(psExpression, PsString(BooleanLiteral.TRUE), PsString(BooleanLiteral.FALSE))
     }
 
@@ -100,6 +116,13 @@ class PowershellGenerator {
                 }
             }
 
+            is RealizedFunctionDefinition -> {
+                when (target.definition) {
+                    StandardLibrary.listConstructor -> PsArrayOperator(expression.args.map { toExpression(it, scope) })
+                    else -> throw IllegalArgumentException("Unknown ${target.displayName}")
+                }
+            }
+
             else -> throw IllegalArgumentException("Unknown ${target.displayName}")
         }
     }
@@ -119,7 +142,7 @@ class PowershellGenerator {
                 val receiver = expression.receiver
                 when (receiver) {
                     is BooleanLiteral -> PsString(receiver.value.toString())
-                    else -> convertBooleanToString(toExpression(receiver, scope))
+                    else -> booleanToString(toExpression(receiver, scope))
                 }
             }
 
@@ -246,6 +269,25 @@ class PowershellGenerator {
                 append(".")
                 append(expression.name)
                 append("()")
+            }
+
+            is PsArrayOperator -> {
+                when (expression.elements.size) {
+                    0 -> append("@()")
+                    1 -> {
+                        append(",")
+                        append(expression.elements.first())
+                    }
+
+                    else -> {
+                        expression.elements.forEachIndexed { index, element ->
+                            if (index > 0) {
+                                append(',')
+                            }
+                            append(element)
+                        }
+                    }
+                }
             }
 
             is PsCommandInvocationExpression -> {
