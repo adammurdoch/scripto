@@ -2,14 +2,11 @@ package net.rubygrapefruit.scripto.c
 
 internal class CVariableDeclaration(
     val name: String,
-    val type: String,
-    val value: CExpression,
-    val declaredBy: ExternalDeclaration? = null
+    val type: CType,
+    val value: CExpression
 ) : CStatement {
     override fun visitDeclarations(visitor: (ExternalDeclaration) -> Unit) {
-        if (declaredBy != null) {
-            visitor(declaredBy)
-        }
+        type.visitDeclarations(visitor)
         value.visitDeclarations(visitor)
     }
 

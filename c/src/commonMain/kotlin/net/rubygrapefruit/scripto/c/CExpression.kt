@@ -73,14 +73,14 @@ internal class CTernaryExpression(val condition: CExpression, val left: CExpress
     }
 }
 
-internal class CArrayInitializer(val elements: List<CExpression>): CCompositeExpression() {
+internal class CInitializer(val elements: List<CExpression>): CCompositeExpression() {
     override fun visitChildren(visitor: (CExpression) -> Unit) {
         elements.forEach(visitor)
     }
 }
 
-internal class CTemporaryValue(val type: String, val value: CExpression, val declaredBy: ExternalDeclaration? = null) : CCompositeExpression() {
-    constructor(type: TypeSnippet, value: CExpression) : this(type.name, value, type)
+internal class CTemporaryValue(val type: CType, val value: CExpression, val declaredBy: ExternalDeclaration? = null) : CCompositeExpression() {
+    constructor(type: TypeSnippet, value: CExpression) : this(type.type, value, type)
 
     override fun visitChildren(visitor: (CExpression) -> Unit) {
         visitor(value)

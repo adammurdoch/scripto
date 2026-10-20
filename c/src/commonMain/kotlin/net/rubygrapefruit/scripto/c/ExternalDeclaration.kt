@@ -7,6 +7,7 @@ internal sealed class ExternalDeclaration {
 
 internal class Header(val name: String) : ExternalDeclaration() {
     companion object {
+        val Stdint = Header("<stdint.h>")
         val Stdlib = Header("<stdlib.h>")
         val Stdio = Header("<stdio.h>")
         val Stdbool = Header("<stdbool.h>")
@@ -26,14 +27,16 @@ internal sealed class Snippet(val headers: List<Header>, text: String) : Externa
 }
 
 internal class TypeSnippet(val name: String, headers: List<Header>, text: String) : Snippet(headers, text) {
+    val type: CType = CType.Struct(this)
+
     companion object {
         val ListStruct = TypeSnippet(
-            "struct _list",
-            emptyList(),
+            "_list",
+            listOf(Header.Stdint),
             """
 struct _list {
-    size_t length;
-    int8_t elements[];
+    int32_t length;
+    void* elements;
 };
             """.trimIndent()
         )
