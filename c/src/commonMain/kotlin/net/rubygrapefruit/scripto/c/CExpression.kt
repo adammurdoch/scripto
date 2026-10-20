@@ -58,6 +58,12 @@ internal sealed class CCompositeExpression : CExpression {
     }
 }
 
+internal class CPointer(val value: CExpression) : CCompositeExpression() {
+    override fun visitChildren(visitor: (CExpression) -> Unit) {
+        visitor(value)
+    }
+}
+
 internal class CInfixOperator(val left: CExpression, val operator: String, val right: CExpression) : CCompositeExpression() {
     override fun visitChildren(visitor: (CExpression) -> Unit) {
         visitor(left)
@@ -73,7 +79,7 @@ internal class CTernaryExpression(val condition: CExpression, val left: CExpress
     }
 }
 
-internal class CInitializer(val elements: List<CExpression>): CCompositeExpression() {
+internal class CInitializer(val elements: List<CExpression>) : CCompositeExpression() {
     override fun visitChildren(visitor: (CExpression) -> Unit) {
         elements.forEach(visitor)
     }

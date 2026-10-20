@@ -1,7 +1,7 @@
 package net.rubygrapefruit.scripto.c
 
 internal sealed class ExternalDeclaration {
-    open fun visitHeaders(visitor: (Header) -> Unit) {
+    open fun visitDeclarations(visitor: (ExternalDeclaration) -> Unit) {
     }
 }
 
@@ -18,15 +18,15 @@ internal class Header(val name: String) : ExternalDeclaration() {
     }
 }
 
-internal sealed class Snippet(val headers: List<Header>, text: String) : ExternalDeclaration() {
+internal sealed class Snippet(val declarations: List<ExternalDeclaration>, text: String) : ExternalDeclaration() {
     val text: String = text.trim() + "\n"
 
-    override fun visitHeaders(visitor: (Header) -> Unit) {
-        headers.forEach { visitor(it) }
+    override fun visitDeclarations(visitor: (ExternalDeclaration) -> Unit) {
+        declarations.forEach { visitor(it) }
     }
 }
 
-internal class TypeSnippet(val name: String, headers: List<Header>, text: String) : Snippet(headers, text) {
+internal class TypeSnippet(val name: String, declarations: List<ExternalDeclaration>, text: String) : Snippet(declarations, text) {
     val type: CType = CType.Struct(this)
 
     companion object {
@@ -43,7 +43,7 @@ struct _list {
     }
 }
 
-internal class FunctionSnippet(val name: String, headers: List<Header>, text: String) : Snippet(headers, text) {
+internal class FunctionSnippet(val name: String, declarations: List<ExternalDeclaration>, text: String) : Snippet(declarations, text) {
     companion object {
         val ReadText = FunctionSnippet(
             "_read_text",
@@ -105,6 +105,38 @@ const char* _int_to_string(int value) {
     char* buffer = malloc(len);
     snprintf(buffer, len, "%d", value);
     return buffer;
+}
+            """.trimIndent()
+        )
+
+        val listToString = FunctionSnippet(
+            "_list_to_string",
+            listOf(TypeSnippet.ListStruct, Header.String, Header.Stdlib), """
+const char* _list_to_string(struct _list* list) {
+    size_t str_len = 3;
+    for (int i = 0; i < list->length; i++) {
+        str_len += strlen(((char**)list->elements)[i]);
+    }
+    if (list->length > 1) {
+        str_len += (list->length-1) * 2;
+    }
+    char* result = malloc(sizeof(char)*str_len);
+    char* current = result;
+    *current = '[';
+    current++;
+    for (int i = 0; i < list->length; i++) {
+        if (i > 0) {
+            *current = ',';
+            current++;
+            *current = ' ';
+            current++;
+        }
+        current = stpcpy(current, ((char**)list->elements)[i]);
+    }
+    *current = ']';
+    current++;
+    *current = 0;
+    return result;
 }
             """.trimIndent()
         )

@@ -31,7 +31,7 @@ JVM
 
 C
 
-- Garbage collect strings created by `+` operator, `Int.toString()`, `File.toString()` and `File.readText()`
+- Garbage collect strings created by `+` operator, `Int.toString()`, `File.toString()`, `List.toString()` and `File.readText()`
 - Add a helper function for `File.toString()`?
 - Use `whar_t*` or `char16_t*` to represent strings?
 - Interesting reference counting approach https://www.microsoft.com/en-us/research/wp-content/uploads/2020/11/perceus-tr-v1.pdf

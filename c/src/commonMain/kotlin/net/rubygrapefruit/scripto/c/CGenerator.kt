@@ -25,7 +25,7 @@ class CGenerator {
                 original
             }
             statement.visitDeclarations { declaration ->
-                declaration.visitHeaders {
+                declaration.visitDeclarations {
                     declarations.add(it)
                 }
                 declarations.add(declaration)
@@ -57,7 +57,7 @@ class CGenerator {
             for (statement in statements) {
                 append(statement, variableState)
             }
-            appendln("  return 0;")
+            appendln("    return 0;")
             appendln('}')
         }
     }
@@ -160,6 +160,8 @@ class CGenerator {
             booleanToString(expression.receiver, functionMapper)
         } else if (expression.target == FileFunctions.readText) {
             CFunctionCall(FunctionSnippet.ReadText, listOf(toExpression(expression.receiver, functionMapper)))
+        } else if (expression.target == ListFunctions.toString) {
+            listToString(expression.receiver, functionMapper)
         } else {
             throw IllegalArgumentException("Unknown ${expression.target.displayName} for ${expression.receiver.type}")
         }
@@ -182,10 +184,18 @@ class CGenerator {
             }
 
             is Type.File -> CFunctionCall("printf", listOf(CString("File(%s)\n"), toExpression(arg, functionMapper)), Header.Stdio)
-            is Type.List -> CFunctionCall("puts", listOf(CString("[??]")), Header.Stdio)
+            is Type.List -> CFunctionCall("puts", listOf(listToString(arg, functionMapper)), Header.Stdio)
 
             is Type.Any -> throw IllegalArgumentException()
         }
+    }
+
+    private fun listToString(expression: Expression, functionMapper: FunctionMapper<CExpression>): CExpression {
+        if ((expression.type as Type.List).param != Type.String) {
+            return CString("??")
+        }
+        val value = toExpression(expression, functionMapper)
+        return CFunctionCall(FunctionSnippet.listToString, listOf(CPointer(value)))
     }
 
     private fun booleanToString(expression: Expression, functionMapper: FunctionMapper<CExpression>): CExpression {
@@ -213,6 +223,7 @@ class CGenerator {
     }
 
     private fun SourceGenerator.append(statement: CStatement, state: VariableState) {
+        append("    ")
         when (statement) {
             is CVariableDeclaration -> append(statement, state)
             is CFunctionCall -> append(statement, state)
@@ -220,7 +231,6 @@ class CGenerator {
     }
 
     private fun SourceGenerator.append(declaration: CVariableDeclaration, state: VariableState) {
-        append("  ")
         append(declaration.type.declaration)
         append(" ")
         append(declaration.name)
@@ -235,7 +245,6 @@ class CGenerator {
     }
 
     private fun SourceGenerator.append(statement: CFunctionCall, state: VariableState) {
-        append("  ")
         appendCall(statement, state)
         appendln(";")
     }
@@ -271,6 +280,11 @@ class CGenerator {
 
             is CVariableReference -> {
                 append(expression.name)
+            }
+
+            is CPointer -> {
+                append("&")
+                append(expression.value, state)
             }
 
             is CTernaryExpression -> {
