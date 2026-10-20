@@ -1,9 +1,8 @@
 package net.rubygrapefruit.scripto.c
 
-import net.rubygrapefruit.scripto.generator.ExpressionWithDependencies
 import net.rubygrapefruit.scripto.ir.VariableReference
 
-internal sealed interface CExpression : ExpressionWithDependencies<CStatement> {
+internal sealed interface CExpression {
     /**
      * Visit any headers or code snippets used by this expression.
      */
@@ -36,11 +35,6 @@ internal class CInfixOperator(val left: CExpression, val operator: String, val r
         left.visitDeclarations(visitor)
         right.visitDeclarations(visitor)
     }
-
-    override fun visitDependencies(visitor: (CStatement) -> Unit) {
-        left.visitDependencies(visitor)
-        right.visitDependencies(visitor)
-    }
 }
 
 internal class CTernaryExpression(val condition: CExpression, val left: CExpression, val right: CExpression) : CExpression {
@@ -49,10 +43,15 @@ internal class CTernaryExpression(val condition: CExpression, val left: CExpress
         left.visitDeclarations(visitor)
         right.visitDeclarations(visitor)
     }
+}
 
-    override fun visitDependencies(visitor: (CStatement) -> Unit) {
-        condition.visitDependencies(visitor)
-        left.visitDependencies(visitor)
-        right.visitDependencies(visitor)
+internal class CTemporaryValue(val type: String, val value: CExpression, val declaredBy: ExternalDeclaration? = null) : CExpression {
+    constructor(type: TypeSnippet, value: CExpression) : this(type.name, value, type)
+
+    override fun visitDeclarations(visitor: (ExternalDeclaration) -> Unit) {
+        if (declaredBy != null) {
+            visitor(declaredBy)
+        }
+        value.visitDeclarations(visitor)
     }
 }

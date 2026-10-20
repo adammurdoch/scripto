@@ -13,8 +13,4 @@ internal class CFunctionCall(
         }
         arguments.forEach { it.visitDeclarations(visitor) }
     }
-
-    override fun visitDependencies(visitor: (CStatement) -> Unit) {
-        arguments.forEach { it.visitDependencies(visitor) }
-    }
 }

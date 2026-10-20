@@ -17,13 +17,30 @@ internal class Header(val name: String) : ExternalDeclaration() {
     }
 }
 
-internal class FunctionSnippet(val name: String, val headers: List<Header>, text: String) : ExternalDeclaration() {
+internal sealed class Snippet(val headers: List<Header>, text: String) : ExternalDeclaration() {
     val text: String = text.trim() + "\n"
 
     override fun visitHeaders(visitor: (Header) -> Unit) {
         headers.forEach { visitor(it) }
     }
+}
 
+internal class TypeSnippet(val name: String, headers: List<Header>, text: String) : Snippet(headers, text) {
+    companion object {
+        val ListStruct = TypeSnippet(
+            "struct _list",
+            emptyList(),
+            """
+struct _list {
+    size_t length;
+    int8_t elements[];
+};
+            """.trimIndent()
+        )
+    }
+}
+
+internal class FunctionSnippet(val name: String, headers: List<Header>, text: String) : Snippet(headers, text) {
     companion object {
         val ReadText = FunctionSnippet(
             "_read_text",
