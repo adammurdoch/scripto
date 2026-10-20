@@ -40,11 +40,11 @@ class NamedFunctionDefinition(val name: String, override val returnType: Type, o
 
 class NamedParameterizedFunctionDefinition(val name: String, val returnType: TypeFunction, val parameters: List<ParameterFunction>) : FunctionKind {
     fun evaluate(arg: Type): RealizedFunctionDefinition {
-        return RealizedFunctionDefinition(this, returnType.evaluate(arg), parameters.map { it.evaluate(arg) })
+        return RealizedFunctionDefinition(this, arg, returnType.evaluate(arg), parameters.map { it.evaluate(arg) })
     }
 }
 
-class RealizedFunctionDefinition(val definition: NamedParameterizedFunctionDefinition, override val returnType: Type, override val parameters: List<Parameter>) :
+class RealizedFunctionDefinition(val definition: NamedParameterizedFunctionDefinition, val argument: Type, override val returnType: Type, override val parameters: List<Parameter>) :
     TypedFunctionDefinition {
     override val displayName: String
         get() = "function ${definition.name}()"

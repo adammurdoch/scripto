@@ -237,7 +237,7 @@ internal interface CodeBuilder {
 
     fun newArray(elementType: TypeDescriptor)
 
-    fun arrayStore()
+    fun arrayStore(elementType: TypeDescriptor)
 
     fun iadd()
 
@@ -508,8 +508,20 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
         push(elementType.arrayType())
     }
 
-    override fun arrayStore() {
-        encoder.u1(0x53) // aastore
+    override fun arrayStore(elementType: TypeDescriptor) {
+        when (elementType) {
+            is TypeDescriptor.Int -> {
+                encoder.u1(0x4f) // iastore
+            }
+
+            is TypeDescriptor.Boolean -> {
+                encoder.u1(0x54) // bastore
+            }
+
+            is TypeDescriptor.ReferenceType -> {
+                encoder.u1(0x53) // aastore
+            }
+        }
         pop(3)
     }
 

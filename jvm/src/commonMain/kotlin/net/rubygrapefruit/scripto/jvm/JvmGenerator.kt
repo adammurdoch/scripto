@@ -18,6 +18,8 @@ class JvmGenerator {
     private val stringToPathMethod = MethodDescriptor.of(path, TypeDescriptor.String, TypeDescriptor.String.arrayType())
     private val stringToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.String)
     private val objectArrayToStringMethod = MethodDescriptor.of(TypeDescriptor.String, objectArray)
+    private val intArrayToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.Int.arrayType())
+    private val booleanArrayToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.Boolean.arrayType())
 
     fun generate(program: Program, output: RegularFile): GeneratedClass {
         ClassFileWriter().writeTo("App", output) { generate(program) }
@@ -102,8 +104,13 @@ class JvmGenerator {
         return StaticMethodCall(boolean, "toString", boolToStringMethod, listOf(expression))
     }
 
-    private fun listToString(expression: JvmExpression): JvmExpression {
-        return StaticMethodCall(arrays, "toString", objectArrayToStringMethod, listOf(expression))
+    private fun listToString(elementType: Type, expression: JvmExpression): JvmExpression {
+        return when (elementType) {
+            is Type.String, is Type.Any, is Type.List -> StaticMethodCall(arrays, "toString", objectArrayToStringMethod, listOf(expression))
+            is Type.Int -> StaticMethodCall(arrays, "toString", intArrayToStringMethod, listOf(expression))
+            is Type.Boolean -> StaticMethodCall(arrays, "toString", booleanArrayToStringMethod, listOf(expression))
+            else -> throw IllegalArgumentException()
+        }
     }
 
     private fun toExpression(expression: Expression): JvmExpression {
@@ -140,7 +147,7 @@ class JvmGenerator {
                 when (target.definition) {
                     StandardLibrary.listConstructor -> {
                         val args = expression.args.map { toExpression(it) }
-                        val elementType = (target.returnType as Type.List).param
+                        val elementType = target.argument
                         NewArray(toTypeDescriptor(elementType), args)
                     }
 
@@ -172,7 +179,7 @@ class JvmGenerator {
                 }
             }
 
-            ListFunctions.toString -> listToString(toExpression(expression.receiver))
+            ListFunctions.toString -> listToString((expression.receiver.type as Type.List).param, toExpression(expression.receiver))
 
             FileFunctions.toString -> fileToString(toExpression(expression.receiver))
             FileFunctions.readText -> {
@@ -258,7 +265,7 @@ class JvmGenerator {
                     dup()
                     loadConstant(index)
                     push(element, slots)
-                    arrayStore()
+                    arrayStore(expression.elementType)
                 }
             }
         }

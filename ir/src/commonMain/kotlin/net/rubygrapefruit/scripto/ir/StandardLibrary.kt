@@ -17,7 +17,7 @@ open class ObjectFunctions : Functions {
 }
 
 object AnyFunctions : Functions {
-    override fun definitions(name: String): List<FunctionDefinition> {
+    override fun definitions(name: String): List<FunctionKind> {
         return emptyList()
     }
 }

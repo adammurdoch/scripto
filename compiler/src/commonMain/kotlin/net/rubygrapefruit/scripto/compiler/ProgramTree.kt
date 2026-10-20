@@ -75,11 +75,7 @@ internal class ProgramTree(val operations: List<OperationTree>) {
             is ListLiteralTree -> {
                 val arguments = resolveExpressions(expression.elements, variables, library)
                 arguments.mapping { arguments ->
-                    val elementType = if (arguments.isEmpty()) {
-                        Type.Any
-                    } else {
-                        arguments.first().type
-                    }
+                    val elementType = inferTypeParamFromArguments(arguments)
                     Resolved(FunctionCallExpression(StandardLibrary.listConstructor.evaluate(elementType), arguments))
                 }
             }
@@ -111,6 +107,15 @@ internal class ProgramTree(val operations: List<OperationTree>) {
                 }
             }
         }
+    }
+
+    private fun inferTypeParamFromArguments(arguments: List<Expression>): Type {
+        val elementType = if (arguments.isEmpty()) {
+            Type.Any
+        } else {
+            arguments.first().type
+        }
+        return elementType
     }
 
     private fun resolveVariableReference(
