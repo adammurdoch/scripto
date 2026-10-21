@@ -11,9 +11,10 @@ class CGenerator {
 
         val statements = mutableListOf<CStatement>()
         operationMapper.mapInto(program.operations, statements)
+        statements.add(CReturnStatement(CInt(0)))
 
         val variableState = VariableState()
-        val declarations = mutableSetOf<ExternalDeclaration>()
+        val declarations = mutableSetOf<CDeclaration>()
         var index = 0
         while (index < statements.size) {
             val original = statements[index]
@@ -52,13 +53,8 @@ class CGenerator {
                 append(fragment.text)
             }
 
-            appendln()
-            appendln("int main() {")
-            for (statement in statements) {
-                append(statement, variableState)
-            }
-            appendln("    return 0;")
-            appendln('}')
+            val mainFunction = CGeneratedFunction("main", CType.CInt, emptyList(), statements)
+            append(mainFunction, variableState)
         }
     }
 
@@ -229,25 +225,46 @@ class CGenerator {
         return concatString(CString("File("), concatString(toExpression(expression, functionMapper), CString(")")))
     }
 
+    private fun SourceGenerator.append(function: CGeneratedFunction, state: VariableState) {
+        appendln()
+        if (function.returnType != null) {
+            append(function.returnType.declaration)
+            append(" ")
+        }
+        append(function.name)
+        append("(")
+        append(function.parameters, ", ") { parameter ->
+            append(parameter.declaration)
+            append(' ')
+            append("??")
+        }
+        appendln(") {")
+        for (statement in function.statements) {
+            append(statement, state)
+        }
+        appendln('}')
+    }
+
     private fun SourceGenerator.append(statement: CStatement, state: VariableState) {
         append("    ")
         when (statement) {
             is CVariableDeclaration -> append(statement, state)
             is CFunctionCall -> append(statement, state)
+            is CReturnStatement -> append(statement, state)
         }
     }
 
-    private fun SourceGenerator.append(declaration: CVariableDeclaration, state: VariableState) {
-        append(declaration.type.declaration)
+    private fun SourceGenerator.append(statement: CVariableDeclaration, state: VariableState) {
+        append(statement.type.declaration)
         append(" ")
-        append(declaration.name)
-        if (declaration.type is CType.Array) {
-            repeat(declaration.type.dimensions) {
+        append(statement.name)
+        if (statement.type is CType.Array) {
+            repeat(statement.type.dimensions) {
                 append("[]")
             }
         }
         append(" = ")
-        append(declaration.value, state)
+        append(statement.value, state)
         appendln(";")
     }
 
@@ -263,6 +280,12 @@ class CGenerator {
             append(argument, state)
         }
         append(")")
+    }
+
+    private fun SourceGenerator.append(statement: CReturnStatement, state: VariableState) {
+        append("return ")
+        append(statement.value, state)
+        appendln(";")
     }
 
     private fun SourceGenerator.append(expression: CExpression, state: VariableState) {

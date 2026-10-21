@@ -5,7 +5,7 @@ internal sealed interface CType {
 
     fun array(): Array = Array(this, 1)
 
-    fun visitDeclarations(visitor: (ExternalDeclaration) -> Unit) {
+    fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
     }
 
     object CString : CType {
@@ -13,11 +13,16 @@ internal sealed interface CType {
             get() = "const char*"
     }
 
+    object CInt : CType {
+        override val declaration: String
+            get() = "int"
+    }
+
     object Int32 : CType {
         override val declaration: String
             get() = "int32_t"
 
-        override fun visitDeclarations(visitor: (ExternalDeclaration) -> Unit) {
+        override fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
             visitor(Header.Stdint)
         }
     }
@@ -26,7 +31,7 @@ internal sealed interface CType {
         override val declaration: String
             get() = "bool"
 
-        override fun visitDeclarations(visitor: (ExternalDeclaration) -> Unit) {
+        override fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
             visitor(Header.Stdbool)
         }
     }
@@ -34,7 +39,7 @@ internal sealed interface CType {
     class Struct(val type: TypeSnippet) : CType {
         override val declaration = "struct ${type.name}"
 
-        override fun visitDeclarations(visitor: (ExternalDeclaration) -> Unit) {
+        override fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
             visitor(type)
         }
     }

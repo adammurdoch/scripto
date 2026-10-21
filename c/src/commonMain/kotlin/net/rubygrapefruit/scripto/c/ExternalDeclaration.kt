@@ -1,11 +1,6 @@
 package net.rubygrapefruit.scripto.c
 
-internal sealed class ExternalDeclaration {
-    open fun visitDeclarations(visitor: (ExternalDeclaration) -> Unit) {
-    }
-}
-
-internal class Header(val name: String) : ExternalDeclaration() {
+internal class Header(val name: String) : CDeclaration {
     companion object {
         val Stdint = Header("<stdint.h>")
         val Stdlib = Header("<stdlib.h>")
@@ -18,15 +13,15 @@ internal class Header(val name: String) : ExternalDeclaration() {
     }
 }
 
-internal sealed class Snippet(val declarations: List<ExternalDeclaration>, text: String) : ExternalDeclaration() {
+internal sealed class Snippet(val declarations: List<CDeclaration>, text: String) : CDeclaration {
     val text: String = text.trim() + "\n"
 
-    override fun visitDeclarations(visitor: (ExternalDeclaration) -> Unit) {
+    override fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
         declarations.forEach { visitor(it) }
     }
 }
 
-internal class TypeSnippet(val name: String, declarations: List<ExternalDeclaration>, text: String) : Snippet(declarations, text) {
+internal class TypeSnippet(val name: String, declarations: List<CDeclaration>, text: String) : Snippet(declarations, text) {
     val type: CType = CType.Struct(this)
 
     companion object {
@@ -43,7 +38,7 @@ struct _list {
     }
 }
 
-internal class FunctionSnippet(val name: String, declarations: List<ExternalDeclaration>, text: String) : Snippet(declarations, text) {
+internal class FunctionSnippet(val name: String, declarations: List<CDeclaration>, text: String) : Snippet(declarations, text) {
     companion object {
         val ReadText = FunctionSnippet(
             "_read_text",

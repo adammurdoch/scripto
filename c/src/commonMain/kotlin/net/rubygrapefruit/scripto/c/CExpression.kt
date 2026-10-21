@@ -6,7 +6,7 @@ internal sealed interface CExpression {
     /**
      * Visit any headers or code snippets used by this expression, including any nested expressions.
      */
-    fun visitDeclarations(visitor: (ExternalDeclaration) -> Unit) {
+    fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
     }
 
     /**
@@ -24,7 +24,7 @@ internal class CString(val value: String) : CExpression
 internal class CInt(val value: Int) : CExpression
 
 internal sealed class CBooleanLiteral : CExpression {
-    override fun visitDeclarations(visitor: (ExternalDeclaration) -> Unit) {
+    override fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
         visitor(Header.Stdbool)
     }
 }
@@ -45,7 +45,7 @@ internal sealed class CCompositeExpression : CExpression {
         visitor(this)
     }
 
-    override fun visitDeclarations(visitor: (ExternalDeclaration) -> Unit) {
+    override fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
         visitOwnDeclarations(visitor)
         visitChildren { child ->
             child.visitDeclarations(visitor)
@@ -54,7 +54,7 @@ internal sealed class CCompositeExpression : CExpression {
 
     protected abstract fun visitChildren(visitor: (CExpression) -> Unit)
 
-    protected open fun visitOwnDeclarations(visitor: (ExternalDeclaration) -> Unit) {
+    protected open fun visitOwnDeclarations(visitor: (CDeclaration) -> Unit) {
     }
 }
 
@@ -65,7 +65,7 @@ internal class CPointer(val value: CExpression) : CCompositeExpression() {
 }
 
 internal class CFunctionPointer(val function: FunctionSnippet) : CExpression {
-    override fun visitDeclarations(visitor: (ExternalDeclaration) -> Unit) {
+    override fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
         visitor(function)
     }
 }
@@ -91,16 +91,17 @@ internal class CInitializer(val elements: List<CExpression>) : CCompositeExpress
     }
 }
 
-internal class CTemporaryValue(val type: CType, val value: CExpression, val declaredBy: ExternalDeclaration? = null) : CCompositeExpression() {
-    constructor(type: TypeSnippet, value: CExpression) : this(type.type, value, type)
+/**
+ * An expression that must be placed into a variable.
+ */
+internal class CTemporaryValue(val type: CType, val value: CExpression) : CCompositeExpression() {
+    constructor(type: TypeSnippet, value: CExpression) : this(type.type, value)
 
     override fun visitChildren(visitor: (CExpression) -> Unit) {
         visitor(value)
     }
 
-    override fun visitOwnDeclarations(visitor: (ExternalDeclaration) -> Unit) {
-        if (declaredBy != null) {
-            visitor(declaredBy)
-        }
+    override fun visitOwnDeclarations(visitor: (CDeclaration) -> Unit) {
+        type.visitDeclarations(visitor)
     }
 }
