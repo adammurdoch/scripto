@@ -11,9 +11,25 @@ internal interface CDeclaration {
     }
 }
 
+internal interface CFunctionDeclaration : CDeclaration {
+    val name: String
+}
+
+internal class Parameter(val name: String, val type: CType)
+
 internal class CGeneratedFunction(
-    val name: String,
+    override val name: String,
     val returnType: CType?,
-    val parameters: List<CType>,
+    val parameters: List<Parameter>,
     val statements: List<CStatement>
-) : CDeclaration
+) : CFunctionDeclaration {
+    override fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
+        returnType?.visitDeclarations(visitor)
+        for (parameter in parameters) {
+            parameter.type.visitDeclarations(visitor)
+        }
+        for (statement in statements) {
+            statement.visitDeclarations(visitor)
+        }
+    }
+}

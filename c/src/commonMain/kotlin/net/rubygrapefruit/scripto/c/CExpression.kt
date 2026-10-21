@@ -64,9 +64,28 @@ internal class CPointer(val value: CExpression) : CCompositeExpression() {
     }
 }
 
-internal class CFunctionPointer(val function: FunctionSnippet) : CExpression {
+internal class CFunctionPointer(val function: CFunctionDeclaration) : CExpression {
     override fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
         visitor(function)
+    }
+}
+
+internal class CCast(val type: CType, val value: CExpression) : CCompositeExpression() {
+    override fun visitChildren(visitor: (CExpression) -> Unit) {
+        visitor(value)
+    }
+}
+
+internal class CStructField(val struct: CExpression, val fieldName: String) : CCompositeExpression() {
+    override fun visitChildren(visitor: (CExpression) -> Unit) {
+        visitor(struct)
+    }
+}
+
+internal class CArrayIndex(val array: CExpression, val index: CExpression) : CCompositeExpression() {
+    override fun visitChildren(visitor: (CExpression) -> Unit) {
+        visitor(array)
+        visitor(index)
     }
 }
 
@@ -95,8 +114,6 @@ internal class CInitializer(val elements: List<CExpression>) : CCompositeExpress
  * An expression that must be placed into a variable.
  */
 internal class CTemporaryValue(val type: CType, val value: CExpression) : CCompositeExpression() {
-    constructor(type: TypeSnippet, value: CExpression) : this(type.type, value)
-
     override fun visitChildren(visitor: (CExpression) -> Unit) {
         visitor(value)
     }

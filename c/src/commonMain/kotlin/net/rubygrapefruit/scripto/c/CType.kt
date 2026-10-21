@@ -3,8 +3,17 @@ package net.rubygrapefruit.scripto.c
 internal sealed interface CType {
     val declaration: String
 
-    fun array(): Array = Array(this, 1)
+    fun variableDeclaration(name: String): String {
+        return "$declaration $name"
+    }
 
+    fun array(): Array = Array(this, "[]")
+
+    fun pointer(): Pointer = Pointer(this)
+
+    /**
+     * Visits any declarations used by this type.
+     */
     fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
     }
 
@@ -36,20 +45,19 @@ internal sealed interface CType {
         }
     }
 
-    class Struct(val type: TypeSnippet) : CType {
-        override val declaration = "struct ${type.name}"
-
-        override fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
-            visitor(type)
-        }
+    class Pointer(val element: CType) : CType {
+        override val declaration: String = "${element.declaration}*"
     }
 
-    class Array(val element: CType, val dimensions: Int) : CType {
-        override val declaration: String
-            get() = element.declaration
+    class Array(val element: CType, private val dimensions: String) : CType {
+        override val declaration: String = element.declaration + dimensions
+
+        override fun variableDeclaration(name: String): String {
+            return "${element.declaration} $name$dimensions"
+        }
 
         override fun array(): Array {
-            return Array(element, dimensions + 1)
+            return Array(element, "$dimensions[]")
         }
     }
 }

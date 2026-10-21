@@ -48,9 +48,12 @@ class CGenerator {
                 append("#include ")
                 appendln(header.name)
             }
-            for (fragment in declarations.filterIsInstance<Snippet>()) {
+            for (declaration in declarations.filterIsInstance<Snippet>()) {
                 appendln()
-                append(fragment.text)
+                append(declaration.text)
+            }
+            for (declaration in declarations.filterIsInstance<CGeneratedFunction>()) {
+                append(declaration, variableState)
             }
 
             val mainFunction = CGeneratedFunction("main", CType.CInt, emptyList(), statements)
@@ -79,7 +82,7 @@ class CGenerator {
             is Type.String, Type.File -> CType.CString
             is Type.Int -> CType.Int32
             is Type.Boolean -> CType.Bool
-            is Type.List -> TypeSnippet.ListStruct.type
+            is Type.List -> TypeSnippet.ListStruct
             is Type.Any -> throw IllegalArgumentException()
         }
     }
@@ -234,9 +237,7 @@ class CGenerator {
         append(function.name)
         append("(")
         append(function.parameters, ", ") { parameter ->
-            append(parameter.declaration)
-            append(' ')
-            append("??")
+            append(parameter.type.variableDeclaration(parameter.name))
         }
         appendln(") {")
         for (statement in function.statements) {
@@ -255,14 +256,7 @@ class CGenerator {
     }
 
     private fun SourceGenerator.append(statement: CVariableDeclaration, state: VariableState) {
-        append(statement.type.declaration)
-        append(" ")
-        append(statement.name)
-        if (statement.type is CType.Array) {
-            repeat(statement.type.dimensions) {
-                append("[]")
-            }
-        }
+        append(statement.type.variableDeclaration(statement.name))
         append(" = ")
         append(statement.value, state)
         appendln(";")
@@ -319,6 +313,27 @@ class CGenerator {
 
             is CFunctionPointer -> {
                 append(expression.function.name)
+            }
+
+            is CStructField -> {
+                append(expression.struct, state)
+                append("->")
+                append(expression.fieldName)
+            }
+
+            is CArrayIndex -> {
+                append(expression.array, state)
+                append("[")
+                append(expression.index, state)
+                append("]")
+            }
+
+            is CCast -> {
+                append("((")
+                append(expression.type.declaration)
+                append(")")
+                append(expression.value, state)
+                append(")")
             }
 
             is CTernaryExpression -> {
