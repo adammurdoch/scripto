@@ -37,7 +37,7 @@ class BashGenerator {
             }
             map { declaration ->
                 val value = declaration.value
-                BashVariableAssignment(declaration.name, toExpression(value, scope, functionMapper), readOnly = true)
+                BashVariableAssignment(declaration.name, toExpression(value, scope, functionMapper))
             }
             collectDependencies { statement: BashStatement ->
                 addDependencies(statement)
@@ -61,8 +61,8 @@ class BashGenerator {
             }
             val equality = { left: BashExpression, right: BashExpression ->
                 val test = listOf(left, BashWord("="), right)
-                val trueBranch = BashVariableAssignment("TMP_VAR", BashWord("true"), readOnly = false)
-                val falseBranch = BashVariableAssignment("TMP_VAR", BashWord("false"), readOnly = false)
+                val trueBranch = BashVariableAssignment("TMP_VAR", BashWord("true"))
+                val falseBranch = BashVariableAssignment("TMP_VAR", BashWord("false"))
                 val statement = BashIfStatement(test, trueBranch, falseBranch)
                 BashCommandInvocationExpression("TMP_VAR", listOf(statement))
             }
@@ -109,15 +109,15 @@ class BashGenerator {
                             val elementVarName = scope.newVarName("ELEMENT")
                             BashCommandInvocationExpression(
                                 resultVarName, listOf(
-                                    BashVariableAssignment(resultVarName, BashString("["), false),
-                                    BashVariableAssignment(separatorVarName, BashString(""), false),
+                                    BashVariableAssignment(resultVarName, BashString("[")),
+                                    BashVariableAssignment(separatorVarName, BashString("")),
                                     BashForLoop(
                                         elementVarName, BashWord("\"\${${receiver.target.name}[@]}\""), listOf(
-                                            BashVariableAssignment(resultVarName, BashWord("\"\$$resultVarName\$$separatorVarName\$$elementVarName\""), false),
-                                            BashVariableAssignment(separatorVarName, BashString(", "), false)
+                                            BashVariableValueAppend(resultVarName, BashWord("\"\$$separatorVarName\$$elementVarName\"")),
+                                            BashVariableAssignment(separatorVarName, BashString(", "))
                                         )
                                     ),
-                                    BashVariableAssignment(resultVarName, BashWord("\"\$$resultVarName]\""), false),
+                                    BashVariableValueAppend(resultVarName, BashString("]")),
                                 )
                             )
                         }
@@ -149,19 +149,24 @@ class BashGenerator {
     private fun SourceGenerator.append(statement: BashStatement) {
         when (statement) {
             is BashVariableAssignment -> append(statement)
+            is BashVariableValueAppend -> append(statement)
             is BashCommandInvocation -> append(statement)
             is BashIfStatement -> append(statement)
             is BashForLoop -> append(statement)
         }
     }
 
-    private fun SourceGenerator.append(declaration: BashVariableAssignment) {
-        if (declaration.readOnly) {
-            append("readonly ")
-        }
-        append(declaration.name)
+    private fun SourceGenerator.append(statement: BashVariableAssignment) {
+        append(statement.name)
         append("=")
-        append(declaration.value)
+        append(statement.value)
+        appendln()
+    }
+
+    private fun SourceGenerator.append(statement: BashVariableValueAppend) {
+        append(statement.name)
+        append("+=")
+        append(statement.value)
         appendln()
     }
 

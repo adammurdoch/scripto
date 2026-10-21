@@ -21,7 +21,13 @@ internal class BashIfStatement(val test: List<BashExpression>, val trueBranch: B
     }
 }
 
-internal class BashVariableAssignment(val name: String, val value: BashExpression, val readOnly: Boolean) : BashStatement {
+internal class BashVariableAssignment(val name: String, val value: BashExpression) : BashStatement {
+    override fun visitDependencies(visitor: (BashStatement) -> Unit) {
+        value.visitDependencies(visitor)
+    }
+}
+
+internal class BashVariableValueAppend(val name: String, val value: BashExpression) : BashStatement {
     override fun visitDependencies(visitor: (BashStatement) -> Unit) {
         value.visitDependencies(visitor)
     }
