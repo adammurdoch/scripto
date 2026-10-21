@@ -99,7 +99,7 @@ const char* _string_concat(const char* left, const char* right) {
 
         val IntToString = FunctionSnippet(
             "_int_to_string",
-            listOf(Header.Stdlib), """
+            listOf(Header.Stdlib, Header.Stdio), """
 const char* _int_to_string(int value) {
     size_t len = snprintf(NULL, 0, "%d", value) + 1;
     char* buffer = malloc(len);
@@ -109,10 +109,10 @@ const char* _int_to_string(int value) {
             """.trimIndent()
         )
 
-        val listToString = FunctionSnippet(
-            "_list_to_string",
+        val StringListToString = FunctionSnippet(
+            "_string_list_to_string",
             listOf(TypeSnippet.ListStruct, Header.String, Header.Stdlib), """
-const char* _list_to_string(struct _list* list) {
+const char* _string_list_to_string(struct _list* list) {
     size_t str_len = 3;
     for (int i = 0; i < list->length; i++) {
         str_len += strlen(((char**)list->elements)[i]);
@@ -136,6 +136,33 @@ const char* _list_to_string(struct _list* list) {
     *current = ']';
     current++;
     *current = 0;
+    return result;
+}
+            """.trimIndent()
+        )
+
+        val MapIntElement = FunctionSnippet(
+            "_int_element_to_string",
+            listOf(IntToString), """
+const char* _int_element_to_string(int index, struct _list* list) {
+    return _int_to_string(((int32_t*)list->elements)[index]);
+}
+            """.trimIndent()
+        )
+
+        val ListToString = FunctionSnippet(
+            "_list_to_string",
+            listOf(TypeSnippet.ListStruct, Header.String, Header.Stdlib, StringListToString), """
+const char* _list_to_string(struct _list* list, const char* (*map)(int, struct _list*)) {
+    const char* mapped[list->length];
+    for (int i = 0; i < list->length; i++) {
+        mapped[i] = map(i, list);
+    }
+    struct _list str_list = {list->length, mapped};
+    const char* result = _string_list_to_string(&str_list);
+    for (int i = 0; i < list->length; i++) {
+        free((void*)mapped[i]);
+    }
     return result;
 }
             """.trimIndent()

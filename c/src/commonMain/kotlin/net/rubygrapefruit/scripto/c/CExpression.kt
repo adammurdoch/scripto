@@ -64,6 +64,12 @@ internal class CPointer(val value: CExpression) : CCompositeExpression() {
     }
 }
 
+internal class CFunctionPointer(val function: FunctionSnippet) : CExpression {
+    override fun visitDeclarations(visitor: (ExternalDeclaration) -> Unit) {
+        visitor(function)
+    }
+}
+
 internal class CInfixOperator(val left: CExpression, val operator: String, val right: CExpression) : CCompositeExpression() {
     override fun visitChildren(visitor: (CExpression) -> Unit) {
         visitor(left)

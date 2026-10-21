@@ -191,11 +191,18 @@ class CGenerator {
     }
 
     private fun listToString(expression: Expression, functionMapper: FunctionMapper<CExpression>): CExpression {
-        if ((expression.type as Type.List).param != Type.String) {
-            return CString("??")
+        val elementType = (expression.type as Type.List).param
+        if (elementType == Type.String) {
+            val value = toExpression(expression, functionMapper)
+            return CFunctionCall(FunctionSnippet.StringListToString, listOf(CPointer(value)))
+        } else {
+            val value = toExpression(expression, functionMapper)
+            val mappingFunction = when (elementType) {
+                is Type.Int -> FunctionSnippet.MapIntElement
+                else -> return CString("??")
+            }
+            return CFunctionCall(FunctionSnippet.ListToString, listOf(CPointer(value), CFunctionPointer(mappingFunction)))
         }
-        val value = toExpression(expression, functionMapper)
-        return CFunctionCall(FunctionSnippet.listToString, listOf(CPointer(value)))
     }
 
     private fun booleanToString(expression: Expression, functionMapper: FunctionMapper<CExpression>): CExpression {
@@ -285,6 +292,10 @@ class CGenerator {
             is CPointer -> {
                 append("&")
                 append(expression.value, state)
+            }
+
+            is CFunctionPointer -> {
+                append(expression.function.name)
             }
 
             is CTernaryExpression -> {
