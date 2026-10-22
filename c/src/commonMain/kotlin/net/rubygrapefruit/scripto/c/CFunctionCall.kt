@@ -4,21 +4,16 @@ internal class CFunctionCall(
     val name: String,
     val arguments: List<CExpression>,
     val declaredBy: CDeclaration? = null
-) : CStatement, CExpression {
+) : CCompositeExpression(), CStatement {
     constructor(function: FunctionSnippet, arguments: List<CExpression>) : this(function.name, arguments, function)
 
-    override fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
+    override fun visitOwnDeclarations(visitor: (CDeclaration) -> Unit) {
         if (declaredBy != null) {
             visitor(declaredBy)
         }
-        for (argument in arguments) {
-            argument.visitDeclarations(visitor)
-        }
     }
 
-    override fun visitExpressions(visitor: (CExpression) -> Unit) {
-        for (argument in arguments) {
-            argument.visitExpressions(visitor)
-        }
+    override fun visitChildren(visitor: (CExpression) -> Unit) {
+        arguments.forEach(visitor)
     }
 }

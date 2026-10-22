@@ -12,7 +12,7 @@ internal sealed interface CType {
     fun pointer(): Pointer = Pointer(this)
 
     /**
-     * Visits any declarations used by this type.
+     * Visits any declarations used directly by this type. May include this type.
      */
     fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
     }
@@ -47,6 +47,10 @@ internal sealed interface CType {
 
     class Pointer(val element: CType) : CType {
         override val declaration: String = "${element.declaration}*"
+
+        override fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
+            element.visitDeclarations(visitor)
+        }
     }
 
     class Array(val element: CType, private val dimensions: String) : CType {
@@ -54,6 +58,10 @@ internal sealed interface CType {
 
         override fun variableDeclaration(name: String): String {
             return "${element.declaration} $name$dimensions"
+        }
+
+        override fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
+            element.visitDeclarations(visitor)
         }
 
         override fun array(): Array {

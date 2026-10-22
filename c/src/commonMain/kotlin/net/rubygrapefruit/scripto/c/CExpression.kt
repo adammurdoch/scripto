@@ -4,9 +4,9 @@ import net.rubygrapefruit.scripto.ir.VariableReference
 
 internal sealed interface CExpression {
     /**
-     * Visit any headers or code snippets used by this expression, including any nested expressions.
+     * Visit any declarations used directly by this expression, but not its nested expressions.
      */
-    fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
+    fun visitOwnDeclarations(visitor: (CDeclaration) -> Unit) {
     }
 
     /**
@@ -24,7 +24,7 @@ internal class CString(val value: String) : CExpression
 internal class CInt(val value: Int) : CExpression
 
 internal sealed class CBooleanLiteral : CExpression {
-    override fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
+    override fun visitOwnDeclarations(visitor: (CDeclaration) -> Unit) {
         visitor(Header.Stdbool)
     }
 }
@@ -45,17 +45,7 @@ internal sealed class CCompositeExpression : CExpression {
         visitor(this)
     }
 
-    override fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
-        visitOwnDeclarations(visitor)
-        visitChildren { child ->
-            child.visitDeclarations(visitor)
-        }
-    }
-
     protected abstract fun visitChildren(visitor: (CExpression) -> Unit)
-
-    protected open fun visitOwnDeclarations(visitor: (CDeclaration) -> Unit) {
-    }
 }
 
 internal class CPointer(val value: CExpression) : CCompositeExpression() {
@@ -65,12 +55,16 @@ internal class CPointer(val value: CExpression) : CCompositeExpression() {
 }
 
 internal class CFunctionPointer(val function: CFunctionDeclaration) : CExpression {
-    override fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
+    override fun visitOwnDeclarations(visitor: (CDeclaration) -> Unit) {
         visitor(function)
     }
 }
 
 internal class CCast(val type: CType, val value: CExpression) : CCompositeExpression() {
+    override fun visitOwnDeclarations(visitor: (CDeclaration) -> Unit) {
+        type.visitDeclarations(visitor)
+    }
+
     override fun visitChildren(visitor: (CExpression) -> Unit) {
         visitor(value)
     }

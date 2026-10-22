@@ -5,9 +5,8 @@ internal class CVariableDeclaration(
     val type: CType,
     val value: CExpression
 ) : CStatement {
-    override fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
+    override fun visitOwnDeclarations(visitor: (CDeclaration) -> Unit) {
         type.visitDeclarations(visitor)
-        value.visitDeclarations(visitor)
     }
 
     override fun visitExpressions(visitor: (CExpression) -> Unit) {

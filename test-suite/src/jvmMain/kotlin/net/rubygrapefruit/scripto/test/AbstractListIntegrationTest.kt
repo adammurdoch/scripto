@@ -144,4 +144,19 @@ println(["a", "some text"].toString())
             output("[a, some text]\n")
         }
     }
+
+    @Test
+    fun `compiles multiple calls to int list toString()`() {
+        val sourceFile = workDir.file("app.scripto")
+        sourceFile.writeText(
+            """
+val l = [1, 5, 10]                
+println(l.toString())
+println([0, -4].toString())
+        """
+        )
+        compileAndRun(sourceFile) {
+            output("[1, 5, 10]\n[0, -4]\n")
+        }
+    }
 }

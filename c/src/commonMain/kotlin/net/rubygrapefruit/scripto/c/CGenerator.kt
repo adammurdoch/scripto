@@ -1,7 +1,9 @@
 package net.rubygrapefruit.scripto.c
 
 import net.rubygrapefruit.file.RegularFile
-import net.rubygrapefruit.scripto.generator.*
+import net.rubygrapefruit.scripto.generator.FunctionMapper
+import net.rubygrapefruit.scripto.generator.OperationMapper
+import net.rubygrapefruit.scripto.generator.writeTo
 import net.rubygrapefruit.scripto.ir.*
 
 class CGenerator {
@@ -14,31 +16,53 @@ class CGenerator {
         statements.add(CReturnStatement(CInt(0)))
 
         val variableState = VariableState()
-        val declarations = mutableSetOf<CDeclaration>()
+        val declarationQueue = mutableListOf<CDeclaration>()
+        val declarationState = mutableMapOf<CDeclaration, VisitState>()
         var index = 0
         while (index < statements.size) {
             val original = statements[index]
             val statement = if (original is CVariableDeclaration && original.value is CTemporaryValue) {
+                // A variable whose value must be stored in a variable, so can store the value directly in the variable
                 val replacement = CVariableDeclaration(original.name, original.type, original.value.value)
                 statements[index] = replacement
                 replacement
             } else {
                 original
             }
-            statement.visitDeclarations { declaration ->
-                declaration.visitDeclarations {
-                    declarations.add(it)
+
+            val declarationVisitor: (CDeclaration) -> Unit = { element ->
+                if (!declarationState.containsKey(element)) {
+                    declarationQueue.add(element)
+                    declarationState[element] = VisitState.Queued
                 }
-                declarations.add(declaration)
             }
+            statement.visitOwnDeclarations(declarationVisitor)
             statement.visitExpressions { expression ->
+                expression.visitOwnDeclarations(declarationVisitor)
                 if (expression is CTemporaryValue) {
+                    // Value must be stored in a variable
                     val varName = variableState.assign(expression)
                     statements.add(index, CVariableDeclaration(varName, expression.type, expression.value))
                     index++
                 }
             }
             index++
+        }
+
+        val declarations = mutableListOf<CDeclaration>()
+        while (declarationQueue.isNotEmpty()) {
+            val declaration = declarationQueue.first()
+            val state = declarationState[declaration]
+            if (state == null || state == VisitState.Queued) {
+                declaration.visitOwnDeclarations { declarationQueue.add(0, it) }
+                declarationState[declaration] = VisitState.DependenciesQueued
+            } else {
+                if (state == VisitState.DependenciesQueued) {
+                    declarations.add(declaration)
+                    declarationState[declaration] = VisitState.Finished
+                }
+                declarationQueue.removeFirst()
+            }
         }
 
         writeTo(outputFile) {
@@ -197,7 +221,10 @@ class CGenerator {
         } else {
             val value = toExpression(expression, functionMapper)
             val mappingFunction = when (elementType) {
-                is Type.Int -> FunctionSnippet.MapIntElement
+                is Type.Int -> FunctionSnippet.listElementToStringFunction("_int_element_to_string", CType.Int32) { expression ->
+                    CFunctionCall(FunctionSnippet.IntToString, listOf(expression))
+                }
+
                 else -> return CString("??")
             }
             return CFunctionCall(FunctionSnippet.ListToString, listOf(CPointer(value), CFunctionPointer(mappingFunction)))
@@ -228,159 +255,21 @@ class CGenerator {
         return concatString(CString("File("), concatString(toExpression(expression, functionMapper), CString(")")))
     }
 
-    private fun SourceGenerator.append(function: CGeneratedFunction, state: VariableState) {
-        appendln()
-        if (function.returnType != null) {
-            append(function.returnType.declaration)
-            append(" ")
-        }
-        append(function.name)
-        append("(")
-        append(function.parameters, ", ") { parameter ->
-            append(parameter.type.variableDeclaration(parameter.name))
-        }
-        appendln(") {")
-        for (statement in function.statements) {
-            append(statement, state)
-        }
-        appendln('}')
+    private enum class VisitState {
+        Queued, DependenciesQueued, Finished
+    }
+}
+
+internal class VariableState {
+    private val expressions = mutableMapOf<CTemporaryValue, String>()
+
+    fun assign(expression: CTemporaryValue): String {
+        val varName = "_tmp_${expressions.size + 1}"
+        expressions[expression] = varName
+        return varName
     }
 
-    private fun SourceGenerator.append(statement: CStatement, state: VariableState) {
-        append("    ")
-        when (statement) {
-            is CVariableDeclaration -> append(statement, state)
-            is CFunctionCall -> append(statement, state)
-            is CReturnStatement -> append(statement, state)
-        }
-    }
-
-    private fun SourceGenerator.append(statement: CVariableDeclaration, state: VariableState) {
-        append(statement.type.variableDeclaration(statement.name))
-        append(" = ")
-        append(statement.value, state)
-        appendln(";")
-    }
-
-    private fun SourceGenerator.append(statement: CFunctionCall, state: VariableState) {
-        appendCall(statement, state)
-        appendln(";")
-    }
-
-    private fun SourceGenerator.appendCall(statement: CFunctionCall, state: VariableState) {
-        append(statement.name)
-        append('(')
-        append(statement.arguments, ",") { argument ->
-            append(argument, state)
-        }
-        append(")")
-    }
-
-    private fun SourceGenerator.append(statement: CReturnStatement, state: VariableState) {
-        append("return ")
-        append(statement.value, state)
-        appendln(";")
-    }
-
-    private fun SourceGenerator.append(expression: CExpression, state: VariableState) {
-        when (expression) {
-            is CNull -> append("NULL")
-
-            is CString -> {
-                append("\"")
-                for (ch in expression.value) {
-                    when (ch) {
-                        '\n' -> append("\\n")
-                        '\\' -> append("\\\\")
-                        else -> append(ch)
-                    }
-                }
-                append("\"")
-            }
-
-            is CInt -> append(expression.value.toString())
-            is CTrue -> append("true")
-            is CFalse -> append("false")
-
-            is CVariableReference -> {
-                append(expression.name)
-            }
-
-            is CPointer -> {
-                append("&")
-                append(expression.value, state)
-            }
-
-            is CFunctionPointer -> {
-                append(expression.function.name)
-            }
-
-            is CStructField -> {
-                append(expression.struct, state)
-                append("->")
-                append(expression.fieldName)
-            }
-
-            is CArrayIndex -> {
-                append(expression.array, state)
-                append("[")
-                append(expression.index, state)
-                append("]")
-            }
-
-            is CCast -> {
-                append("((")
-                append(expression.type.declaration)
-                append(")")
-                append(expression.value, state)
-                append(")")
-            }
-
-            is CTernaryExpression -> {
-                append(expression.condition, state)
-                append(" ? ")
-                append(expression.left, state)
-                append(" : ")
-                append(expression.right, state)
-            }
-
-            is CInfixOperator -> {
-                append(expression.left, state)
-                append(' ')
-                append(expression.operator)
-                append(' ')
-                append(expression.right, state)
-            }
-
-            is CInitializer -> {
-                append("{")
-                append(expression.elements, ", ") { element ->
-                    append(element, state)
-                }
-                append("}")
-            }
-
-            is CFunctionCall -> {
-                appendCall(expression, state)
-            }
-
-            is CTemporaryValue -> {
-                append(state.varFor(expression))
-            }
-        }
-    }
-
-    private class VariableState {
-        private val expressions = mutableMapOf<CTemporaryValue, String>()
-
-        fun assign(expression: CTemporaryValue): String {
-            val varName = "_tmp_${expressions.size + 1}"
-            expressions[expression] = varName
-            return varName
-        }
-
-        fun varFor(expression: CTemporaryValue): String {
-            return expressions.getValue(expression)
-        }
+    fun varFor(expression: CTemporaryValue): String {
+        return expressions.getValue(expression)
     }
 }

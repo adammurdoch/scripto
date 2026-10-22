@@ -16,8 +16,8 @@ internal class Header(val name: String) : CDeclaration {
 internal sealed class Snippet(val declarations: List<CDeclaration>, text: String) : CDeclaration {
     val text: String = text.trim() + "\n"
 
-    override fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
-        declarations.forEach { visitor(it) }
+    override fun visitOwnDeclarations(visitor: (CDeclaration) -> Unit) {
+        declarations.forEach(visitor)
     }
 }
 
@@ -25,7 +25,6 @@ internal class TypeSnippet(name: String, declarations: List<CDeclaration>, text:
     override val declaration: String = "struct $name"
 
     override fun visitDeclarations(visitor: (CDeclaration) -> Unit) {
-        super<Snippet>.visitDeclarations(visitor)
         visitor(this)
     }
 
@@ -141,29 +140,30 @@ const char* _string_list_to_string(struct _list* list) {
             """.trimIndent()
         )
 
-        val MapIntElement = CGeneratedFunction(
-            "_int_element_to_string",
-            CType.CString,
-            listOf(Parameter("index", CType.CInt), Parameter("list", TypeSnippet.ListStruct.pointer())),
-            listOf(
-                CReturnStatement(
-                    CFunctionCall(
-                        IntToString, listOf(
-                            CArrayIndex(
-                                CCast(
-                                    CType.Int32.pointer(),
-                                    CStructField(
-                                        CVariableReference("list"),
-                                        "elements"
-                                    )
-                                ),
-                                CVariableReference("index")
-                            )
-                        )
+        fun listElementToStringFunction(name: String, elementType: CType, toString: (CExpression) -> CExpression): CGeneratedFunction {
+            val getElement = CArrayIndex(
+                CCast(
+                    elementType.pointer(),
+                    CStructField(
+                        CVariableReference("list"),
+                        "elements"
                     )
+                ),
+                CVariableReference("index")
+            )
+            val elementToString = toString(getElement)
+            return CGeneratedFunction(
+                name,
+                CType.CString,
+                listOf(
+                    Parameter("index", CType.CInt),
+                    Parameter("list", TypeSnippet.ListStruct.pointer())
+                ),
+                listOf(
+                    CReturnStatement(elementToString)
                 )
             )
-        )
+        }
 
         val ListToString = FunctionSnippet(
             "_list_to_string",
