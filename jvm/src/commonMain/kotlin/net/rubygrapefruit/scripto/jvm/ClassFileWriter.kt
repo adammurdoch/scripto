@@ -240,6 +240,8 @@ internal interface CodeBuilder {
 
     fun newArray(elementType: TypeDescriptor)
 
+    fun arrayLoad(elementType: TypeDescriptor.ObjectType)
+
     fun arrayStore(elementType: TypeDescriptor)
 
     fun arrayLength()
@@ -250,11 +252,9 @@ internal interface CodeBuilder {
 
     fun returnValue(type: TypeDescriptor)
 
-    // Pushes true or false on the stack
-    // Should be generalized to take true and false branches
-    fun intEquality()
-
     fun intEquality(whenTrue: CodeBuilder.() -> Unit)
+
+    fun intEquality(whenTrue: CodeBuilder.() -> Unit, whenFalse: CodeBuilder.() -> Unit)
 
     fun getStaticField(owner: TypeDescriptor.ObjectType, name: String, type: TypeDescriptor)
 
@@ -481,43 +481,51 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
         pop()
     }
 
-    override fun intEquality() {
-        encoder.u1(0xa0) // if_icmpne
-        encoder.u2(7) // target false branch
-
-        pop(2)
-        val frame = snapshotFrame()
-
-        // True branch
-        encoder.u1(0x4) // iconst_1
-        encoder.u1(0xa7) // goto
-        encoder.u2(4) // target end
-
-        // False branch
-        startFrame(frame)
-        encoder.u1(0x3) // iconst_0
-
-        push(TypeDescriptor.Int)
-        startFrame()
-    }
-
     override fun intEquality(whenTrue: CodeBuilder.() -> Unit) {
         val startPos = encoder.length
         encoder.u1(0xa0) // if_icmpne
 
-        val falseTargetPos = encoder.length
-        encoder.u2(0) // target false branch
+        val endTargetPos = encoder.length
+        encoder.u2(0) // target end of true branch
         pop(2)
 
         val frame = snapshotFrame()
 
         whenTrue()
 
-        val endPos = encoder.length
-        encoder.u2(falseTargetPos, endPos - startPos)
+        // end of true branch, start new frame
 
-        // false branch
+        val endPos = encoder.length
+        encoder.u2(endTargetPos, endPos - startPos)
+
         startFrame(frame)
+    }
+
+    override fun intEquality(whenTrue: CodeBuilder.() -> Unit, whenFalse: CodeBuilder.() -> Unit) {
+        val startPos = encoder.length
+        encoder.u1(0xa0) // if_icmpne
+
+        val falseBranchTargetPos = encoder.length
+        encoder.u2(0) // target false branch
+        pop(2)
+
+        val frame = snapshotFrame()
+
+        whenTrue()
+        val startTruePos = encoder.length
+        encoder.u1(0xa7) // goto
+        val endTargetPos = encoder.length
+        encoder.u2(0) // end target branch
+
+        // start false branch, patch target and start new frame
+        encoder.u2(falseBranchTargetPos, encoder.length - startPos)
+        startFrame(frame)
+        whenFalse()
+
+        // end of true branch, patch target and start new frame
+        encoder.u2(endTargetPos, encoder.length - startTruePos)
+        // this reuses the frame from the false branch, but this is not correct if the false branch ends with a return opcode
+        startFrame()
     }
 
     override fun dup() {
@@ -553,6 +561,12 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
 
         pop()
         push(elementType.arrayType())
+    }
+
+    override fun arrayLoad(elementType: TypeDescriptor.ObjectType) {
+        encoder.u1(0x32) // aaload
+        pop(2)
+        push(elementType)
     }
 
     override fun arrayStore(elementType: TypeDescriptor) {
@@ -635,6 +649,10 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
     private fun startFrame(snapshot: StackFrame) {
         val offset = if (startFrame == 0) encoder.length else encoder.length - startFrame - 1
         stackMap.add(StackFrame(offset, snapshot.locals, snapshot.stack))
+        locals.clear()
+        locals.addAll(snapshot.locals)
+        stack.clear()
+        stack.addAll(snapshot.stack)
         startFrame = encoder.length
     }
 

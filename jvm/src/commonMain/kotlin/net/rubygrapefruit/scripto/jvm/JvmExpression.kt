@@ -100,6 +100,13 @@ internal class JvmArrayLength(val value: JvmExpression) : JvmCompositeExpression
     }
 }
 
+internal class JvmGetArrayElement(val elementType: TypeDescriptor.ObjectType, val value: JvmExpression, val index: JvmExpression) : JvmCompositeExpression() {
+    override fun visitChildren(visitor: (JvmExpression) -> Unit) {
+        visitor(value)
+        visitor(index)
+    }
+}
+
 internal class NewArray(val elementType: TypeDescriptor, val elements: List<JvmExpression>) : JvmCompositeExpression() {
     override fun visitChildren(visitor: (JvmExpression) -> Unit) {
         elements.forEach(visitor)

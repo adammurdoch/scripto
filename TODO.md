@@ -91,3 +91,4 @@ More features
 - function type + literal
 - named function declarations
 - structs
+- release vs debug executable (e.g. no range checks, etc.)

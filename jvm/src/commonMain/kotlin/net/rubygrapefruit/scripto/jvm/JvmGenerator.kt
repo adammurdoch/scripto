@@ -35,6 +35,7 @@ class JvmGenerator {
     private val listToString by lazy {
         val builder = JvmVariableReference("builder", TypeDescriptor.String)
         val length = JvmVariableReference("length", TypeDescriptor.Int)
+        val index = JvmVariableReference("index", TypeDescriptor.Int)
         val listArg = JvmParameterReference(0, objectArray)
         val stringToStringBuilder = MethodDescriptor.of(stringBuilder, TypeDescriptor.String)
         JvmGeneratedMethod(
@@ -43,6 +44,8 @@ class JvmGenerator {
                 IfIntsEqual(length, JvmInt(0), listOf(ReturnValue(TypeDescriptor.String, JvmString("[]")))),
                 JvmVariableDeclaration("builder", stringBuilder, ConstructorCall(stringBuilder, voidMethod, emptyList())),
                 InstanceMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString("["))),
+                JvmVariableDeclaration("index", TypeDescriptor.Int, JvmInt(0)),
+                InstanceMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(index)),
                 InstanceMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString("]"))),
                 ReturnValue(
                     TypeDescriptor.String,
@@ -288,7 +291,11 @@ class JvmGenerator {
             is JvmIntEquality -> {
                 push(expression.left, slots)
                 push(expression.right, slots)
-                intEquality()
+                intEquality({
+                    loadConstant(true)
+                }, {
+                    loadConstant(false)
+                })
             }
 
             is JvmStringEquality -> {
@@ -330,6 +337,12 @@ class JvmGenerator {
             is JvmArrayLength -> {
                 push(expression.value, slots)
                 arrayLength()
+            }
+
+            is JvmGetArrayElement -> {
+                push(expression.value, slots)
+                push(expression.index, slots)
+                arrayLoad(expression.elementType)
             }
 
             is EmptyStringArray -> {
