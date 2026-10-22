@@ -1,8 +1,5 @@
 package net.rubygrapefruit.scripto.jvm
 
-import net.rubygrapefruit.scripto.ir.Type
-import net.rubygrapefruit.scripto.ir.VariableReference
-
 internal sealed interface JvmExpression {
     fun visitDeclarations(visitor: (JvmDeclaration) -> Unit) {
     }
@@ -23,13 +20,7 @@ internal data object JvmTrue : JvmExpression
 
 internal data object JvmFalse : JvmExpression
 
-internal class JvmVariableReference(val reference: VariableReference) : JvmExpression {
-    val name: String
-        get() = reference.target.name
-
-    val type: Type
-        get() = reference.type
-}
+internal class JvmVariableReference(val name: String, val type: TypeDescriptor) : JvmExpression
 
 internal sealed class JvmCompositeExpression : JvmExpression {
     override fun visitExpressions(visitor: (JvmExpression) -> Unit) {
@@ -58,6 +49,12 @@ internal class JvmIntEquality(val left: JvmExpression, val right: JvmExpression)
     override fun visitChildren(visitor: (JvmExpression) -> Unit) {
         visitor(left)
         visitor(right)
+    }
+}
+
+internal class ConstructorCall(val type: TypeDescriptor.ObjectType, val descriptor: MethodDescriptor, val args: List<JvmExpression>) : JvmCompositeExpression() {
+    override fun visitChildren(visitor: (JvmExpression) -> Unit) {
+        args.forEach(visitor)
     }
 }
 

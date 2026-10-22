@@ -14,8 +14,10 @@ class JvmGenerator {
     private val objectArray = TypeDescriptor.Object.arrayType()
     private val printStream = TypeDescriptor.ofClass("java.io.PrintStream")
     private val system = TypeDescriptor.ofClass("java.lang.System")
+    private val stringBuilder = TypeDescriptor.ofClass("java.lang.StringBuilder")
 
     private val voidMethod = MethodDescriptor.ofVoid()
+    private val toStringMethod = MethodDescriptor.of(TypeDescriptor.String)
     private val stringToVoidMethod = MethodDescriptor.ofVoid(TypeDescriptor.String)
     private val stringToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.String)
     private val stringToPathMethod = MethodDescriptor.of(path, TypeDescriptor.String, TypeDescriptor.String.arrayType())
@@ -31,9 +33,12 @@ class JvmGenerator {
 
     private val thisClass = TypeDescriptor.ofClass("App")
     private val listToString by lazy {
+        val builder = JvmVariableReference("builder", TypeDescriptor.String)
         JvmGeneratedMethod(
             "\$listToString", objectArrayToStringMethod, MethodFlags.PrivateStatic, listOf(
-                ReturnValue(TypeDescriptor.String, JvmString("[??]"))
+                JvmVariableDeclaration("builder", stringBuilder, ConstructorCall(stringBuilder, voidMethod, emptyList())),
+                ReturnValue(TypeDescriptor.String,
+                    VirtualMethodCall(stringBuilder, "toString", toStringMethod, builder, emptyList()))
             )
         )
     }
@@ -79,7 +84,7 @@ class JvmGenerator {
             }
             map { declaration ->
                 val type = toTypeDescriptor(declaration.type)
-                JvmVariableDeclaration(declaration, type, toExpression(declaration.value, functionMapper))
+                JvmVariableDeclaration(declaration.name, type, toExpression(declaration.value, functionMapper))
             }
         }
     }
@@ -160,7 +165,7 @@ class JvmGenerator {
             is StringLiteral -> JvmString(expression.value)
             is IntLiteral -> JvmInt(expression.value)
             is BooleanLiteral -> if (expression.value) JvmTrue else JvmFalse
-            is VariableReference -> JvmVariableReference(expression)
+            is VariableReference -> JvmVariableReference(expression.target.name, toTypeDescriptor(expression.type))
             is FunctionCallExpression -> functionMapper.map(expression)
             is ReceiverFunctionCallExpression -> mapFunctionCall(expression, functionMapper)
         }
@@ -281,6 +286,13 @@ class JvmGenerator {
                 push(expression.receiver, slots)
                 expression.args.forEach { push(it, slots) }
                 invokeVirtual(expression.owner, expression.name, expression.descriptor)
+            }
+
+            is ConstructorCall -> {
+                new(expression.type)
+                dup()
+                expression.args.forEach { push(it, slots) }
+                invokeSpecial(expression.type, "<init>", expression.descriptor)
             }
 
             is EmptyStringArray -> {

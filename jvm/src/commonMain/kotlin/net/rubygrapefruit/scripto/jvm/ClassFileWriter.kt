@@ -256,6 +256,9 @@ internal interface CodeBuilder {
 
     fun invokeStatic(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor)
 
+    fun invokeSpecial(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor)
+
+    fun new(type: TypeDescriptor.ObjectType)
 }
 
 private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, private val constantPool: ConstantPool) : CodeBuilder {
@@ -541,6 +544,23 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
         encoder.u1(0xb6) // invokevirtual
         encoder.u2(methodRef.index)
         pop(type.stackChange + 1)
+    }
+
+    override fun invokeSpecial(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor) {
+        val methodRef = constantPool.addMethodRef(owner, name, type)
+
+        encoder.u1(0xb7) // invokespecial
+        encoder.u2(methodRef.index)
+        pop(type.stackChange + 1)
+    }
+
+    override fun new(type: TypeDescriptor.ObjectType) {
+        val classInfo = constantPool.addClassInfo(type)
+
+        encoder.u1(0xbb)
+        encoder.u2(classInfo.index)
+
+        push(type)
     }
 
     override fun invokeStatic(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor) {
