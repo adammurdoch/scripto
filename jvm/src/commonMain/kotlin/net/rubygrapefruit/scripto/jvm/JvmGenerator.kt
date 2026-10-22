@@ -34,9 +34,13 @@ class JvmGenerator {
     private val thisClass = TypeDescriptor.ofClass("App")
     private val listToString by lazy {
         val builder = JvmVariableReference("builder", TypeDescriptor.String)
+        val length = JvmVariableReference("length", TypeDescriptor.Int)
+        val listArg = JvmParameterReference(0, objectArray)
         val stringToStringBuilder = MethodDescriptor.of(stringBuilder, TypeDescriptor.String)
         JvmGeneratedMethod(
             "\$listToString", objectArrayToStringMethod, MethodFlags.PrivateStatic, listOf(
+                JvmVariableDeclaration("length", TypeDescriptor.Int, JvmArrayLength(listArg)),
+                IfIntsEqual(length, JvmInt(0), listOf(ReturnValue(TypeDescriptor.String, JvmString("[]")))),
                 JvmVariableDeclaration("builder", stringBuilder, ConstructorCall(stringBuilder, voidMethod, emptyList())),
                 InstanceMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString("["))),
                 InstanceMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString("]"))),
@@ -161,7 +165,8 @@ class JvmGenerator {
             is Type.Int -> StaticMethodCall(arrays, "toString", intArrayToStringMethod, listOf(expression))
             is Type.Boolean -> StaticMethodCall(arrays, "toString", booleanArrayToStringMethod, listOf(expression))
             is Type.List -> StaticMethodCall(thisClass, listToString.name, listToString.descriptor, listOf(expression), listToString)
-            else -> throw IllegalArgumentException()
+            is Type.Any -> StaticMethodCall(thisClass, listToString.name, listToString.descriptor, listOf(expression), listToString)
+            is Type.File -> StaticMethodCall(thisClass, listToString.name, listToString.descriptor, listOf(expression), listToString)
         }
     }
 
@@ -215,21 +220,35 @@ class JvmGenerator {
         method(method.name, method.descriptor, method.flags) {
             val slots = mutableMapOf<String, LocalVariable>()
             for (operation in method.operations) {
-                when (operation) {
-                    is JvmVariableDeclaration -> {
-                        val slot = allocateLocal(operation.type)
-                        slots[operation.name] = slot
-                        push(operation.value, slots)
-                        storeLocal(slots.getValue(operation.name))
-                    }
+                generate(operation, slots)
+            }
+        }
+    }
 
-                    is InstanceMethodCall -> callMethod(operation, slots)
-                    is ReturnVoid -> returnVoid()
-                    is ReturnValue -> {
-                        push(operation.value, slots)
-                        returnValue(operation.type)
+    private fun CodeBuilder.generate(operation: JvmOperation, slots: MutableMap<String, LocalVariable>) {
+        when (operation) {
+            is JvmVariableDeclaration -> {
+                val slot = allocateLocal(operation.type)
+                slots[operation.name] = slot
+                push(operation.value, slots)
+                storeLocal(slots.getValue(operation.name))
+            }
+
+            is InstanceMethodCall -> callMethod(operation, slots)
+            is IfIntsEqual -> {
+                push(operation.left, slots)
+                push(operation.right, slots)
+                intEquality {
+                    for (nested in operation.whenTrue) {
+                        generate(nested, slots)
                     }
                 }
+            }
+
+            is ReturnVoid -> returnVoid()
+            is ReturnValue -> {
+                push(operation.value, slots)
+                returnValue(operation.type)
             }
         }
     }
@@ -282,6 +301,10 @@ class JvmGenerator {
                 loadLocal(slots.getValue(expression.name))
             }
 
+            is JvmParameterReference -> {
+                loadParameter(expression.index, expression.type)
+            }
+
             is GetStaticField -> {
                 getStaticField(expression.owner, expression.name, expression.type)
             }
@@ -302,6 +325,11 @@ class JvmGenerator {
                 dup()
                 expression.args.forEach { push(it, slots) }
                 invokeSpecial(expression.type, "<init>", expression.descriptor)
+            }
+
+            is JvmArrayLength -> {
+                push(expression.value, slots)
+                arrayLength()
             }
 
             is EmptyStringArray -> {

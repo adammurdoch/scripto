@@ -226,6 +226,8 @@ internal interface CodeBuilder {
 
     fun storeLocal(variable: LocalVariable)
 
+    fun loadParameter(index: Int, type: TypeDescriptor)
+
     fun loadLocal(variable: LocalVariable)
 
     fun loadConstant(value: String)
@@ -240,6 +242,8 @@ internal interface CodeBuilder {
 
     fun arrayStore(elementType: TypeDescriptor)
 
+    fun arrayLength()
+
     fun iadd()
 
     fun returnVoid()
@@ -249,6 +253,8 @@ internal interface CodeBuilder {
     // Pushes true or false on the stack
     // Should be generalized to take true and false branches
     fun intEquality()
+
+    fun intEquality(whenTrue: CodeBuilder.() -> Unit)
 
     fun getStaticField(owner: TypeDescriptor.ObjectType, name: String, type: TypeDescriptor)
 
@@ -395,28 +401,36 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
     }
 
     override fun loadLocal(variable: LocalVariable) {
-        when (variable.type) {
+        loadLocal(variable.slot, variable.type)
+    }
+
+    override fun loadParameter(index: Int, type: TypeDescriptor) {
+        loadLocal(index, type)
+    }
+
+    private fun loadLocal(slot: Int, type: TypeDescriptor) {
+        when (type) {
             is TypeDescriptor.Boolean, is TypeDescriptor.Int -> {
-                when (variable.slot) {
-                    in 0..3 -> encoder.u1(0x1a + variable.slot) // iload_0 .. iload_3
+                when (slot) {
+                    in 0..3 -> encoder.u1(0x1a + slot) // iload_0 .. iload_3
                     else -> {
                         encoder.u1(0x15) // iload
-                        encoder.u1(variable.slot)
+                        encoder.u1(slot)
                     }
                 }
             }
 
             is TypeDescriptor.ReferenceType -> {
-                when (variable.slot) {
-                    in 0..3 -> encoder.u1(0x2a + variable.slot) // aload_0 .. aload_3
+                when (slot) {
+                    in 0..3 -> encoder.u1(0x2a + slot) // aload_0 .. aload_3
                     else -> {
                         encoder.u1(0x19) // aload
-                        encoder.u1(variable.slot)
+                        encoder.u1(slot)
                     }
                 }
             }
         }
-        push(variable.type)
+        push(type)
     }
 
     override fun loadConstant(value: String) {
@@ -471,23 +485,50 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
         encoder.u1(0xa0) // if_icmpne
         encoder.u2(7) // target false branch
 
+        pop(2)
+        val frame = snapshotFrame()
+
         // True branch
         encoder.u1(0x4) // iconst_1
         encoder.u1(0xa7) // goto
         encoder.u2(4) // target end
 
         // False branch
-        pop(2)
-        startFrame()
+        startFrame(frame)
         encoder.u1(0x3) // iconst_0
 
         push(TypeDescriptor.Int)
         startFrame()
     }
 
+    override fun intEquality(whenTrue: CodeBuilder.() -> Unit) {
+        val startPos = encoder.length
+        encoder.u1(0xa0) // if_icmpne
+
+        val falseTargetPos = encoder.length
+        encoder.u2(0) // target false branch
+        pop(2)
+
+        val frame = snapshotFrame()
+
+        whenTrue()
+
+        val endPos = encoder.length
+        encoder.u2(falseTargetPos, endPos - startPos)
+
+        // false branch
+        startFrame(frame)
+    }
+
     override fun dup() {
         encoder.u1(0x59) // dup
         push(stack.last())
+    }
+
+    override fun arrayLength() {
+        encoder.u1(0xbe) // arraylength
+        pop()
+        push(TypeDescriptor.Int)
     }
 
     override fun newArray(elementType: TypeDescriptor) {
@@ -585,6 +626,16 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
             is TypeDescriptor.Boolean -> encoder.u1(0xac) // ireturn
             is TypeDescriptor.ReferenceType -> encoder.u1(0xb0) // areturn
         }
+    }
+
+    private fun snapshotFrame(): StackFrame {
+        return StackFrame(0, locals.toList(), stack.toList())
+    }
+
+    private fun startFrame(snapshot: StackFrame) {
+        val offset = if (startFrame == 0) encoder.length else encoder.length - startFrame - 1
+        stackMap.add(StackFrame(offset, snapshot.locals, snapshot.stack))
+        startFrame = encoder.length
     }
 
     private fun startFrame() {
@@ -819,9 +870,13 @@ private class Encoder {
         pos += 4
     }
 
-    fun u2(value: Int) {
+    fun u2(pos: Int, value: Int) {
         bytes[pos] = value.shr(8).and(0xFF).toByte()
         bytes[pos + 1] = value.and(0xFF).toByte()
+    }
+
+    fun u2(value: Int) {
+        u2(pos, value)
         pos += 2
     }
 

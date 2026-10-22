@@ -22,6 +22,8 @@ internal data object JvmFalse : JvmExpression
 
 internal class JvmVariableReference(val name: String, val type: TypeDescriptor) : JvmExpression
 
+internal class JvmParameterReference(val index: Int, val type: TypeDescriptor) : JvmExpression
+
 internal class GetStaticField(val owner: TypeDescriptor.ObjectType, val name: String, val type: TypeDescriptor) : JvmExpression
 
 internal sealed class JvmCompositeExpression : JvmExpression {
@@ -91,6 +93,12 @@ internal class VirtualMethodCall(
 }
 
 internal data object EmptyStringArray : JvmExpression
+
+internal class JvmArrayLength(val value: JvmExpression) : JvmCompositeExpression() {
+    override fun visitChildren(visitor: (JvmExpression) -> Unit) {
+        visitor(value)
+    }
+}
 
 internal class NewArray(val elementType: TypeDescriptor, val elements: List<JvmExpression>) : JvmCompositeExpression() {
     override fun visitChildren(visitor: (JvmExpression) -> Unit) {

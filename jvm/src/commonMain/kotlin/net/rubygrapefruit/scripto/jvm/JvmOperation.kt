@@ -12,3 +12,13 @@ internal class ReturnValue(val type: TypeDescriptor, val value: JvmExpression) :
         visitor(value)
     }
 }
+
+internal class IfIntsEqual(val left: JvmExpression, val right: JvmExpression, val whenTrue: List<JvmOperation>) : JvmOperation {
+    override fun visitExpressions(visitor: (JvmExpression) -> Unit) {
+        left.visitExpressions(visitor)
+        right.visitExpressions(visitor)
+        for (operation in whenTrue) {
+            operation.visitExpressions(visitor)
+        }
+    }
+}
