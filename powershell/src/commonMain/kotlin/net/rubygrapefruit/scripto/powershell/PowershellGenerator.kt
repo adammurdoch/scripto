@@ -7,7 +7,8 @@ import net.rubygrapefruit.scripto.ir.*
 class PowershellGenerator {
     fun generate(program: Program, outputFile: RegularFile) {
         val scope = StatementScope()
-        val operationMapper = createOperationMapper(scope)
+        val functionMapper = createFunctionMapper(scope)
+        val operationMapper = createOperationMapper(functionMapper, scope)
 
         val statements = operationMapper.map(program.operations)
         val powershellProgram = PsProgram(statements)
@@ -22,18 +23,18 @@ class PowershellGenerator {
         }
     }
 
-    private fun createOperationMapper(scope: StatementScope): OperationMapper<PsStatement> {
+    private fun createOperationMapper(functionMapper: FunctionMapper<PsExpression>, scope: StatementScope): OperationMapper<PsStatement> {
         return OperationMapper.of {
             map(StandardLibrary.printlnNoArgs) {
                 PsCommandInvocation("Write-Output", listOf(PsString("")))
             }
             map(StandardLibrary.printlnOneArg) { call ->
-                val args = call.arguments.map { toStringExpression(it, scope) }
+                val args = call.arguments.map { toStringExpression(it, scope, functionMapper) }
                 PsCommandInvocation("Write-Output", args)
             }
             map { declaration ->
                 val value = declaration.value
-                val initializer = toExpression(value, scope)
+                val initializer = toExpression(value, scope, functionMapper)
                 PsVariableDeclaration(declaration, initializer)
             }
             collectDependencies { operation: PsStatement ->
@@ -42,14 +43,48 @@ class PowershellGenerator {
         }
     }
 
-    private fun toStringExpression(expression: Expression, scope: StatementScope): PsExpression {
+    private fun createFunctionMapper(scope: StatementScope): FunctionMapper<PsExpression> {
+        return FunctionMapper.of {
+            map(StandardLibrary.fileConstructor) { expression, functionMapper ->
+                toExpression(expression.args.first(), scope, functionMapper)
+            }
+            map(StandardLibrary.listConstructor) { expression, _, functionMapper ->
+                PsArrayOperator(expression.args.map { toExpression(it, scope, functionMapper) })
+            }
+            mapOperator(StandardLibrary.stringEquality, scope) { left, right ->
+                PsInfixOperation(left, "-ceq", right)
+            }
+            mapOperator(StandardLibrary.stringConcatenation, scope) { left, right ->
+                PsInfixOperation(left, "+", right)
+            }
+            mapOperator(StandardLibrary.intEquality, scope) { left, right ->
+                PsInfixOperation(left, "-ceq", right)
+            }
+            mapOperator(StandardLibrary.intAddition, scope) { left, right ->
+                PsInfixOperation(left, "+", right)
+            }
+            mapOperator(StandardLibrary.booleanEquality, scope) { left, right ->
+                PsInfixOperation(left, "-ceq", right)
+            }
+        }
+    }
+
+    private fun FunctionMapper.Builder<PsExpression>.mapOperator(operator: OperatorDefinition, scope: StatementScope, builder: (PsExpression, PsExpression) -> PsExpression) {
+        map(operator) { expression, functionMapper ->
+            val left = toExpression(expression.args[0], scope, functionMapper)
+            val right = toExpression(expression.args[1], scope, functionMapper)
+            builder(left, right)
+        }
+    }
+
+    private fun toStringExpression(expression: Expression, scope: StatementScope, functionMapper: FunctionMapper<PsExpression>): PsExpression {
         return when (expression) {
             is StringLiteral -> PsString(expression.value)
             is IntLiteral -> PsString(expression.value.toString())
             is BooleanLiteral -> PsString(expression.value.toString())
             is VariableReference -> convertToString(expression, PsVariableReference(expression.target.name))
-            is FunctionCallExpression -> convertToString(expression, mapFunctionCall(expression, scope))
-            is ReceiverFunctionCallExpression -> convertToString(expression, mapFunctionCall(expression, scope))
+            is FunctionCallExpression -> convertToString(expression, functionMapper.map(expression))
+            is ReceiverFunctionCallExpression -> convertToString(expression, mapFunctionCall(expression, scope, functionMapper))
         }
     }
 
@@ -91,47 +126,25 @@ class PowershellGenerator {
         return PsTernaryExpression(psExpression, PsString(BooleanLiteral.TRUE), PsString(BooleanLiteral.FALSE))
     }
 
-    private fun toExpression(expression: Expression, scope: StatementScope): PsExpression {
+    private fun toExpression(expression: Expression, scope: StatementScope, functionMapper: FunctionMapper<PsExpression>): PsExpression {
         return when (expression) {
             is StringLiteral -> PsString(expression.value)
             is IntLiteral -> PsInt(expression.value)
             is BooleanLiteral -> if (expression.value) PsTrue else PsFalse
             is VariableReference -> PsVariableReference(expression.target.name)
-            is FunctionCallExpression -> mapFunctionCall(expression, scope)
-            is ReceiverFunctionCallExpression -> mapFunctionCall(expression, scope)
+            is FunctionCallExpression -> functionMapper.map(expression)
+            is ReceiverFunctionCallExpression -> mapFunctionCall(expression, scope, functionMapper)
         }
     }
 
-    private fun mapFunctionCall(expression: FunctionCallExpression, scope: StatementScope): PsExpression {
-        val target = expression.target
-        return when (target) {
-            StandardLibrary.fileConstructor -> toExpression(expression.args.first(), scope)
-            is OperatorDefinition -> {
-                when (target.operator) {
-                    Operator.Plus -> PsInfixOperation(toExpression(expression.args[0], scope), target.operator.operator, toExpression(expression.args[1], scope))
-                    Operator.Equality -> PsInfixOperation(toExpression(expression.args[0], scope), "-ceq", toExpression(expression.args[1], scope))
-                }
-            }
-
-            is RealizedFunctionDefinition -> {
-                when (target.definition) {
-                    StandardLibrary.listConstructor -> PsArrayOperator(expression.args.map { toExpression(it, scope) })
-                    else -> throw IllegalArgumentException("Unknown ${target.displayName}")
-                }
-            }
-
-            else -> throw IllegalArgumentException("Unknown ${target.displayName}")
-        }
-    }
-
-    private fun mapFunctionCall(expression: ReceiverFunctionCallExpression, scope: StatementScope): PsExpression {
+    private fun mapFunctionCall(expression: ReceiverFunctionCallExpression, scope: StatementScope, functionMapper: FunctionMapper<PsExpression>): PsExpression {
         return when (expression.target) {
-            StringFunctions.toString -> toExpression(expression.receiver, scope)
+            StringFunctions.toString -> toExpression(expression.receiver, scope, functionMapper)
             IntFunctions.toString -> {
                 val receiver = expression.receiver
                 when (receiver) {
                     is IntLiteral -> PsString(receiver.value.toString())
-                    else -> PsFunctionCall(toExpression(receiver, scope), "ToString")
+                    else -> PsFunctionCall(toExpression(receiver, scope, functionMapper), "ToString")
                 }
             }
 
@@ -139,17 +152,17 @@ class PowershellGenerator {
                 val receiver = expression.receiver
                 when (receiver) {
                     is BooleanLiteral -> PsString(receiver.value.toString())
-                    else -> booleanToString(toExpression(receiver, scope))
+                    else -> booleanToString(toExpression(receiver, scope, functionMapper))
                 }
             }
 
             FileFunctions.toString -> {
-                fileToString(toExpression(expression.receiver, scope))
+                fileToString(toExpression(expression.receiver, scope, functionMapper))
             }
 
             FileFunctions.readText -> {
                 val varName = scope.newVarName("read_text")
-                val commands = readFileIntoVar(toExpression(expression.receiver, scope), varName)
+                val commands = readFileIntoVar(toExpression(expression.receiver, scope, functionMapper), varName)
                 PsCommandInvocationExpression(varName, commands)
             }
 

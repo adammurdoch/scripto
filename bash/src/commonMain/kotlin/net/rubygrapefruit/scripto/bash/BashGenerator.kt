@@ -59,6 +59,7 @@ class BashGenerator {
             mapOperator(StandardLibrary.stringConcatenation, scope) { left, right ->
                 BashConcatenatedExpressions(listOf(left, right))
             }
+
             val equality = { left: BashExpression, right: BashExpression ->
                 val test = listOf(left, BashWord("="), right)
                 val trueBranch = BashVariableAssignment("TMP_VAR", BashWord("true"))

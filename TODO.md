@@ -28,7 +28,7 @@ Interpreter
 
 JVM
 
-- Use boolean and int arrays for `List<Boolean>` and `List<Int>`
+- Use `StringConcatFactory` for string concatenation
 - Include debug information
 
 C
@@ -42,7 +42,8 @@ C
 
 Bash
 
-- Strongly type `BashExpression` types that can be used in bash commands and those that can be used in arithmetic contexts
+- Implement `List.toString()` when receiver is not a variable reference
+- Strongly type `BashExpression` types that can be used in bash commands and those that can be used in arithmetic contexts?
 - Don't use a temporary variable to calculate variable initializer, e.g. for `File.readText()`
 - Reuse temporary variables across statements
 - Add a helper function for `List.toString()`?
