@@ -22,6 +22,8 @@ internal data object JvmFalse : JvmExpression
 
 internal class JvmVariableReference(val name: String, val type: TypeDescriptor) : JvmExpression
 
+internal class GetStaticField(val owner: TypeDescriptor.ObjectType, val name: String, val type: TypeDescriptor) : JvmExpression
+
 internal sealed class JvmCompositeExpression : JvmExpression {
     override fun visitExpressions(visitor: (JvmExpression) -> Unit) {
         visitChildren(visitor)

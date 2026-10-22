@@ -29,16 +29,21 @@ class JvmGenerator {
     private val intArrayToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.Int.arrayType())
     private val booleanArrayToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.Boolean.arrayType())
 
-    private val systemOut = StaticField(system, "out", printStream)
+    private val systemOut = GetStaticField(system, "out", printStream)
 
     private val thisClass = TypeDescriptor.ofClass("App")
     private val listToString by lazy {
         val builder = JvmVariableReference("builder", TypeDescriptor.String)
+        val stringToStringBuilder = MethodDescriptor.of(stringBuilder, TypeDescriptor.String)
         JvmGeneratedMethod(
             "\$listToString", objectArrayToStringMethod, MethodFlags.PrivateStatic, listOf(
                 JvmVariableDeclaration("builder", stringBuilder, ConstructorCall(stringBuilder, voidMethod, emptyList())),
-                ReturnValue(TypeDescriptor.String,
-                    VirtualMethodCall(stringBuilder, "toString", toStringMethod, builder, emptyList()))
+                InstanceMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString("["))),
+                InstanceMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString("]"))),
+                ReturnValue(
+                    TypeDescriptor.String,
+                    VirtualMethodCall(stringBuilder, "toString", toStringMethod, builder, emptyList())
+                )
             )
         )
     }
@@ -230,7 +235,7 @@ class JvmGenerator {
     }
 
     private fun CodeBuilder.callMethod(methodCall: InstanceMethodCall, slots: Map<String, LocalVariable>) {
-        push(methodCall.target)
+        push(methodCall.receiver, slots)
         for (expression in methodCall.arguments) {
             push(expression, slots)
         }
@@ -277,6 +282,10 @@ class JvmGenerator {
                 loadLocal(slots.getValue(expression.name))
             }
 
+            is GetStaticField -> {
+                getStaticField(expression.owner, expression.name, expression.type)
+            }
+
             is StaticMethodCall -> {
                 expression.args.forEach { push(it, slots) }
                 invokeStatic(expression.owner, expression.name, expression.descriptor)
@@ -310,12 +319,6 @@ class JvmGenerator {
                     arrayStore(expression.elementType)
                 }
             }
-        }
-    }
-
-    private fun CodeBuilder.push(expression: ReferenceExpression) {
-        when (expression) {
-            is StaticField -> getStaticField(expression.owner, expression.name, expression.type)
         }
     }
 }
