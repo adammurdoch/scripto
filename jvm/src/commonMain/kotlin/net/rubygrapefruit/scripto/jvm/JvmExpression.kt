@@ -3,7 +3,17 @@ package net.rubygrapefruit.scripto.jvm
 import net.rubygrapefruit.scripto.ir.Type
 import net.rubygrapefruit.scripto.ir.VariableReference
 
-internal sealed interface JvmExpression
+internal sealed interface JvmExpression {
+    fun visitDeclarations(visitor: (JvmDeclaration) -> Unit) {
+    }
+
+    /**
+     * Visits this expression plus any nested expressions
+     */
+    fun visitExpressions(visitor: (JvmExpression) -> Unit) {
+        visitor(this)
+    }
+}
 
 internal class JvmString(val value: String) : JvmExpression
 
@@ -21,18 +31,53 @@ internal class JvmVariableReference(val reference: VariableReference) : JvmExpre
         get() = reference.type
 }
 
-internal class JvmIntAddition(val left: JvmExpression, val right: JvmExpression) : JvmExpression
+internal sealed class JvmCompositeExpression : JvmExpression {
+    override fun visitExpressions(visitor: (JvmExpression) -> Unit) {
+        visitChildren(visitor)
+        visitor(this)
+    }
 
-internal class JvmStringEquality(val left: JvmExpression, val right: JvmExpression) : JvmExpression
+    protected abstract fun visitChildren(visitor: (JvmExpression) -> Unit)
+}
 
-internal class JvmIntEquality(val left: JvmExpression, val right: JvmExpression) : JvmExpression
+internal class JvmIntAddition(val left: JvmExpression, val right: JvmExpression) : JvmCompositeExpression() {
+    override fun visitChildren(visitor: (JvmExpression) -> Unit) {
+        visitor(left)
+        visitor(right)
+    }
+}
+
+internal class JvmStringEquality(val left: JvmExpression, val right: JvmExpression) : JvmCompositeExpression() {
+    override fun visitChildren(visitor: (JvmExpression) -> Unit) {
+        visitor(left)
+        visitor(right)
+    }
+}
+
+internal class JvmIntEquality(val left: JvmExpression, val right: JvmExpression) : JvmCompositeExpression() {
+    override fun visitChildren(visitor: (JvmExpression) -> Unit) {
+        visitor(left)
+        visitor(right)
+    }
+}
 
 internal class StaticMethodCall(
     val owner: TypeDescriptor.ObjectType,
     val name: String,
     val descriptor: MethodDescriptor,
-    val args: List<JvmExpression>
-) : JvmExpression
+    val args: List<JvmExpression>,
+    val declaredBy: JvmDeclaration? = null
+) : JvmCompositeExpression() {
+    override fun visitDeclarations(visitor: (JvmDeclaration) -> Unit) {
+        if (declaredBy != null) {
+            visitor(declaredBy)
+        }
+    }
+
+    override fun visitChildren(visitor: (JvmExpression) -> Unit) {
+        args.forEach(visitor)
+    }
+}
 
 internal class VirtualMethodCall(
     val owner: TypeDescriptor.ObjectType,
@@ -40,8 +85,16 @@ internal class VirtualMethodCall(
     val descriptor: MethodDescriptor,
     val receiver: JvmExpression,
     val args: List<JvmExpression>
-) : JvmExpression
+) : JvmCompositeExpression() {
+    override fun visitChildren(visitor: (JvmExpression) -> Unit) {
+        args.forEach(visitor)
+    }
+}
 
 internal data object EmptyStringArray : JvmExpression
 
-internal class NewArray(val elementType: TypeDescriptor, val elements: List<JvmExpression>) : JvmExpression
+internal class NewArray(val elementType: TypeDescriptor, val elements: List<JvmExpression>) : JvmCompositeExpression() {
+    override fun visitChildren(visitor: (JvmExpression) -> Unit) {
+        elements.forEach(visitor)
+    }
+}

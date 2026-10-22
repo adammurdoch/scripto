@@ -113,7 +113,6 @@ class BashGenerator {
                 val readText = readFileIntoVar(toExpression(expression.receiver, functionMapper), varName)
                 BashCommandInvocationExpression(varName, listOf(readText))
             }
-
         }
     }
 

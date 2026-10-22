@@ -4,10 +4,10 @@ import net.rubygrapefruit.file.RegularFile
 import kotlin.jvm.JvmInline
 
 internal class ClassFileWriter {
-    fun write(className: String, builder: ClassBuilder.() -> Unit): ByteArray {
+    fun write(classDescriptor: TypeDescriptor.ObjectType, builder: ClassBuilder.() -> Unit): ByteArray {
         val constantPool = ConstantPool()
 
-        val thisClass = constantPool.addClassInfo(TypeDescriptor.ofClass(className))
+        val thisClass = constantPool.addClassInfo(classDescriptor)
         val objectClass = constantPool.addClassInfo(TypeDescriptor.Object)
         val codeAttributeName = constantPool.addUtf8("Code")
 
@@ -51,8 +51,8 @@ internal class ClassFileWriter {
         return encoder.toByteArray()
     }
 
-    fun writeTo(className: String, output: RegularFile, builder: ClassBuilder.() -> Unit) {
-        val bytecode = write(className, builder)
+    fun writeTo(classDescriptor: TypeDescriptor.ObjectType, output: RegularFile, builder: ClassBuilder.() -> Unit) {
+        val bytecode = write(classDescriptor, builder)
         output.writeBytes(bytecode)
     }
 }
@@ -156,7 +156,8 @@ internal data class MethodDescriptor(val descriptor: MethodDescriptorString, val
 
 internal class MethodFlags(val flags: Int) {
     companion object {
-        val PublicStatic = MethodFlags(0x0009)
+        val PublicStatic = MethodFlags(9)
+        val PrivateStatic = MethodFlags(10)
     }
 }
 
@@ -241,7 +242,9 @@ internal interface CodeBuilder {
 
     fun iadd()
 
-    fun return_()
+    fun returnVoid()
+
+    fun returnValue(type: TypeDescriptor)
 
     // Pushes true or false on the stack
     // Should be generalized to take true and false branches
@@ -552,8 +555,16 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
         pop(type.stackChange)
     }
 
-    override fun return_() {
+    override fun returnVoid() {
         encoder.u1(0xb1) // return
+    }
+
+    override fun returnValue(type: TypeDescriptor) {
+        when (type) {
+            is TypeDescriptor.Int -> encoder.u1(0xac) // ireturn
+            is TypeDescriptor.Boolean -> encoder.u1(0xac) // ireturn
+            is TypeDescriptor.ReferenceType -> encoder.u1(0xb0) // areturn
+        }
     }
 
     private fun startFrame() {

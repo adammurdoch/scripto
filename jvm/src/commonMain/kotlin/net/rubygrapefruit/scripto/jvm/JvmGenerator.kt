@@ -29,8 +29,17 @@ class JvmGenerator {
 
     private val systemOut = StaticField(system, "out", printStream)
 
+    private val thisClass = TypeDescriptor.ofClass("App")
+    private val listToString by lazy {
+        JvmGeneratedMethod(
+            "\$listToString", objectArrayToStringMethod, MethodFlags.PrivateStatic, listOf(
+                ReturnValue(TypeDescriptor.String, JvmString("[??]"))
+            )
+        )
+    }
+
     fun generate(program: Program, output: RegularFile): GeneratedClass {
-        ClassFileWriter().writeTo("App", output) { generate(program) }
+        ClassFileWriter().writeTo(thisClass, output) { generate(program) }
         return GeneratedClass("App")
     }
 
@@ -38,10 +47,23 @@ class JvmGenerator {
         val functionMapper = createFunctionMapper()
         val operationMapper = createOperationMapper(functionMapper)
 
-        val operations = operationMapper.map(program.operations)
+        val operations = mutableListOf<JvmOperation>()
+        operationMapper.mapInto(program.operations, operations)
+        operations.add(ReturnVoid)
 
         val stringArray = TypeDescriptor.String.arrayType()
+
+        val seen = mutableSetOf<JvmGeneratedMethod>()
+
         val mainMethod = JvmGeneratedMethod("main", MethodDescriptor.ofVoid(stringArray), MethodFlags.PublicStatic, operations)
+        mainMethod.visitExpressions { expression ->
+            expression.visitDeclarations { declaration ->
+                if (declaration is JvmGeneratedMethod && seen.add(declaration)) {
+                    generate(declaration)
+                }
+            }
+        }
+
         generate(mainMethod)
     }
 
@@ -125,9 +147,10 @@ class JvmGenerator {
 
     private fun listToString(elementType: Type, expression: JvmExpression): JvmExpression {
         return when (elementType) {
-            is Type.String, is Type.Any, is Type.List -> StaticMethodCall(arrays, "toString", objectArrayToStringMethod, listOf(expression))
+            is Type.String -> StaticMethodCall(arrays, "toString", objectArrayToStringMethod, listOf(expression))
             is Type.Int -> StaticMethodCall(arrays, "toString", intArrayToStringMethod, listOf(expression))
             is Type.Boolean -> StaticMethodCall(arrays, "toString", booleanArrayToStringMethod, listOf(expression))
+            is Type.List -> StaticMethodCall(thisClass, listToString.name, listToString.descriptor, listOf(expression), listToString)
             else -> throw IllegalArgumentException()
         }
     }
@@ -190,12 +213,14 @@ class JvmGenerator {
                         storeLocal(slots.getValue(operation.name))
                     }
 
-                    is InstanceMethodCall -> {
-                        callMethod(operation, slots)
+                    is InstanceMethodCall -> callMethod(operation, slots)
+                    is ReturnVoid -> returnVoid()
+                    is ReturnValue -> {
+                        push(operation.value, slots)
+                        returnValue(operation.type)
                     }
                 }
             }
-            return_()
         }
     }
 

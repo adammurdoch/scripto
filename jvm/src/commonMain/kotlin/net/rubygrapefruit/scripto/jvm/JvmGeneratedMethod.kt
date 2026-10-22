@@ -8,4 +8,10 @@ internal class JvmGeneratedMethod(
     val descriptor: MethodDescriptor,
     val flags: MethodFlags,
     val operations: List<JvmOperation>
-): JvmDeclaration
+) : JvmDeclaration {
+    fun visitExpressions(visitor: (JvmExpression) -> Unit) {
+        for (operation in operations) {
+            operation.visitExpressions(visitor)
+        }
+    }
+}

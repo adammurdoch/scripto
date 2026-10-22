@@ -6,7 +6,11 @@ internal class JvmVariableDeclaration(
     val declaration: VariableDeclaration,
     val type: TypeDescriptor,
     val value: JvmExpression
-): JvmOperation {
+) : JvmOperation {
     val name: String
         get() = declaration.name
+
+    override fun visitExpressions(visitor: (JvmExpression) -> Unit) {
+        value.visitExpressions(visitor)
+    }
 }

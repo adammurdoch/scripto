@@ -6,4 +6,10 @@ internal class InstanceMethodCall(
     val descriptor: MethodDescriptor,
     val target: ReferenceExpression,
     val arguments: List<JvmExpression>
-) : JvmOperation
+) : JvmOperation {
+    override fun visitExpressions(visitor: (JvmExpression) -> Unit) {
+        for (argument in arguments) {
+            argument.visitExpressions(visitor)
+        }
+    }
+}

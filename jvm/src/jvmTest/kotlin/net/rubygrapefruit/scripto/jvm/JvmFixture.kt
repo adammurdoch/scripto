@@ -9,7 +9,7 @@ class JvmFixture(workDir: Directory) : AppFixture(workDir) {
         val generator = JvmGenerator()
         val classFile = workDir.file("App.class")
         val generatedClass = generator.generate(program, classFile)
-        run(listOf("javap", "-v", classFile.absolutePath))
+        run(listOf("javap", "-v", "-p", classFile.absolutePath))
         return run(listOf("java", "-classpath", workDir.absolutePath, generatedClass.name))
     }
 }
