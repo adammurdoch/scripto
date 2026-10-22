@@ -10,7 +10,7 @@ class BashGenerator {
         val scope = StatementScope()
 
         val functionMapper = createFunctionMapper(scope)
-        val operationMapper = createOperationMapper(scope, functionMapper)
+        val operationMapper = createOperationMapper(functionMapper)
 
         val statements = operationMapper.map(program.operations)
         val bashProgram = BashProgram(statements)
@@ -25,19 +25,19 @@ class BashGenerator {
         outputFile.setPermissions(PosixPermissions.readWriteFile.executable())
     }
 
-    private fun createOperationMapper(scope: StatementScope, functionMapper: FunctionMapper<BashExpression>): OperationMapper<BashStatement> {
+    private fun createOperationMapper(functionMapper: FunctionMapper<BashExpression>): OperationMapper<BashStatement> {
         return OperationMapper.of {
             map(StandardLibrary.printlnNoArgs) {
                 BashCommandInvocation("echo", emptyList())
             }
             map(StandardLibrary.printlnOneArg) { call ->
                 val call = StandardLibrary.convertPrintln(call)
-                val args = call.arguments.map { toExpression(it, scope, functionMapper) }
+                val args = call.arguments.map { toExpression(it, functionMapper) }
                 BashCommandInvocation("echo", args)
             }
             map { declaration ->
                 val value = declaration.value
-                BashVariableAssignment(declaration.name, toExpression(value, scope, functionMapper))
+                BashVariableAssignment(declaration.name, toExpression(value, functionMapper))
             }
             collectDependencies { statement: BashStatement ->
                 addDependencies(statement)
@@ -48,15 +48,15 @@ class BashGenerator {
     private fun createFunctionMapper(scope: StatementScope): FunctionMapper<BashExpression> {
         return FunctionMapper.of {
             map(StandardLibrary.fileConstructor) { expression, functionMapper ->
-                toExpression(expression.args.first(), scope, functionMapper)
+                toExpression(expression.args.first(), functionMapper)
             }
             map(StandardLibrary.listConstructor) { expression, _, functionMapper ->
-                BashArrayLiteral(expression.args.map { toExpression(it, scope, functionMapper) })
+                BashArrayLiteral(expression.args.map { toExpression(it, functionMapper) })
             }
-            mapOperator(StandardLibrary.intAddition, scope) { left, right ->
+            mapOperator(StandardLibrary.intAddition) { left, right ->
                 BashArithmetic(left, "+", right)
             }
-            mapOperator(StandardLibrary.stringConcatenation, scope) { left, right ->
+            mapOperator(StandardLibrary.stringConcatenation) { left, right ->
                 BashConcatenatedExpressions(listOf(left, right))
             }
 
@@ -67,72 +67,72 @@ class BashGenerator {
                 val statement = BashIfStatement(test, trueBranch, falseBranch)
                 BashCommandInvocationExpression("TMP_VAR", listOf(statement))
             }
-            mapOperator(StandardLibrary.stringEquality, scope, equality)
-            mapOperator(StandardLibrary.intEquality, scope, equality)
-            mapOperator(StandardLibrary.booleanEquality, scope, equality)
+            mapOperator(StandardLibrary.stringEquality, equality)
+            mapOperator(StandardLibrary.intEquality, equality)
+            mapOperator(StandardLibrary.booleanEquality, equality)
+
+            mapReceiver(StringFunctions.toString) { expression, functionMapper ->
+                toExpression(expression.receiver, functionMapper)
+            }
+            mapReceiver(IntFunctions.toString) { expression, functionMapper ->
+                toExpression(expression.receiver, functionMapper)
+            }
+            mapReceiver(BooleanFunctions.toString) { expression, functionMapper ->
+                toExpression(expression.receiver, functionMapper)
+            }
+            mapReceiver(FileFunctions.toString) { expression, functionMapper ->
+                BashConcatenatedExpressions(listOf(BashString("File("), toExpression(expression.receiver, functionMapper), BashString(")")))
+            }
+            mapReceiver(ListFunctions.toString) { expression, _ ->
+                val receiver = expression.receiver
+                when (receiver) {
+                    is VariableReference -> {
+                        val resultVarName = scope.newVarName("ARRAY_STR")
+                        val separatorVarName = scope.newVarName("SEPARATOR")
+                        val elementVarName = scope.newVarName("ELEMENT")
+                        BashCommandInvocationExpression(
+                            resultVarName, listOf(
+                                BashVariableAssignment(resultVarName, BashString("[")),
+                                BashVariableAssignment(separatorVarName, BashString("")),
+                                BashForLoop(
+                                    elementVarName, BashWord("\"\${${receiver.target.name}[@]}\""), listOf(
+                                        BashVariableValueAppend(resultVarName, BashWord("\"\$$separatorVarName\$$elementVarName\"")),
+                                        BashVariableAssignment(separatorVarName, BashString(", "))
+                                    )
+                                ),
+                                BashVariableValueAppend(resultVarName, BashString("]")),
+                            )
+                        )
+                    }
+
+                    else -> throw IllegalArgumentException()
+                }
+            }
+            mapReceiver(FileFunctions.readText) { expression, functionMapper ->
+                val varName = scope.newVarName("READ_TEXT")
+                val readText = readFileIntoVar(toExpression(expression.receiver, functionMapper), varName)
+                BashCommandInvocationExpression(varName, listOf(readText))
+            }
+
         }
     }
 
-    private fun FunctionMapper.Builder<BashExpression>.mapOperator(
-        operator: OperatorDefinition,
-        scope: StatementScope,
-        builder: (BashExpression, BashExpression) -> BashExpression
-    ) {
+    private fun FunctionMapper.Builder<BashExpression>.mapOperator(operator: OperatorDefinition, builder: (BashExpression, BashExpression) -> BashExpression) {
         map(operator) { expression, functionMapper ->
-            val left = toExpression(expression.args[0], scope, functionMapper)
-            val right = toExpression(expression.args[1], scope, functionMapper)
+            val left = toExpression(expression.args[0], functionMapper)
+            val right = toExpression(expression.args[1], functionMapper)
             builder(left, right)
         }
     }
 
-    private fun toExpression(expression: Expression, scope: StatementScope, functionMapper: FunctionMapper<BashExpression>): BashExpression {
+    private fun toExpression(expression: Expression, functionMapper: FunctionMapper<BashExpression>): BashExpression {
         return when (expression) {
             is StringLiteral -> BashString(expression.value)
             is IntLiteral -> BashWord(expression.value.toString())
             is BooleanLiteral -> BashWord(expression.value.toString())
             is VariableReference -> varReferenceToBash(expression)
             is FunctionCallExpression -> functionMapper.map(expression)
-            is ReceiverFunctionCallExpression -> {
-                if (expression.target == StringFunctions.toString) {
-                    toExpression(expression.receiver, scope, functionMapper)
-                } else if (expression.target == IntFunctions.toString) {
-                    toExpression(expression.receiver, scope, functionMapper)
-                } else if (expression.target == BooleanFunctions.toString) {
-                    toExpression(expression.receiver, scope, functionMapper)
-                } else if (expression.target == FileFunctions.toString) {
-                    BashConcatenatedExpressions(listOf(BashString("File("), toExpression(expression.receiver, scope, functionMapper), BashString(")")))
-                } else if (expression.target == ListFunctions.toString) {
-                    val receiver = expression.receiver
-                    when (receiver) {
-                        is VariableReference -> {
-                            val resultVarName = scope.newVarName("ARRAY_STR")
-                            val separatorVarName = scope.newVarName("SEPARATOR")
-                            val elementVarName = scope.newVarName("ELEMENT")
-                            BashCommandInvocationExpression(
-                                resultVarName, listOf(
-                                    BashVariableAssignment(resultVarName, BashString("[")),
-                                    BashVariableAssignment(separatorVarName, BashString("")),
-                                    BashForLoop(
-                                        elementVarName, BashWord("\"\${${receiver.target.name}[@]}\""), listOf(
-                                            BashVariableValueAppend(resultVarName, BashWord("\"\$$separatorVarName\$$elementVarName\"")),
-                                            BashVariableAssignment(separatorVarName, BashString(", "))
-                                        )
-                                    ),
-                                    BashVariableValueAppend(resultVarName, BashString("]")),
-                                )
-                            )
-                        }
-
-                        else -> throw IllegalArgumentException()
-                    }
-                } else if (expression.target == FileFunctions.readText) {
-                    val varName = scope.newVarName("READ_TEXT")
-                    val readText = readFileIntoVar(toExpression(expression.receiver, scope, functionMapper), varName)
-                    BashCommandInvocationExpression(varName, listOf(readText))
-                } else {
-                    throw IllegalArgumentException("Unknown ${expression.target.displayName} for ${expression.receiver.type}")
-                }
-            }
+            is ReceiverFunctionCallExpression -> functionMapper.map(expression)
         }
     }
 
