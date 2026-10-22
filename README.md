@@ -47,31 +47,28 @@ Standard library
 ----
 
 - `println()`
-- `println(String)`
-- `println(Int)`
-- `println(Boolean)`
-- `println(File)`
+- `println(Any)`
 
-String type
+`String` type
 - `"` quoted literal
 - `String.toString()`
 
-Int type
+`Int` type (32-bit signed int)
 - Int literal
 - `Int.toString()`
 
-Boolean type
+`Boolean` type
 - `true` or `false` literal
 - `Boolean.toString()`
 
-File type
+`File` type
 - `File(String)` constructor
 - `File.toString()`
 - `File.readText(): String`
 
-List Type
-- `[...]` literal
-- `List(...)` constructor
+`List<T>` Type
+- `[T...]` literal
+- `List(T...)` constructor
 - `List.toString()`
 
 Operators

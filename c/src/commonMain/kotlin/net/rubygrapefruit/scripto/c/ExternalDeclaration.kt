@@ -29,6 +29,14 @@ internal class TypeSnippet(name: String, declarations: List<CDeclaration>, text:
     }
 
     companion object {
+        val AnyStruct = TypeSnippet(
+            "_any",
+            emptyList(),
+            """
+struct _any {
+};
+            """.trimIndent()
+        )
         val ListStruct = TypeSnippet(
             "_list",
             listOf(Header.Stdint),

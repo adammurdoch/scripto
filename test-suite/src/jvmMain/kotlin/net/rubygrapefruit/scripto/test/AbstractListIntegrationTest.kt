@@ -119,7 +119,7 @@ println(l)
     }
 
     @Test
-    fun `compiles list variable initialized with list literal of list literals`() {
+    fun `compiles list variable initialized with list literal of string list literals`() {
         val sourceFile = workDir.file("app.scripto")
         sourceFile.writeText(
             """
@@ -129,6 +129,20 @@ println(l)
         )
         compileAndRun(sourceFile) {
             output("[[a, b], [c]]\n")
+        }
+    }
+
+    @Test
+    fun `compiles list variable initialized with list literal of int list literals`() {
+        val sourceFile = workDir.file("app.scripto")
+        sourceFile.writeText(
+            """
+val l = [[6, 90], [-12]]
+println(l)
+        """
+        )
+        compileAndRun(sourceFile) {
+            output("[[6, 90], [-12]]\n")
         }
     }
 

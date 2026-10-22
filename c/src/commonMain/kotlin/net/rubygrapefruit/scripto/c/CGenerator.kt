@@ -110,7 +110,7 @@ class CGenerator {
             is Type.Int -> CType.Int32
             is Type.Boolean -> CType.Bool
             is Type.List -> TypeSnippet.ListStruct
-            is Type.Any -> throw IllegalArgumentException()
+            is Type.Any -> TypeSnippet.AnyStruct
         }
     }
 
@@ -219,10 +219,18 @@ class CGenerator {
     private fun listToString(receiver: Expression, functionMapper: FunctionMapper<CExpression>): CExpression {
         val elementType = (receiver.type as Type.List).param
         val list = toExpression(receiver, functionMapper)
+        return listToString(list, elementType)
+    }
+
+    private fun listToString(list: CExpression, elementType: Type): CExpression {
         return when (elementType) {
-            Type.String -> CFunctionCall(FunctionSnippet.StringListToString, listOf(CPointer(list)))
-            Type.Int -> listToString(list, elementType, CType.Int32, true) { expression -> intToString(expression) }
-            Type.Boolean -> listToString(list, elementType, CType.Bool, false) { expression -> booleanToString(expression) }
+            is Type.String -> CFunctionCall(FunctionSnippet.StringListToString, listOf(CPointer(list)))
+            is Type.Int -> listToString(list, elementType, CType.Int32, true) { expression -> intToString(expression) }
+            is Type.Boolean -> listToString(list, elementType, CType.Bool, false) { expression -> booleanToString(expression) }
+            is Type.List -> listToString(list, elementType, TypeSnippet.ListStruct, true) { expression ->
+                listToString(expression, elementType.param)
+            }
+
             else -> listToString(list, elementType, toCType(elementType), false) { CString("??") }
         }
     }

@@ -4,6 +4,8 @@ General
   - Infer element type  
   - `toString()` delegates to correct implementation
   - Add `==`
+  - Add `[]`
+  - Add `+`
   - Inline list literal `List.toString()` and `println(List)`
 - Improve error message when operator called with arguments of incorrect type
 - Inline constants
@@ -31,6 +33,8 @@ JVM
 
 C
 
+- Use an allocator for `List.toString()`
+- Add a string builder and use for `List.toString()`, and `String + String`
 - Garbage collect strings created by `+` operator, `Int.toString()`, `File.toString()`, `List.toString()` and `File.readText()`
 - Add a helper function for `File.toString()`?
 - Use `whar_t*` or `char16_t*` to represent strings?
