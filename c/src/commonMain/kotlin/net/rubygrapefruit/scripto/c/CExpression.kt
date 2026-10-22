@@ -27,6 +27,10 @@ internal sealed class CBooleanLiteral : CExpression {
     override fun visitOwnDeclarations(visitor: (CDeclaration) -> Unit) {
         visitor(Header.Stdbool)
     }
+
+    companion object {
+        fun of(value: Boolean) = if (value) CTrue else CFalse
+    }
 }
 
 internal data object CTrue : CBooleanLiteral()

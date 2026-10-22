@@ -167,16 +167,18 @@ const char* _string_list_to_string(struct _list* list) {
 
         val ListToString = FunctionSnippet(
             "_list_to_string",
-            listOf(TypeSnippet.ListStruct, Header.String, Header.Stdlib, StringListToString), """
-const char* _list_to_string(struct _list* list, const char* (*map)(int, struct _list*)) {
+            listOf(TypeSnippet.ListStruct, Header.String, Header.Stdlib, Header.Stdbool, StringListToString), """
+const char* _list_to_string(struct _list* list, bool free_strings, const char* (*map)(int, struct _list*)) {
     const char* mapped[list->length];
     for (int i = 0; i < list->length; i++) {
         mapped[i] = map(i, list);
     }
     struct _list str_list = {list->length, mapped};
     const char* result = _string_list_to_string(&str_list);
-    for (int i = 0; i < list->length; i++) {
-        free((void*)mapped[i]);
+    if (free_strings) {
+        for (int i = 0; i < list->length; i++) {
+            free((void*)mapped[i]);
+        }
     }
     return result;
 }

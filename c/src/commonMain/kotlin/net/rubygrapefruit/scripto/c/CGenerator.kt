@@ -6,7 +6,10 @@ import net.rubygrapefruit.scripto.generator.OperationMapper
 import net.rubygrapefruit.scripto.generator.writeTo
 import net.rubygrapefruit.scripto.ir.*
 
+@OptIn(ExperimentalStdlibApi::class)
 class CGenerator {
+    private val listElementToString = mutableMapOf<Type, CGeneratedFunction>()
+
     fun generate(program: Program, outputFile: RegularFile) {
         val functionMapper = createFunctionMapper()
         val operationMapper = createOperationMapper(functionMapper)
@@ -213,21 +216,32 @@ class CGenerator {
         }
     }
 
-    private fun listToString(expression: Expression, functionMapper: FunctionMapper<CExpression>): CExpression {
-        val elementType = (expression.type as Type.List).param
-        if (elementType == Type.String) {
-            val value = toExpression(expression, functionMapper)
-            return CFunctionCall(FunctionSnippet.StringListToString, listOf(CPointer(value)))
-        } else {
-            val value = toExpression(expression, functionMapper)
-            val mappingFunction = when (elementType) {
-                is Type.Int -> FunctionSnippet.listElementToStringFunction("_int_element_to_string", CType.Int32) { expression ->
-                    CFunctionCall(FunctionSnippet.IntToString, listOf(expression))
-                }
+    private fun listToString(receiver: Expression, functionMapper: FunctionMapper<CExpression>): CExpression {
+        val elementType = (receiver.type as Type.List).param
+        val list = toExpression(receiver, functionMapper)
+        return when (elementType) {
+            Type.String -> CFunctionCall(FunctionSnippet.StringListToString, listOf(CPointer(list)))
+            Type.Int -> listToString(list, elementType, CType.Int32, true) { expression -> intToString(expression) }
+            Type.Boolean -> listToString(list, elementType, CType.Bool, false) { expression -> booleanToString(expression) }
+            else -> listToString(list, elementType, toCType(elementType), false) { CString("??") }
+        }
+    }
 
-                else -> return CString("??")
-            }
-            return CFunctionCall(FunctionSnippet.ListToString, listOf(CPointer(value), CFunctionPointer(mappingFunction)))
+    private fun listToString(receiver: CExpression, elementType: Type, elementCType: CType, freeMappedStrings: Boolean, toString: (CExpression) -> CExpression): CExpression {
+        val elementToString = listElementToString.getOrPutIfNull(elementType) {
+            FunctionSnippet.listElementToStringFunction("_${identifierForType(elementType)}_element_to_string", elementCType, toString)
+        }
+        return CFunctionCall(FunctionSnippet.ListToString, listOf(CPointer(receiver), CBooleanLiteral.of(freeMappedStrings), CFunctionPointer(elementToString)))
+    }
+
+    private fun identifierForType(type: Type): String {
+        return when (type) {
+            is Type.String -> "string"
+            is Type.File -> "file"
+            is Type.Int -> "int"
+            is Type.Boolean -> "boolean"
+            is Type.List -> "list_${identifierForType(type.param)}"
+            is Type.Any -> "any"
         }
     }
 
@@ -236,19 +250,24 @@ class CGenerator {
             is BooleanLiteral -> CString(expression.value.toString())
             else -> {
                 val value = toExpression(expression, functionMapper)
-                CTernaryExpression(value, CString(BooleanLiteral.TRUE), CString(BooleanLiteral.FALSE))
+                booleanToString(value)
             }
         }
+    }
+
+    private fun booleanToString(value: CExpression): CExpression {
+        return CTernaryExpression(value, CString(BooleanLiteral.TRUE), CString(BooleanLiteral.FALSE))
     }
 
     private fun intToString(expression: Expression, functionMapper: FunctionMapper<CExpression>): CExpression {
         return when (expression) {
             is IntLiteral -> CString(expression.value.toString())
-            else -> {
-                val value = toExpression(expression, functionMapper)
-                CFunctionCall(FunctionSnippet.IntToString, listOf(value))
-            }
+            else -> intToString(toExpression(expression, functionMapper))
         }
+    }
+
+    private fun intToString(value: CExpression): CExpression {
+        return CFunctionCall(FunctionSnippet.IntToString, listOf(value))
     }
 
     private fun fileToString(expression: Expression, functionMapper: FunctionMapper<CExpression>): CExpression {
