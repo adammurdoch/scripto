@@ -8,6 +8,10 @@ class JvmFixture(workDir: Directory) : AppFixture(workDir) {
     override fun generateAndRun(program: Program): String {
         val generator = JvmGenerator()
         val generatedClass = generator.generate(program, workDir)
+        println("GENERATED")
+        for (file in generatedClass.classFiles) {
+            println("  ${file.path.name}")
+        }
         for (file in generatedClass.classFiles) {
             run(listOf("javap", "-v", "-p", file.absolutePath))
         }

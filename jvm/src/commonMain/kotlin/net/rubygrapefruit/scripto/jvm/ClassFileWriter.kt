@@ -7,11 +7,11 @@ internal class ClassFileWriter {
     fun write(type: TypeDescriptor.ObjectType, flags: ClassFlags, builder: ClassBuilder.() -> Unit): ByteArray {
         val constantPool = ConstantPool()
 
-        val thisClass = constantPool.addClassInfo(type)
+        val thisType = constantPool.addClassInfo(type)
         val objectClass = constantPool.addClassInfo(TypeDescriptor.Object)
         val codeAttributeName = constantPool.addUtf8("Code")
 
-        val classBuilder = DefaultClassBuilder(constantPool)
+        val classBuilder = DefaultClassBuilder(type, constantPool)
         classBuilder.builder()
 
         val encoder = Encoder()
@@ -34,7 +34,7 @@ internal class ClassFileWriter {
         }
 
         // this, super
-        encoder.u2(thisClass.index)
+        encoder.u2(thisType.index)
         encoder.u2(objectClass.index)
 
         // interfaces
@@ -166,6 +166,9 @@ internal class ClassFlags(val flags: Int) {
 }
 
 internal class MethodFlags(val flags: Int) {
+    val isStatic: Boolean
+        get() = flags.and(0x8) == 0x8
+
     companion object {
         val Public = MethodFlags(0x1)
         val PackageProtected = MethodFlags(0)
@@ -218,36 +221,36 @@ internal interface ClassBuilder {
     fun method(name: String, descriptor: MethodDescriptor, flags: MethodFlags)
 }
 
-private class DefaultClassBuilder(private val constantPool: ConstantPool) : ClassBuilder {
+private class DefaultClassBuilder(private val thisType: TypeDescriptor.ObjectType, private val constantPool: ConstantPool) : ClassBuilder {
     val methods: List<MethodInfo>
         field = mutableListOf<MethodInfo>()
 
     override fun method(name: String, descriptor: MethodDescriptor, flags: MethodFlags, builder: CodeBuilder.() -> Unit) {
-        val nameEntry = constantPool.addUtf8(name)
-        val descriptorEntry = constantPool.addUtf8(descriptor.descriptor.value)
-
-        val codeBuilder = DefaultCodeBuilder(descriptor.parameters, constantPool)
+        val params = if (flags.isStatic) {
+            descriptor.parameters
+        } else {
+            listOf(thisType) + descriptor.parameters
+        }
+        val codeBuilder = DefaultCodeBuilder(params, constantPool)
         codeBuilder.builder()
 
-        val method = MethodInfo(
-            nameEntry,
-            descriptorEntry,
-            flags,
-            codeBuilder.codeAttribute()
-        )
-        methods.add(method)
+        method(name, descriptor, flags, codeBuilder.codeAttribute())
     }
 
     override fun method(name: String, descriptor: MethodDescriptor, flags: MethodFlags) {
+        method(name, descriptor, flags, null)
+    }
+
+    private fun method(
+        name: String,
+        descriptor: MethodDescriptor,
+        flags: MethodFlags,
+        encodedCodeAttribute: ByteArray?
+    ) {
         val nameEntry = constantPool.addUtf8(name)
         val descriptorEntry = constantPool.addUtf8(descriptor.descriptor.value)
-        val method = MethodInfo(
-            nameEntry,
-            descriptorEntry,
-            flags,
-            null
-        )
 
+        val method = MethodInfo(nameEntry, descriptorEntry, flags, encodedCodeAttribute)
         methods.add(method)
     }
 }

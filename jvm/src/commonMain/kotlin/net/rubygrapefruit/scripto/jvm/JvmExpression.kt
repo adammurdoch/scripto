@@ -30,7 +30,9 @@ internal class GetStaticField(val owner: TypeDescriptor.ObjectType, val name: St
 
 internal sealed class JvmCompositeExpression : JvmExpression {
     override fun visitExpressions(visitor: (JvmExpression) -> Unit) {
-        visitChildren(visitor)
+        visitChildren { expression ->
+            expression.visitExpressions(visitor)
+        }
         visitor(this)
     }
 
@@ -58,7 +60,19 @@ internal class JvmIntEquality(val left: JvmExpression, val right: JvmExpression)
     }
 }
 
-internal class ConstructorCall(val type: TypeDescriptor.ObjectType, val descriptor: MethodDescriptor, val arguments: List<JvmExpression>) : JvmCompositeExpression() {
+internal class ConstructorCall(
+    val type: TypeDescriptor.ObjectType,
+    val descriptor: MethodDescriptor,
+    val arguments: List<JvmExpression>,
+    val declaredBy: JvmDeclaration? = null
+) : JvmCompositeExpression() {
+
+    override fun visitDeclarations(visitor: (JvmDeclaration) -> Unit) {
+        if (declaredBy != null) {
+            visitor(declaredBy)
+        }
+    }
+
     override fun visitChildren(visitor: (JvmExpression) -> Unit) {
         arguments.forEach(visitor)
     }

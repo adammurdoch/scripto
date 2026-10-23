@@ -152,6 +152,26 @@ class CGenerator {
             mapOperator(StandardLibrary.intEquality) { left, right -> CInfixOperator(left, "==", right) }
             mapOperator(StandardLibrary.intAddition) { left, right -> CInfixOperator(left, "+", right) }
             mapOperator(StandardLibrary.booleanEquality) { left, right -> CInfixOperator(left, "==", right) }
+
+            mapReceiver(StringFunctions.toString) { expression, functionMapper ->
+                toExpression(expression.receiver, functionMapper)
+            }
+            mapReceiver(FileFunctions.toString) { expression, functionMapper ->
+                val receiver = expression.receiver
+                fileToString(receiver, functionMapper)
+            }
+            mapReceiver(IntFunctions.toString) { expression, functionMapper ->
+                intToString(expression.receiver, functionMapper)
+            }
+            mapReceiver(BooleanFunctions.toString) { expression, functionMapper ->
+                booleanToString(expression.receiver, functionMapper)
+            }
+            mapReceiver(ListFunctions.toString) { expression, functionMapper ->
+                listToString(expression.receiver, functionMapper)
+            }
+            mapReceiver(FileFunctions.readText) { expression, functionMapper ->
+                CFunctionCall(FunctionSnippet.ReadText, listOf(toExpression(expression.receiver, functionMapper)))
+            }
         }
     }
 
@@ -170,26 +190,7 @@ class CGenerator {
             is BooleanLiteral -> if (expression.value) CTrue else CFalse
             is VariableReference -> CVariableReference(expression)
             is FunctionCallExpression -> functionMapper.map(expression)
-            is ReceiverFunctionCallExpression -> mapFunctionCall(expression, functionMapper)
-        }
-    }
-
-    private fun mapFunctionCall(expression: ReceiverFunctionCallExpression, functionMapper: FunctionMapper<CExpression>): CExpression {
-        return if (expression.target == StringFunctions.toString) {
-            toExpression(expression.receiver, functionMapper)
-        } else if (expression.target == FileFunctions.toString) {
-            val receiver = expression.receiver
-            fileToString(receiver, functionMapper)
-        } else if (expression.target == IntFunctions.toString) {
-            intToString(expression.receiver, functionMapper)
-        } else if (expression.target == BooleanFunctions.toString) {
-            booleanToString(expression.receiver, functionMapper)
-        } else if (expression.target == FileFunctions.readText) {
-            CFunctionCall(FunctionSnippet.ReadText, listOf(toExpression(expression.receiver, functionMapper)))
-        } else if (expression.target == ListFunctions.toString) {
-            listToString(expression.receiver, functionMapper)
-        } else {
-            throw IllegalArgumentException("Unknown ${expression.target.displayName} for ${expression.receiver.type}")
+            is ReceiverFunctionCallExpression -> functionMapper.map(expression)
         }
     }
 

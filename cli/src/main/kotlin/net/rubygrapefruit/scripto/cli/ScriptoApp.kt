@@ -43,8 +43,7 @@ class CompileAction : CliAction() {
         cCompiler.compile(cSourceFile, outputDir.file("app"))
 
         val jvmGenerator = JvmGenerator()
-        val classFile = outputDir.file("App.class")
-        jvmGenerator.generate(program, classFile)
+        jvmGenerator.generate(program, outputDir)
     }
 }
 

@@ -10,9 +10,11 @@ internal class JvmGeneratedMethod(
     val flags: MethodFlags,
     val operations: List<JvmOperation>
 ) : JvmDeclaration {
-    fun visitExpressions(visitor: (JvmExpression) -> Unit) {
+    override fun visitDeclarations(visitor: (JvmDeclaration) -> Unit) {
         for (operation in operations) {
-            operation.visitExpressions(visitor)
+            operation.visitExpressions { expression ->
+                expression.visitDeclarations(visitor)
+            }
         }
     }
 }
