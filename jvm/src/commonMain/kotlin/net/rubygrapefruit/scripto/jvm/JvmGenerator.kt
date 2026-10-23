@@ -67,7 +67,7 @@ class JvmGenerator {
                                 builder
                             )
                         ),
-                        VirtualMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString(", "))),
+                        JvmDiscard(VirtualMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString(", ")))),
                         JvmSetVariable("index", JvmIntAddition(index, JvmInt(1)))
                     )
                 ),
@@ -343,6 +343,11 @@ class JvmGenerator {
                         }
                     }
                 )
+            }
+
+            is JvmDiscard -> {
+                generate(operation.value, slots)
+                popStack()
             }
 
             is ReturnVoid -> returnVoid()

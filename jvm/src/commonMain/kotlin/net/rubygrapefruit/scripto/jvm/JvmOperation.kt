@@ -38,3 +38,9 @@ internal class JvmSetVariable(val name: String, val value: JvmExpression) : JvmO
         value.visitExpressions(visitor)
     }
 }
+
+internal class JvmDiscard(val value: JvmOperation) : JvmOperation {
+    override fun visitExpressions(visitor: (JvmExpression) -> Unit) {
+        value.visitExpressions(visitor)
+    }
+}

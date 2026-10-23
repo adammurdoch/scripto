@@ -159,17 +159,17 @@ internal sealed interface TypeDescriptor {
     }
 }
 
-internal data class MethodDescriptor(val descriptor: MethodDescriptorString, val parameters: List<TypeDescriptor>, val stackChange: Int) {
+internal data class MethodDescriptor(val descriptor: MethodDescriptorString, val returnType: TypeDescriptor?, val parameters: List<TypeDescriptor>) {
     companion object {
         fun ofVoid(vararg parameters: TypeDescriptor): MethodDescriptor {
-            return of(TypeDescriptorString("V"), parameters.size, parameters.toList())
+            return of(TypeDescriptorString("V"), null, parameters.toList())
         }
 
         fun of(returnType: TypeDescriptor, vararg parameters: TypeDescriptor): MethodDescriptor {
-            return of(returnType.descriptor, parameters.size - 1, parameters.toList())
+            return of(returnType.descriptor, returnType, parameters.toList())
         }
 
-        private fun of(returnDescriptor: TypeDescriptorString, stackChange: Int, parameters: List<TypeDescriptor>): MethodDescriptor {
+        private fun of(returnDescriptor: TypeDescriptorString, returnType: TypeDescriptor?, parameters: List<TypeDescriptor>): MethodDescriptor {
             val builder = StringBuilder()
             builder.append("(")
             for (descriptor in parameters) {
@@ -178,7 +178,7 @@ internal data class MethodDescriptor(val descriptor: MethodDescriptorString, val
             builder.append(")")
             builder.append(returnDescriptor.value)
             val descriptor = MethodDescriptorString(builder.toString())
-            return MethodDescriptor(descriptor, parameters, stackChange)
+            return MethodDescriptor(descriptor, returnType, parameters)
         }
     }
 }
@@ -314,6 +314,8 @@ internal interface CodeBuilder {
     fun checkCast(type: TypeDescriptor.ReferenceType)
 
     fun dup()
+
+    fun popStack()
 
     fun newArray(elementType: TypeDescriptor)
 
@@ -630,7 +632,7 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
         loadB()
 
         val startCheck = encoder.length
-        encoder.u1(0xa0) // if_icmpne
+        encoder.u1(0xa2) // if_icmpge
         val endTargetPos = encoder.length
         encoder.u2(0) // target false branch
         pop(2)
@@ -661,6 +663,11 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
     override fun dup() {
         encoder.u1(0x59) // dup
         push(stack.last())
+    }
+
+    override fun popStack() {
+        encoder.u1(0x57) // pop
+        pop()
     }
 
     override fun arrayLength() {
@@ -745,7 +752,6 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
                 encoder.u2(methodRef.index)
                 encoder.u1(descriptor.parameters.size + 1)
                 encoder.u1(0)
-                pop(descriptor.stackChange + 1)
             }
 
             is TypeDescriptor.ClassType -> {
@@ -753,9 +759,10 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
 
                 encoder.u1(0xb6) // invokevirtual
                 encoder.u2(methodRef.index)
-                pop(descriptor.stackChange + 1)
             }
         }
+
+        updateStack(descriptor)
     }
 
     override fun invokeStatic(owner: TypeDescriptor.ObjectType, name: String, descriptor: MethodDescriptor) {
@@ -766,7 +773,10 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
 
         encoder.u1(0xb8) // invokestatic
         encoder.u2(methodRef.index)
-        pop(descriptor.stackChange)
+        pop(descriptor.parameters.size)
+        if (descriptor.returnType != null) {
+            push(descriptor.returnType)
+        }
     }
 
     override fun invokeSpecial(owner: TypeDescriptor.ClassType, name: String, descriptor: MethodDescriptor) {
@@ -774,7 +784,14 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
 
         encoder.u1(0xb7) // invokespecial
         encoder.u2(methodRef.index)
-        pop(descriptor.stackChange + 1)
+        updateStack(descriptor)
+    }
+
+    private fun updateStack(descriptor: MethodDescriptor) {
+        pop(descriptor.parameters.size + 1)
+        if (descriptor.returnType != null) {
+            push(descriptor.returnType)
+        }
     }
 
     override fun new(type: TypeDescriptor.ClassType) {
