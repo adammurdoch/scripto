@@ -1,10 +1,12 @@
 package net.rubygrapefruit.scripto.jvm
 
+import net.rubygrapefruit.file.Directory
 import net.rubygrapefruit.file.RegularFile
 import net.rubygrapefruit.scripto.generator.FunctionMapper
 import net.rubygrapefruit.scripto.generator.OperationMapper
 import net.rubygrapefruit.scripto.ir.*
 
+@OptIn(ExperimentalStdlibApi::class)
 class JvmGenerator {
     private val integer = TypeDescriptor.ofClass("java.lang.Integer")
     private val boolean = TypeDescriptor.ofClass("java.lang.Boolean")
@@ -31,18 +33,15 @@ class JvmGenerator {
 
     private val systemOut = GetStaticField(system, "out", printStream)
 
-    private val thisClass = TypeDescriptor.ofClass("App")
+    private val stringAppender by lazy {
+        JvmGeneratedClass("StringAppender", TypeDescriptor.ofInterface("StringAppender"), ClassFlags.PackageProtected)
+    }
 
     private val append by lazy {
-        JvmGeneratedMethod("append", MethodDescriptor.ofVoid(TypeDescriptor.Object, stringBuilder), MethodFlags.Public, emptyList())
+        JvmGeneratedMethod(stringAppender, "append", MethodDescriptor.ofVoid(TypeDescriptor.Object, stringBuilder), MethodFlags.Public, emptyList())
     }
-    private val stringAppender by lazy {
-        JvmGeneratedClass(
-            TypeDescriptor.ofInterface("StringAppender"), ClassFlags.PackageProtected, listOf(
-                append
-            )
-        )
-    }
+
+    private val mainClass = JvmGeneratedClass("App", TypeDescriptor.ofClass("App"), ClassFlags.PublicFinal)
 
     private val listToString by lazy {
         val builder = JvmVariableReference("builder", TypeDescriptor.String)
@@ -52,19 +51,19 @@ class JvmGenerator {
         val appenderArg = JvmParameterReference(1, stringAppender.descriptor)
         val stringToStringBuilder = MethodDescriptor.of(stringBuilder, TypeDescriptor.String)
         JvmGeneratedMethod(
-            "\$listToString", MethodDescriptor.of(TypeDescriptor.String, objectArray, stringAppender.descriptor), MethodFlags.PrivateStatic, listOf(
+            mainClass, "\$listToString", MethodDescriptor.of(TypeDescriptor.String, objectArray, stringAppender.descriptor), MethodFlags.PrivateStatic, listOf(
                 JvmVariableDeclaration("length", TypeDescriptor.Int, JvmArrayLength(listArg)),
                 IfIntsEqual(length, JvmInt(0), listOf(ReturnValue(TypeDescriptor.String, JvmString("[]")))),
                 JvmVariableDeclaration("builder", stringBuilder, ConstructorCall(stringBuilder, voidMethod, emptyList())),
-                InstanceMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString("["))),
+                VirtualMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString("["))),
                 JvmVariableDeclaration("index", TypeDescriptor.Int, JvmInt(0)),
-                InstanceMethodCall(
-                    stringAppender.descriptor, "append", append.descriptor, appenderArg, listOf(
+                VirtualMethodCall(
+                    append, appenderArg, listOf(
                         JvmGetArrayElement(TypeDescriptor.Object, listArg, index),
                         builder
                     )
                 ),
-                InstanceMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString("]"))),
+                VirtualMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString("]"))),
                 ReturnValue(
                     TypeDescriptor.String,
                     VirtualMethodCall(stringBuilder, "toString", toStringMethod, builder, emptyList())
@@ -73,12 +72,7 @@ class JvmGenerator {
         )
     }
 
-    fun generate(program: Program, output: RegularFile): GeneratedClass {
-        ClassFileWriter().writeTo(thisClass, ClassFlags.PublicFinal, output) { generate(program) }
-        return GeneratedClass("App")
-    }
-
-    private fun ClassBuilder.generate(program: Program) {
+    fun generate(program: Program, output: Directory): GeneratedClass {
         val functionMapper = createFunctionMapper()
         val operationMapper = createOperationMapper(functionMapper)
 
@@ -88,29 +82,42 @@ class JvmGenerator {
 
         val stringArray = TypeDescriptor.String.arrayType()
 
-        val seen = mutableSetOf<JvmGeneratedMethod>()
+        val mainMethod = JvmGeneratedMethod(mainClass, "main", MethodDescriptor.ofVoid(stringArray), MethodFlags.PublicStatic, operations)
 
-        val mainMethod = JvmGeneratedMethod("main", MethodDescriptor.ofVoid(stringArray), MethodFlags.PublicStatic, operations)
-        mainMethod.visitExpressions { expression ->
-            expression.visitDeclarations { declaration ->
-                if (declaration is JvmGeneratedMethod && seen.add(declaration)) {
-                    generate(declaration)
+        val classes = mutableMapOf<JvmGeneratedClass, MutableList<JvmGeneratedMethod>>()
+        val seen = mutableSetOf<JvmGeneratedMethod>()
+        val queue = mutableListOf<JvmGeneratedMethod>()
+        queue.add(mainMethod)
+        while (queue.isNotEmpty()) {
+            val method = queue.removeFirst()
+            if (seen.add(method)) {
+                method.visitExpressions { expression ->
+                    expression.visitDeclarations { declaration ->
+                        if (declaration is JvmGeneratedMethod) {
+                            queue.add(declaration)
+                        }
+                    }
                 }
+                classes.getOrPutIfNull(method.owner) { mutableListOf() }.add(method)
             }
         }
 
-        generate(mainMethod)
+        val classFiles = classes.map { (generatedClass, methods) ->
+            generate(generatedClass, methods, output)
+        }
+
+        return GeneratedClass(mainClass.name, classFiles)
     }
 
     private fun createOperationMapper(functionMapper: FunctionMapper<JvmExpression>): OperationMapper<JvmOperation> {
         return OperationMapper.of {
             map(StandardLibrary.printlnNoArgs) {
-                InstanceMethodCall(printStream, "println", voidMethod, systemOut, emptyList())
+                VirtualMethodCall(printStream, "println", voidMethod, systemOut, emptyList())
             }
             map(StandardLibrary.printlnOneArg) { call ->
                 val call = StandardLibrary.convertPrintln(call)
                 val args = call.arguments.map { toExpression(it, functionMapper) }
-                InstanceMethodCall(printStream, "println", stringToVoidMethod, systemOut, args)
+                VirtualMethodCall(printStream, "println", stringToVoidMethod, systemOut, args)
             }
             map { declaration ->
                 val type = toTypeDescriptor(declaration.type)
@@ -185,9 +192,9 @@ class JvmGenerator {
             is Type.String -> StaticMethodCall(arrays, "toString", objectArrayToStringMethod, listOf(expression))
             is Type.Int -> StaticMethodCall(arrays, "toString", intArrayToStringMethod, listOf(expression))
             is Type.Boolean -> StaticMethodCall(arrays, "toString", booleanArrayToStringMethod, listOf(expression))
-            is Type.List -> StaticMethodCall(thisClass, listToString.name, listToString.descriptor, listOf(expression, JvmNull), listToString)
-            is Type.Any -> StaticMethodCall(thisClass, listToString.name, listToString.descriptor, listOf(expression, JvmNull), listToString)
-            is Type.File -> StaticMethodCall(thisClass, listToString.name, listToString.descriptor, listOf(expression, JvmNull), listToString)
+            is Type.List -> StaticMethodCall(listToString, listOf(expression, JvmNull))
+            is Type.Any -> StaticMethodCall(listToString, listOf(expression, JvmNull))
+            is Type.File -> StaticMethodCall(listToString, listOf(expression, JvmNull))
         }
     }
 
@@ -237,6 +244,21 @@ class JvmGenerator {
         return VirtualMethodCall(TypeDescriptor.String, "concat", stringToStringMethod, left, listOf(right))
     }
 
+    private fun generate(generatedClass: JvmGeneratedClass, methods: List<JvmGeneratedMethod>, output: Directory): RegularFile {
+        println("-> GENERATE ${generatedClass.name}")
+        for (method in methods) {
+            println("  ${method.name}() ${method.descriptor.descriptor.value}")
+        }
+
+        val classFile = output.file("${generatedClass.name}.class")
+        ClassFileWriter().writeTo(generatedClass.descriptor, generatedClass.flags, classFile) {
+            for (method in methods) {
+                generate(method)
+            }
+        }
+        return classFile
+    }
+
     private fun ClassBuilder.generate(method: JvmGeneratedMethod) {
         method(method.name, method.descriptor, method.flags) {
             val slots = mutableMapOf<String, LocalVariable>()
@@ -255,7 +277,7 @@ class JvmGenerator {
                 storeLocal(slots.getValue(operation.name))
             }
 
-            is InstanceMethodCall -> callMethod(operation, slots)
+            is VirtualMethodCall -> callMethod(operation, slots)
             is IfIntsEqual -> {
                 push(operation.left, slots)
                 push(operation.right, slots)
@@ -274,7 +296,7 @@ class JvmGenerator {
         }
     }
 
-    private fun CodeBuilder.callMethod(methodCall: InstanceMethodCall, slots: Map<String, LocalVariable>) {
+    private fun CodeBuilder.callMethod(methodCall: VirtualMethodCall, slots: Map<String, LocalVariable>) {
         push(methodCall.receiver, slots)
         for (expression in methodCall.arguments) {
             push(expression, slots)
@@ -339,20 +361,20 @@ class JvmGenerator {
             }
 
             is StaticMethodCall -> {
-                expression.args.forEach { push(it, slots) }
+                expression.arguments.forEach { push(it, slots) }
                 invokeStatic(expression.owner, expression.name, expression.descriptor)
             }
 
             is VirtualMethodCall -> {
                 push(expression.receiver, slots)
-                expression.args.forEach { push(it, slots) }
+                expression.arguments.forEach { push(it, slots) }
                 invokeVirtual(expression.owner, expression.name, expression.descriptor)
             }
 
             is ConstructorCall -> {
                 new(expression.type)
                 dup()
-                expression.args.forEach { push(it, slots) }
+                expression.arguments.forEach { push(it, slots) }
                 invokeSpecial(expression.type, "<init>", expression.descriptor)
             }
 

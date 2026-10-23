@@ -1,3 +1,5 @@
 package net.rubygrapefruit.scripto.jvm
 
-class GeneratedClass(val name: String)
+import net.rubygrapefruit.file.RegularFile
+
+class GeneratedClass(val name: String, val classFiles: List<RegularFile>)

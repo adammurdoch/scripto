@@ -58,9 +58,9 @@ internal class JvmIntEquality(val left: JvmExpression, val right: JvmExpression)
     }
 }
 
-internal class ConstructorCall(val type: TypeDescriptor.ObjectType, val descriptor: MethodDescriptor, val args: List<JvmExpression>) : JvmCompositeExpression() {
+internal class ConstructorCall(val type: TypeDescriptor.ObjectType, val descriptor: MethodDescriptor, val arguments: List<JvmExpression>) : JvmCompositeExpression() {
     override fun visitChildren(visitor: (JvmExpression) -> Unit) {
-        args.forEach(visitor)
+        arguments.forEach(visitor)
     }
 }
 
@@ -68,9 +68,11 @@ internal class StaticMethodCall(
     val owner: TypeDescriptor.ObjectType,
     val name: String,
     val descriptor: MethodDescriptor,
-    val args: List<JvmExpression>,
+    val arguments: List<JvmExpression>,
     val declaredBy: JvmDeclaration? = null
 ) : JvmCompositeExpression() {
+    constructor(method: JvmGeneratedMethod, args: List<JvmExpression>) : this(method.owner.descriptor, method.name, method.descriptor, args, method)
+
     override fun visitDeclarations(visitor: (JvmDeclaration) -> Unit) {
         if (declaredBy != null) {
             visitor(declaredBy)
@@ -78,7 +80,7 @@ internal class StaticMethodCall(
     }
 
     override fun visitChildren(visitor: (JvmExpression) -> Unit) {
-        args.forEach(visitor)
+        arguments.forEach(visitor)
     }
 }
 
@@ -87,10 +89,26 @@ internal class VirtualMethodCall(
     val name: String,
     val descriptor: MethodDescriptor,
     val receiver: JvmExpression,
-    val args: List<JvmExpression>
-) : JvmCompositeExpression() {
+    val arguments: List<JvmExpression>
+) : JvmCompositeExpression(), JvmOperation {
+    constructor(method: JvmGeneratedMethod, receiver: JvmExpression, arguments: List<JvmExpression>) : this(
+        method.owner.descriptor,
+        method.name,
+        method.descriptor,
+        receiver,
+        arguments
+    )
+
+    override fun visitExpressions(visitor: (JvmExpression) -> Unit) {
+        receiver.visitExpressions(visitor)
+        for (argument in arguments) {
+            argument.visitExpressions(visitor)
+        }
+    }
+
     override fun visitChildren(visitor: (JvmExpression) -> Unit) {
-        args.forEach(visitor)
+        visitor(receiver)
+        arguments.forEach(visitor)
     }
 }
 
