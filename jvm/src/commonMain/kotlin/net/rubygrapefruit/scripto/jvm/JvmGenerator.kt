@@ -5,15 +5,23 @@ import net.rubygrapefruit.scripto.generator.FunctionMapper
 import net.rubygrapefruit.scripto.generator.OperationMapper
 import net.rubygrapefruit.scripto.ir.*
 
+private val boolean = TypeDescriptor.ofClass("java.lang.Boolean")
+private val integer = TypeDescriptor.ofClass("java.lang.Integer")
+private val arrays = TypeDescriptor.ofClass("java.util.Arrays")
+private val objectArray = TypeDescriptor.Object.arrayType()
+private val intArray = TypeDescriptor.Int.arrayType()
+
+private val intToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.Int)
+private val boolToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.Boolean)
+private val stringToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.String)
+private val objectArrayToStringMethod = MethodDescriptor.of(TypeDescriptor.String, objectArray)
+private val intArrayToStringMethod = MethodDescriptor.of(TypeDescriptor.String, intArray)
+private val booleanArrayToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.Boolean.arrayType())
+
 @OptIn(ExperimentalStdlibApi::class)
 class JvmGenerator {
-    private val integer = TypeDescriptor.ofClass("java.lang.Integer")
-    private val boolean = TypeDescriptor.ofClass("java.lang.Boolean")
     private val files = TypeDescriptor.ofClass("java.nio.file.Files")
     private val path = TypeDescriptor.ofInterface("java.nio.file.Path")
-    private val arrays = TypeDescriptor.ofClass("java.util.Arrays")
-    private val objectArray = TypeDescriptor.Object.arrayType()
-    private val intArray = TypeDescriptor.Int.arrayType()
     private val stringArray = TypeDescriptor.String.arrayType()
     private val printStream = TypeDescriptor.ofClass("java.io.PrintStream")
     private val system = TypeDescriptor.ofClass("java.lang.System")
@@ -22,17 +30,11 @@ class JvmGenerator {
     private val voidMethod = MethodDescriptor.ofVoid()
     private val toStringMethod = MethodDescriptor.of(TypeDescriptor.String)
     private val stringToVoidMethod = MethodDescriptor.ofVoid(TypeDescriptor.String)
-    private val stringToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.String)
     private val stringToStringBuilder = MethodDescriptor.of(stringBuilder, TypeDescriptor.String)
 
     private val stringToPathMethod = MethodDescriptor.of(path, TypeDescriptor.String, stringArray)
-    private val intToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.Int)
-    private val boolToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.Boolean)
     private val objectToBoolMethod = MethodDescriptor.of(TypeDescriptor.Boolean, TypeDescriptor.Object)
     private val pathToStringMethod = MethodDescriptor.of(TypeDescriptor.String, path)
-    private val objectArrayToStringMethod = MethodDescriptor.of(TypeDescriptor.String, objectArray)
-    private val intArrayToStringMethod = MethodDescriptor.of(TypeDescriptor.String, intArray)
-    private val booleanArrayToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.Boolean.arrayType())
 
     private val systemOut = GetStaticField(system, "out", printStream)
 
@@ -150,8 +152,8 @@ class JvmGenerator {
             }
             map(StandardLibrary.listConstructor) { expression, target, functionMapper ->
                 val args = expression.args.map { toExpression(it, functionMapper) }
-                val elementType = target.argument
-                NewArray(toTypeDescriptor(elementType), args)
+                val elementType = toTypeDescriptor(target.argument)
+                NewArray(elementType, args)
             }
             mapOperator(StandardLibrary.stringConcatenation) { left, right ->
                 concatString(left, right)
@@ -190,24 +192,11 @@ class JvmGenerator {
         }
     }
 
-    private fun fileToString(jvmExpression: JvmExpression): JvmExpression {
-        val strValue = VirtualMethodCall(TypeDescriptor.Object, "toString", MethodDescriptor.of(TypeDescriptor.String), jvmExpression, emptyList())
-        return concatString(JvmString("File("), concatString(strValue, JvmString(")")))
-    }
-
-    private fun intToString(expression: JvmExpression): JvmExpression {
-        return StaticMethodCall(integer, "toString", intToStringMethod, listOf(expression))
-    }
-
-    private fun booleanToString(expression: JvmExpression): JvmExpression {
-        return StaticMethodCall(boolean, "toString", boolToStringMethod, listOf(expression))
-    }
-
     private fun listToString(elementType: Type, expression: JvmExpression): JvmExpression {
         return when (elementType) {
-            is Type.String -> stringListToString(expression)
-            is Type.Int -> intListToString(expression)
-            is Type.Boolean -> StaticMethodCall(arrays, "toString", booleanArrayToStringMethod, listOf(expression))
+            is Type.String -> EncodedType.StringList.toString(expression)
+            is Type.Int -> EncodedType.IntList.toString(expression)
+            is Type.Boolean -> EncodedType.BooleanList.toString(expression)
             is Type.List -> {
                 val collector = when (elementType.param) {
                     is Type.Int -> intListStringCollector
@@ -219,14 +208,6 @@ class JvmGenerator {
             is Type.Any -> StaticMethodCall(listToString, listOf(expression, JvmNull))
             is Type.File -> StaticMethodCall(listToString, listOf(expression, JvmNull))
         }
-    }
-
-    private fun intListToString(expression: JvmExpression): JvmExpression {
-        return StaticMethodCall(arrays, "toString", intArrayToStringMethod, listOf(expression))
-    }
-
-    private fun stringListToString(expression: JvmExpression): JvmExpression {
-        return StaticMethodCall(arrays, "toString", objectArrayToStringMethod, listOf(expression))
     }
 
     /**
@@ -242,7 +223,7 @@ class JvmGenerator {
         )
         val collectMethod = JvmGeneratedMethod(
             collector, collectValue.name, collectValue.descriptor, MethodVisibility.Public, false, listOf(
-                appendToStringBuilder(JvmParameterReference(2, stringBuilder), intListToString(JvmCast(intArray, JvmParameterReference(1, TypeDescriptor.Object)))),
+                appendToStringBuilder(JvmParameterReference(2, stringBuilder), EncodedType.IntList.toString(JvmCast(intArray, JvmParameterReference(1, TypeDescriptor.Object)))),
                 ReturnVoid
             )
         )
@@ -262,7 +243,10 @@ class JvmGenerator {
         )
         val collectMethod = JvmGeneratedMethod(
             collector, collectValue.name, collectValue.descriptor, MethodVisibility.Public, false, listOf(
-                appendToStringBuilder(JvmParameterReference(2, stringBuilder), stringListToString(JvmCast(stringArray, JvmParameterReference(1, TypeDescriptor.Object)))),
+                appendToStringBuilder(
+                    JvmParameterReference(2, stringBuilder),
+                    EncodedType.StringList.toString(JvmCast(stringArray, JvmParameterReference(1, TypeDescriptor.Object)))
+                ),
                 ReturnVoid
             )
         )
@@ -282,13 +266,13 @@ class JvmGenerator {
 
     private fun mapFunctionCall(expression: ReceiverFunctionCallExpression, functionMapper: FunctionMapper<JvmExpression>): JvmExpression {
         return when (expression.target) {
-            StringFunctions.toString -> toExpression(expression.receiver, functionMapper)
+            StringFunctions.toString -> EncodedType.String.toString(toExpression(expression.receiver, functionMapper))
 
             IntFunctions.toString -> {
                 val receiver = expression.receiver
                 when (receiver) {
                     is IntLiteral -> JvmString(receiver.value.toString())
-                    else -> intToString(toExpression(receiver, functionMapper))
+                    else -> EncodedType.Int.toString(toExpression(receiver, functionMapper))
                 }
             }
 
@@ -296,13 +280,13 @@ class JvmGenerator {
                 val receiver = expression.receiver
                 when (receiver) {
                     is BooleanLiteral -> JvmString(receiver.value.toString())
-                    else -> booleanToString(toExpression(receiver, functionMapper))
+                    else -> EncodedType.Boolean.toString(toExpression(receiver, functionMapper))
                 }
             }
 
             ListFunctions.toString -> listToString((expression.receiver.type as Type.List).param, toExpression(expression.receiver, functionMapper))
 
-            FileFunctions.toString -> fileToString(toExpression(expression.receiver, functionMapper))
+            FileFunctions.toString -> EncodedType.File.toString(toExpression(expression.receiver, functionMapper))
             FileFunctions.readText -> {
                 StaticMethodCall(files, "readString", pathToStringMethod, listOf(toExpression(expression.receiver, functionMapper)))
             }
@@ -311,7 +295,54 @@ class JvmGenerator {
         }
     }
 
-    private fun concatString(left: JvmExpression, right: JvmExpression): JvmExpression {
-        return VirtualMethodCall(TypeDescriptor.String, "concat", stringToStringMethod, left, listOf(right))
+    private sealed class EncodedType {
+        abstract fun toString(receiver: JvmExpression): JvmExpression
+
+        object String : EncodedType() {
+            override fun toString(receiver: JvmExpression): JvmExpression {
+                return receiver
+            }
+        }
+
+        object StringList : EncodedType() {
+            override fun toString(receiver: JvmExpression): JvmExpression {
+                return StaticMethodCall(arrays, "toString", objectArrayToStringMethod, listOf(receiver))
+            }
+        }
+
+        object Int : EncodedType() {
+            override fun toString(receiver: JvmExpression): JvmExpression {
+                return StaticMethodCall(integer, "toString", intToStringMethod, listOf(receiver))
+            }
+        }
+
+        object IntList : EncodedType() {
+            override fun toString(receiver: JvmExpression): JvmExpression {
+                return StaticMethodCall(arrays, "toString", intArrayToStringMethod, listOf(receiver))
+            }
+        }
+
+        object Boolean : EncodedType() {
+            override fun toString(receiver: JvmExpression): JvmExpression {
+                return StaticMethodCall(boolean, "toString", boolToStringMethod, listOf(receiver))
+            }
+        }
+
+        object BooleanList : EncodedType() {
+            override fun toString(receiver: JvmExpression): JvmExpression {
+                return StaticMethodCall(arrays, "toString", booleanArrayToStringMethod, listOf(receiver))
+            }
+        }
+
+        object File : EncodedType() {
+            override fun toString(receiver: JvmExpression): JvmExpression {
+                val strValue = VirtualMethodCall(TypeDescriptor.Object, "toString", MethodDescriptor.of(TypeDescriptor.String), receiver, emptyList())
+                return concatString(JvmString("File("), concatString(strValue, JvmString(")")))
+            }
+        }
     }
+}
+
+private fun concatString(left: JvmExpression, right: JvmExpression): JvmExpression {
+    return VirtualMethodCall(TypeDescriptor.String, "concat", stringToStringMethod, left, listOf(right))
 }
