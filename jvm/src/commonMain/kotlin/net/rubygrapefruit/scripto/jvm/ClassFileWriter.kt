@@ -4,7 +4,7 @@ import net.rubygrapefruit.file.RegularFile
 import kotlin.jvm.JvmInline
 
 internal class ClassFileWriter {
-    fun write(type: TypeDescriptor.ObjectType, flags: ClassFlags, interfaces: List<TypeDescriptor.ObjectType>, builder: ClassBuilder.() -> Unit): ByteArray {
+    fun write(type: TypeDescriptor.ObjectType, flags: ClassFlags, interfaces: List<TypeDescriptor.InterfaceType>, builder: ClassBuilder.() -> Unit): ByteArray {
         val constantPool = ConstantPool()
 
         val thisType = constantPool.addClassInfo(type)
@@ -28,7 +28,7 @@ internal class ClassFileWriter {
         constantPool.appendTo(encoder)
 
         // flags
-        if (type.isInterface) {
+        if (type is TypeDescriptor.InterfaceType) {
             encoder.u2(flags.flags.or(0x600)) // interface and abstract flags
         } else {
             encoder.u2(flags.flags)
@@ -59,7 +59,13 @@ internal class ClassFileWriter {
         return encoder.toByteArray()
     }
 
-    fun writeTo(classDescriptor: TypeDescriptor.ObjectType, flags: ClassFlags, interfaces: List<TypeDescriptor.ObjectType>, output: RegularFile, builder: ClassBuilder.() -> Unit) {
+    fun writeTo(
+        classDescriptor: TypeDescriptor.ObjectType,
+        flags: ClassFlags,
+        interfaces: List<TypeDescriptor.InterfaceType>,
+        output: RegularFile,
+        builder: ClassBuilder.() -> Unit
+    ) {
         val bytecode = write(classDescriptor, flags, interfaces, builder)
         output.writeBytes(bytecode)
     }
@@ -76,8 +82,9 @@ internal sealed interface TypeDescriptor {
         val binaryName: BinaryName
     }
 
-    class ObjectType(override val binaryName: BinaryName, override val descriptor: TypeDescriptorString, val isInterface: kotlin.Boolean) : ReferenceType {
+    sealed interface ObjectType : ReferenceType
 
+    class ClassType(override val binaryName: BinaryName, override val descriptor: TypeDescriptorString) : ObjectType {
         override fun hashCode(): kotlin.Int {
             return descriptor.hashCode()
         }
@@ -85,7 +92,23 @@ internal sealed interface TypeDescriptor {
         override fun equals(other: Any?): kotlin.Boolean {
             return if (other === this) {
                 true
-            } else if (other == null || other !is ObjectType) {
+            } else if (other == null || other !is ClassType) {
+                false
+            } else {
+                binaryName == other.binaryName
+            }
+        }
+    }
+
+    class InterfaceType(override val binaryName: BinaryName, override val descriptor: TypeDescriptorString) : ObjectType {
+        override fun hashCode(): kotlin.Int {
+            return descriptor.hashCode()
+        }
+
+        override fun equals(other: Any?): kotlin.Boolean {
+            return if (other === this) {
+                true
+            } else if (other == null || other !is InterfaceType) {
                 false
             } else {
                 binaryName == other.binaryName
@@ -123,17 +146,14 @@ internal sealed interface TypeDescriptor {
         val Object = ofClass("java.lang.Object")
         val String = ofClass("java.lang.String")
 
-        fun ofClass(className: String): ObjectType {
-            return of(className, false)
-        }
-
-        fun ofInterface(className: String): ObjectType {
-            return of(className, true)
-        }
-
-        private fun of(className: String, isInterface: kotlin.Boolean): ObjectType {
+        fun ofClass(className: String): ClassType {
             val binaryName = BinaryName(className.replace('.', '/'))
-            return ObjectType(binaryName, TypeDescriptorString("L${binaryName.name};"), isInterface)
+            return ClassType(binaryName, TypeDescriptorString("L${binaryName.name};"))
+        }
+
+        fun ofInterface(className: String): InterfaceType {
+            val binaryName = BinaryName(className.replace('.', '/'))
+            return InterfaceType(binaryName, TypeDescriptorString("L${binaryName.name};"))
         }
     }
 }
@@ -305,7 +325,7 @@ internal interface CodeBuilder {
 
     fun newArray(elementType: TypeDescriptor)
 
-    fun arrayLoad(elementType: TypeDescriptor.ObjectType)
+    fun arrayLoad(elementType: TypeDescriptor)
 
     fun arrayStore(elementType: TypeDescriptor)
 
@@ -323,13 +343,13 @@ internal interface CodeBuilder {
 
     fun getStaticField(owner: TypeDescriptor.ObjectType, name: String, type: TypeDescriptor)
 
-    fun invokeVirtual(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor)
+    fun invokeVirtual(owner: TypeDescriptor.ObjectType, name: String, descriptor: MethodDescriptor)
 
-    fun invokeStatic(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor)
+    fun invokeStatic(owner: TypeDescriptor.ObjectType, name: String, descriptor: MethodDescriptor)
 
-    fun invokeSpecial(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor)
+    fun invokeSpecial(owner: TypeDescriptor.ClassType, name: String, descriptor: MethodDescriptor)
 
-    fun new(type: TypeDescriptor.ObjectType)
+    fun new(type: TypeDescriptor.ClassType)
 }
 
 private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, private val constantPool: ConstantPool) : CodeBuilder {
@@ -640,8 +660,21 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
         push(elementType.arrayType())
     }
 
-    override fun arrayLoad(elementType: TypeDescriptor.ObjectType) {
-        encoder.u1(0x32) // aaload
+    override fun arrayLoad(elementType: TypeDescriptor) {
+        when (elementType) {
+            is TypeDescriptor.Int -> {
+                encoder.u1(0x2e) // iaload
+            }
+
+            is TypeDescriptor.Boolean -> {
+                encoder.u1(0x33) // baload
+            }
+
+            is TypeDescriptor.ReferenceType -> {
+                encoder.u1(0x32) // aaload
+            }
+        }
+
         pop(2)
         push(elementType)
     }
@@ -670,45 +703,48 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
         push(type)
     }
 
-    override fun invokeVirtual(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor) {
-        if (owner.isInterface) {
-            val methodRef = constantPool.addInterfaceMethodRef(owner, name, type)
+    override fun invokeVirtual(owner: TypeDescriptor.ObjectType, name: String, descriptor: MethodDescriptor) {
+        when (owner) {
+            is TypeDescriptor.InterfaceType -> {
+                val methodRef = constantPool.addInterfaceMethodRef(owner, name, descriptor)
 
-            encoder.u1(0xb9) // invokeinterface
-            encoder.u2(methodRef.index)
-            encoder.u1(type.parameters.size + 1)
-            encoder.u1(0)
-            pop(type.stackChange + 1)
-        } else {
-            val methodRef = constantPool.addMethodRef(owner, name, type)
+                encoder.u1(0xb9) // invokeinterface
+                encoder.u2(methodRef.index)
+                encoder.u1(descriptor.parameters.size + 1)
+                encoder.u1(0)
+                pop(descriptor.stackChange + 1)
+            }
 
-            encoder.u1(0xb6) // invokevirtual
-            encoder.u2(methodRef.index)
-            pop(type.stackChange + 1)
+            is TypeDescriptor.ClassType -> {
+                val methodRef = constantPool.addMethodRef(owner, name, descriptor)
+
+                encoder.u1(0xb6) // invokevirtual
+                encoder.u2(methodRef.index)
+                pop(descriptor.stackChange + 1)
+            }
         }
     }
 
-    override fun invokeStatic(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor) {
-        val methodRef = if (owner.isInterface) {
-            constantPool.addInterfaceMethodRef(owner, name, type)
-        } else {
-            constantPool.addMethodRef(owner, name, type)
+    override fun invokeStatic(owner: TypeDescriptor.ObjectType, name: String, descriptor: MethodDescriptor) {
+        val methodRef = when (owner) {
+            is TypeDescriptor.InterfaceType -> constantPool.addInterfaceMethodRef(owner, name, descriptor)
+            is TypeDescriptor.ClassType -> constantPool.addMethodRef(owner, name, descriptor)
         }
 
         encoder.u1(0xb8) // invokestatic
         encoder.u2(methodRef.index)
-        pop(type.stackChange)
+        pop(descriptor.stackChange)
     }
 
-    override fun invokeSpecial(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor) {
-        val methodRef = constantPool.addMethodRef(owner, name, type)
+    override fun invokeSpecial(owner: TypeDescriptor.ClassType, name: String, descriptor: MethodDescriptor) {
+        val methodRef = constantPool.addMethodRef(owner, name, descriptor)
 
         encoder.u1(0xb7) // invokespecial
         encoder.u2(methodRef.index)
-        pop(type.stackChange + 1)
+        pop(descriptor.stackChange + 1)
     }
 
-    override fun new(type: TypeDescriptor.ObjectType) {
+    override fun new(type: TypeDescriptor.ClassType) {
         val classInfo = constantPool.addClassInfo(type)
 
         encoder.u1(0xbb)
@@ -913,7 +949,7 @@ private class ConstantPool {
         }
     }
 
-    fun addMethodRef(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor): Entry.MethodRef {
+    fun addMethodRef(owner: TypeDescriptor.ClassType, name: String, type: MethodDescriptor): Entry.MethodRef {
         val ref = MethodRef(owner.descriptor, name, type.descriptor)
         val current = methods[ref]
         return if (current != null) {
@@ -928,7 +964,7 @@ private class ConstantPool {
         }
     }
 
-    fun addInterfaceMethodRef(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor): Entry.InterfaceMethodRef {
+    fun addInterfaceMethodRef(owner: TypeDescriptor.InterfaceType, name: String, type: MethodDescriptor): Entry.InterfaceMethodRef {
         val ownerInfo = addClassInfo(owner)
         val nameAndType = addNameAndType(name, type.descriptor.value)
         val entry = Entry.InterfaceMethodRef(ownerInfo, nameAndType, nextIndex())

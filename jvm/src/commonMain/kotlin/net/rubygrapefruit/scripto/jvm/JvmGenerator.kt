@@ -221,7 +221,7 @@ class JvmGenerator {
                 ReturnVoid
             )
         )
-        return ConstructorCall(stringListCollector.descriptor, voidMethod, emptyList(), collectMethod)
+        return ConstructorCall(stringListCollector.descriptor as TypeDescriptor.ClassType, voidMethod, emptyList(), collectMethod)
     }
 
     private fun toExpression(expression: Expression, functionMapper: FunctionMapper<JvmExpression>): JvmExpression {
@@ -272,8 +272,8 @@ class JvmGenerator {
 
     private fun generate(generatedClass: JvmGeneratedClass, methods: List<JvmGeneratedMethod>, output: Directory): RegularFile {
         val classFile = output.file("${generatedClass.name}.class")
-        val needsConstructor = !generatedClass.descriptor.isInterface && methods.any { !it.flags.isStatic }
-        val interfaces = generatedClass.interfaces.map { it.descriptor }
+        val needsConstructor = generatedClass.descriptor is TypeDescriptor.ClassType && methods.any { !it.flags.isStatic }
+        val interfaces = generatedClass.interfaces.map { it.descriptor as TypeDescriptor.InterfaceType }
 
         ClassFileWriter().writeTo(generatedClass.descriptor, generatedClass.flags, interfaces, classFile) {
             if (needsConstructor) {

@@ -32,7 +32,7 @@ internal class JvmCast(val type: TypeDescriptor.ReferenceType, val value: JvmExp
     }
 }
 
-internal class GetStaticField(val owner: TypeDescriptor.ObjectType, val name: String, val type: TypeDescriptor) : JvmExpression
+internal class GetStaticField(val owner: TypeDescriptor.ClassType, val name: String, val type: TypeDescriptor) : JvmExpression
 
 internal sealed class JvmCompositeExpression : JvmExpression {
     override fun visitExpressions(visitor: (JvmExpression) -> Unit) {
@@ -67,7 +67,7 @@ internal class JvmIntEquality(val left: JvmExpression, val right: JvmExpression)
 }
 
 internal class ConstructorCall(
-    val type: TypeDescriptor.ObjectType,
+    val type: TypeDescriptor.ClassType,
     val descriptor: MethodDescriptor,
     val arguments: List<JvmExpression>,
     val declaredBy: JvmDeclaration? = null
@@ -145,7 +145,7 @@ internal class JvmArrayLength(val value: JvmExpression) : JvmCompositeExpression
     }
 }
 
-internal class JvmGetArrayElement(val elementType: TypeDescriptor.ObjectType, val value: JvmExpression, val index: JvmExpression) : JvmCompositeExpression() {
+internal class JvmGetArrayElement(val elementType: TypeDescriptor.ClassType, val value: JvmExpression, val index: JvmExpression) : JvmCompositeExpression() {
     override fun visitChildren(visitor: (JvmExpression) -> Unit) {
         visitor(value)
         visitor(index)
