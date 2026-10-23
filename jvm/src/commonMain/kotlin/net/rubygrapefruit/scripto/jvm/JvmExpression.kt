@@ -52,13 +52,6 @@ internal class JvmIntAddition(val left: JvmExpression, val right: JvmExpression)
     }
 }
 
-internal class JvmStringEquality(val left: JvmExpression, val right: JvmExpression) : JvmCompositeExpression() {
-    override fun visitChildren(visitor: (JvmExpression) -> Unit) {
-        visitor(left)
-        visitor(right)
-    }
-}
-
 internal class JvmIntEquality(val left: JvmExpression, val right: JvmExpression) : JvmCompositeExpression() {
     override fun visitChildren(visitor: (JvmExpression) -> Unit) {
         visitor(left)
