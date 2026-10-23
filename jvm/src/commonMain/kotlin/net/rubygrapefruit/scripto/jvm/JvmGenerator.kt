@@ -37,14 +37,14 @@ class JvmGenerator {
     private val systemOut = GetStaticField(system, "out", printStream)
 
     private val stringCollector by lazy {
-        JvmGeneratedClass("StringCollector", TypeDescriptor.ofInterface("StringCollector"), ClassFlags.PackageProtected)
+        JvmGeneratedInterface("StringCollector", TypeDescriptor.ofInterface("StringCollector"), ClassVisibility.PackageProtected)
     }
 
     private val collectValue by lazy {
-        JvmGeneratedMethod(stringCollector, "collect", MethodDescriptor.ofVoid(TypeDescriptor.Object, stringBuilder), MethodFlags.Public, emptyList())
+        JvmGeneratedMethod(stringCollector, "collect", MethodDescriptor.ofVoid(TypeDescriptor.Object, stringBuilder), MethodVisibility.Public, false, emptyList())
     }
 
-    private val mainClass = JvmGeneratedClass("App", TypeDescriptor.ofClass("App"), ClassFlags.PublicFinal)
+    private val mainClass = JvmGeneratedClass("App", TypeDescriptor.ofClass("App"), ClassVisibility.Public, true)
 
     private val listToString by lazy {
         val builder = JvmVariableReference("builder", TypeDescriptor.String)
@@ -53,7 +53,7 @@ class JvmGenerator {
         val listArg = JvmParameterReference(0, objectArray)
         val collectorArg = JvmParameterReference(1, stringCollector.descriptor)
         JvmGeneratedMethod(
-            mainClass, "\$listToString", MethodDescriptor.of(TypeDescriptor.String, objectArray, stringCollector.descriptor), MethodFlags.PrivateStatic, listOf(
+            mainClass, "\$listToString", MethodDescriptor.of(TypeDescriptor.String, objectArray, stringCollector.descriptor), MethodVisibility.Private, true, listOf(
                 JvmVariableDeclaration("length", TypeDescriptor.Int, JvmArrayLength(listArg)),
                 IfIntsEqual(length, JvmInt(0), listOf(ReturnValue(TypeDescriptor.String, JvmString("[]")))),
                 JvmVariableDeclaration("builder", stringBuilder, ConstructorCall(stringBuilder, voidMethod, emptyList())),
@@ -84,9 +84,9 @@ class JvmGenerator {
 
         val stringArray = stringArray
 
-        val mainMethod = JvmGeneratedMethod(mainClass, "main", MethodDescriptor.ofVoid(stringArray), MethodFlags.PublicStatic, operations)
+        val mainMethod = JvmGeneratedMethod(mainClass, "main", MethodDescriptor.ofVoid(stringArray), MethodVisibility.Public, true, operations)
 
-        val classes = mutableMapOf<JvmGeneratedClass, MutableList<JvmGeneratedMethod>>()
+        val classes = mutableMapOf<JvmGeneratedType, MutableList<JvmGeneratedMethod>>()
         val seen = mutableSetOf<JvmDeclaration>()
         val queue = mutableListOf<JvmDeclaration>()
         queue.add(mainMethod)
@@ -208,11 +208,12 @@ class JvmGenerator {
         val stringListCollector = JvmGeneratedClass(
             "StringStringCollector",
             TypeDescriptor.ofClass("StringStringCollector"),
-            ClassFlags.PackageProtected,
+            ClassVisibility.PackageProtected,
+            true,
             listOf(stringCollector)
         )
         val collectMethod = JvmGeneratedMethod(
-            stringListCollector, collectValue.name, collectValue.descriptor, collectValue.flags, listOf(
+            stringListCollector, collectValue.name, collectValue.descriptor, MethodVisibility.Public, false, listOf(
                 VirtualMethodCall(
                     stringBuilder, "append", stringToStringBuilder, JvmParameterReference(2, stringBuilder), listOf(
                         stringListToString(JvmCast(stringArray, JvmParameterReference(1, TypeDescriptor.Object)))
@@ -221,7 +222,7 @@ class JvmGenerator {
                 ReturnVoid
             )
         )
-        return ConstructorCall(stringListCollector.descriptor as TypeDescriptor.ClassType, voidMethod, emptyList(), collectMethod)
+        return ConstructorCall(stringListCollector.descriptor, voidMethod, emptyList(), collectMethod)
     }
 
     private fun toExpression(expression: Expression, functionMapper: FunctionMapper<JvmExpression>): JvmExpression {
@@ -270,14 +271,15 @@ class JvmGenerator {
         return VirtualMethodCall(TypeDescriptor.String, "concat", stringToStringMethod, left, listOf(right))
     }
 
-    private fun generate(generatedClass: JvmGeneratedClass, methods: List<JvmGeneratedMethod>, output: Directory): RegularFile {
-        val classFile = output.file("${generatedClass.name}.class")
-        val needsConstructor = generatedClass.descriptor is TypeDescriptor.ClassType && methods.any { !it.flags.isStatic }
-        val interfaces = generatedClass.interfaces.map { it.descriptor as TypeDescriptor.InterfaceType }
+    private fun generate(type: JvmGeneratedType, methods: List<JvmGeneratedMethod>, output: Directory): RegularFile {
+        val classFile = output.file("${type.name}.class")
+        val needsConstructor = type is JvmGeneratedClass && methods.any { !it.isStatic }
+        val isFinal = type is JvmGeneratedClass && type.isFinal
+        val interfaces = type.interfaces.map { it.descriptor }
 
-        ClassFileWriter().writeTo(generatedClass.descriptor, generatedClass.flags, interfaces, classFile) {
+        ClassFileWriter().writeTo(type.descriptor, type.visibility, isFinal, interfaces, classFile) {
             if (needsConstructor) {
-                constructor(MethodFlags.Public)
+                constructor(MethodVisibility.Public)
             }
             for (method in methods) {
                 generate(method)
@@ -288,9 +290,9 @@ class JvmGenerator {
 
     private fun ClassBuilder.generate(method: JvmGeneratedMethod) {
         if (method.operations.isEmpty()) {
-            method(method.name, method.descriptor, method.flags)
+            method(method.name, method.descriptor, method.visibility)
         } else {
-            method(method.name, method.descriptor, method.flags) {
+            method(method.name, method.descriptor, method.visibility, method.isStatic) {
                 val slots = mutableMapOf<String, LocalVariable>()
                 for (operation in method.operations) {
                     generate(operation, slots)

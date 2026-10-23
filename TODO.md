@@ -15,6 +15,7 @@ General
 - Escapes in strings
 - Define int size
 - Consistent formatting for parse errors and semantic errors
+- Trailing commas in list literal, parameter lists and argument lists
 
 Stdlib
 

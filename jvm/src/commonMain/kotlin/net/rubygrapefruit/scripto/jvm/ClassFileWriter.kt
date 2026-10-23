@@ -4,7 +4,7 @@ import net.rubygrapefruit.file.RegularFile
 import kotlin.jvm.JvmInline
 
 internal class ClassFileWriter {
-    fun write(type: TypeDescriptor.ObjectType, flags: ClassFlags, interfaces: List<TypeDescriptor.InterfaceType>, builder: ClassBuilder.() -> Unit): ByteArray {
+    fun write(type: TypeDescriptor.ObjectType, flags: Int, interfaces: List<TypeDescriptor.InterfaceType>, builder: ClassBuilder.() -> Unit): ByteArray {
         val constantPool = ConstantPool()
 
         val thisType = constantPool.addClassInfo(type)
@@ -28,11 +28,7 @@ internal class ClassFileWriter {
         constantPool.appendTo(encoder)
 
         // flags
-        if (type is TypeDescriptor.InterfaceType) {
-            encoder.u2(flags.flags.or(0x600)) // interface and abstract flags
-        } else {
-            encoder.u2(flags.flags)
-        }
+        encoder.u2(flags)
 
         // this, super
         encoder.u2(thisType.index)
@@ -61,11 +57,16 @@ internal class ClassFileWriter {
 
     fun writeTo(
         classDescriptor: TypeDescriptor.ObjectType,
-        flags: ClassFlags,
+        visibility: ClassVisibility,
+        isFinal: Boolean,
         interfaces: List<TypeDescriptor.InterfaceType>,
         output: RegularFile,
         builder: ClassBuilder.() -> Unit
     ) {
+        val flags = when (classDescriptor) {
+            is TypeDescriptor.InterfaceType -> visibility.flags.or(0x600) // interface and abstract flags
+            is TypeDescriptor.ClassType -> if (isFinal) visibility.flags.or(0x0010) else visibility.flags
+        }
         val bytecode = write(classDescriptor, flags, interfaces, builder)
         output.writeBytes(bytecode)
     }
@@ -182,37 +183,31 @@ internal data class MethodDescriptor(val descriptor: MethodDescriptorString, val
     }
 }
 
-internal class ClassFlags(val flags: Int) {
+internal class ClassVisibility(val flags: Int) {
     companion object {
-        val PublicFinal = ClassFlags(0x11)
-        val PackageProtected = ClassFlags(0)
+        val Public = ClassVisibility(1)
+        val PackageProtected = ClassVisibility(0)
     }
 }
 
-internal class MethodFlags(val flags: Int) {
-    val isStatic: Boolean
-        get() = flags.and(0x8) == 0x8
-
+internal class MethodVisibility(val flags: Int) {
     companion object {
-        val Public = MethodFlags(0x1)
-        val PublicStatic = MethodFlags(0x9)
-        val PrivateStatic = MethodFlags(0xA)
+        val Private = MethodVisibility(2)
+        val Public = MethodVisibility(1)
+        val PackageProtected = MethodVisibility(0)
     }
 }
+
 
 private class MethodInfo(
     private val name: ConstantPool.Entry.Utf8,
     private val descriptor: ConstantPool.Entry.Utf8,
-    private val flags: MethodFlags,
+    private val flags: Int,
     private val codeAttribute: ByteArray?
 ) {
     fun appendTo(encoder: Encoder, codeAttributeName: ConstantPool.Entry.Utf8) {
         // Access flags
-        if (codeAttribute == null) {
-            encoder.u2(flags.flags.or(0x400)) // abstract flag
-        } else {
-            encoder.u2(flags.flags)
-        }
+        encoder.u2(flags)
 
         // Name, descriptor
         encoder.u2(name.index)
@@ -236,33 +231,33 @@ internal interface ClassBuilder {
     /**
      * Adds a default constructor
      */
-    fun constructor(flags: MethodFlags)
+    fun constructor(visibility: MethodVisibility)
 
     /**
      * Adds a method.
      */
-    fun method(name: String, descriptor: MethodDescriptor, flags: MethodFlags, builder: CodeBuilder.() -> Unit)
+    fun method(name: String, descriptor: MethodDescriptor, visibility: MethodVisibility, isStatic: Boolean, builder: CodeBuilder.() -> Unit)
 
     /**
      * Adds an abstract method.
      */
-    fun method(name: String, descriptor: MethodDescriptor, flags: MethodFlags)
+    fun method(name: String, descriptor: MethodDescriptor, visibility: MethodVisibility)
 }
 
 private class DefaultClassBuilder(private val thisType: TypeDescriptor.ObjectType, private val constantPool: ConstantPool) : ClassBuilder {
     val methods: List<MethodInfo>
         field = mutableListOf<MethodInfo>()
 
-    override fun constructor(flags: MethodFlags) {
-        method("<init>", MethodDescriptor.ofVoid(), flags) {
+    override fun constructor(visibility: MethodVisibility) {
+        method("<init>", MethodDescriptor.ofVoid(), visibility, false) {
             loadParameter(0, thisType)
             invokeSpecial(TypeDescriptor.Object, "<init>", MethodDescriptor.ofVoid())
             returnVoid()
         }
     }
 
-    override fun method(name: String, descriptor: MethodDescriptor, flags: MethodFlags, builder: CodeBuilder.() -> Unit) {
-        val params = if (flags.isStatic) {
+    override fun method(name: String, descriptor: MethodDescriptor, visibility: MethodVisibility, isStatic: Boolean, builder: CodeBuilder.() -> Unit) {
+        val params = if (isStatic) {
             descriptor.parameters
         } else {
             listOf(thisType) + descriptor.parameters
@@ -270,19 +265,17 @@ private class DefaultClassBuilder(private val thisType: TypeDescriptor.ObjectTyp
         val codeBuilder = DefaultCodeBuilder(params, constantPool)
         codeBuilder.builder()
 
+        val flags = if (isStatic) visibility.flags.or(8) else visibility.flags
+
         method(name, descriptor, flags, codeBuilder.codeAttribute())
     }
 
-    override fun method(name: String, descriptor: MethodDescriptor, flags: MethodFlags) {
+    override fun method(name: String, descriptor: MethodDescriptor, visibility: MethodVisibility) {
+        val flags = visibility.flags.or(0x400) // abstract
         method(name, descriptor, flags, null)
     }
 
-    private fun method(
-        name: String,
-        descriptor: MethodDescriptor,
-        flags: MethodFlags,
-        encodedCodeAttribute: ByteArray?
-    ) {
+    private fun method(name: String, descriptor: MethodDescriptor, flags: Int, encodedCodeAttribute: ByteArray?) {
         val nameEntry = constantPool.addUtf8(name)
         val descriptorEntry = constantPool.addUtf8(descriptor.descriptor.value)
 
