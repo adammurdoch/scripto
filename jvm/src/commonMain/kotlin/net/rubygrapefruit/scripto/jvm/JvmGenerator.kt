@@ -32,20 +32,38 @@ class JvmGenerator {
     private val systemOut = GetStaticField(system, "out", printStream)
 
     private val thisClass = TypeDescriptor.ofClass("App")
+
+    private val append by lazy {
+        JvmGeneratedMethod("append", MethodDescriptor.ofVoid(TypeDescriptor.Object, stringBuilder), MethodFlags.Public, emptyList())
+    }
+    private val stringAppender by lazy {
+        JvmGeneratedClass(
+            TypeDescriptor.ofInterface("StringAppender"), ClassFlags.PackageProtected, listOf(
+                append
+            )
+        )
+    }
+
     private val listToString by lazy {
         val builder = JvmVariableReference("builder", TypeDescriptor.String)
         val length = JvmVariableReference("length", TypeDescriptor.Int)
         val index = JvmVariableReference("index", TypeDescriptor.Int)
         val listArg = JvmParameterReference(0, objectArray)
+        val appenderArg = JvmParameterReference(1, stringAppender.descriptor)
         val stringToStringBuilder = MethodDescriptor.of(stringBuilder, TypeDescriptor.String)
         JvmGeneratedMethod(
-            "\$listToString", objectArrayToStringMethod, MethodFlags.PrivateStatic, listOf(
+            "\$listToString", MethodDescriptor.of(TypeDescriptor.String, objectArray, stringAppender.descriptor), MethodFlags.PrivateStatic, listOf(
                 JvmVariableDeclaration("length", TypeDescriptor.Int, JvmArrayLength(listArg)),
                 IfIntsEqual(length, JvmInt(0), listOf(ReturnValue(TypeDescriptor.String, JvmString("[]")))),
                 JvmVariableDeclaration("builder", stringBuilder, ConstructorCall(stringBuilder, voidMethod, emptyList())),
                 InstanceMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString("["))),
                 JvmVariableDeclaration("index", TypeDescriptor.Int, JvmInt(0)),
-                InstanceMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(index)),
+                InstanceMethodCall(
+                    stringAppender.descriptor, "append", append.descriptor, appenderArg, listOf(
+                        JvmGetArrayElement(TypeDescriptor.Object, listArg, index),
+                        builder
+                    )
+                ),
                 InstanceMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString("]"))),
                 ReturnValue(
                     TypeDescriptor.String,
@@ -56,7 +74,7 @@ class JvmGenerator {
     }
 
     fun generate(program: Program, output: RegularFile): GeneratedClass {
-        ClassFileWriter().writeTo(thisClass, output) { generate(program) }
+        ClassFileWriter().writeTo(thisClass, ClassFlags.PublicFinal, output) { generate(program) }
         return GeneratedClass("App")
     }
 
@@ -167,9 +185,9 @@ class JvmGenerator {
             is Type.String -> StaticMethodCall(arrays, "toString", objectArrayToStringMethod, listOf(expression))
             is Type.Int -> StaticMethodCall(arrays, "toString", intArrayToStringMethod, listOf(expression))
             is Type.Boolean -> StaticMethodCall(arrays, "toString", booleanArrayToStringMethod, listOf(expression))
-            is Type.List -> StaticMethodCall(thisClass, listToString.name, listToString.descriptor, listOf(expression), listToString)
-            is Type.Any -> StaticMethodCall(thisClass, listToString.name, listToString.descriptor, listOf(expression), listToString)
-            is Type.File -> StaticMethodCall(thisClass, listToString.name, listToString.descriptor, listOf(expression), listToString)
+            is Type.List -> StaticMethodCall(thisClass, listToString.name, listToString.descriptor, listOf(expression, JvmNull), listToString)
+            is Type.Any -> StaticMethodCall(thisClass, listToString.name, listToString.descriptor, listOf(expression, JvmNull), listToString)
+            is Type.File -> StaticMethodCall(thisClass, listToString.name, listToString.descriptor, listOf(expression, JvmNull), listToString)
         }
     }
 
@@ -280,6 +298,10 @@ class JvmGenerator {
 
             is JvmFalse -> {
                 loadConstant(false)
+            }
+
+            is JvmNull -> {
+                loadNull()
             }
 
             is JvmIntAddition -> {

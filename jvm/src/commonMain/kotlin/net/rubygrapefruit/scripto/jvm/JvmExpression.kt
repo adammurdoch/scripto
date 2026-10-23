@@ -16,6 +16,8 @@ internal class JvmString(val value: String) : JvmExpression
 
 internal class JvmInt(val value: Int) : JvmExpression
 
+internal data object JvmNull : JvmExpression
+
 internal data object JvmTrue : JvmExpression
 
 internal data object JvmFalse : JvmExpression
