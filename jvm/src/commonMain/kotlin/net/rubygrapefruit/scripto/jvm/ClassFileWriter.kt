@@ -194,7 +194,6 @@ internal class MethodVisibility(val flags: Int) {
     companion object {
         val Private = MethodVisibility(2)
         val Public = MethodVisibility(1)
-        val PackageProtected = MethodVisibility(0)
     }
 }
 
@@ -330,9 +329,20 @@ internal interface CodeBuilder {
 
     fun returnValue(type: TypeDescriptor)
 
+    /**
+     * Compares 2 ints and runs block if they are equal
+     */
     fun intEquality(whenTrue: CodeBuilder.() -> Unit)
 
+    /**
+     * Compares 2 ints and runs first block if they are equal or second block if they are not equal
+     */
     fun intEquality(whenTrue: CodeBuilder.() -> Unit, whenFalse: CodeBuilder.() -> Unit)
+
+    /**
+     * Compares 2 ints `a` and `b` and runs block while `a < b`
+     */
+    fun intWhileLessThan(loadA: CodeBuilder.() -> Unit, loadB: CodeBuilder.() -> Unit, loop: CodeBuilder.() -> Unit)
 
     fun getStaticField(owner: TypeDescriptor.ObjectType, name: String, type: TypeDescriptor)
 
@@ -576,7 +586,7 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
 
         whenTrue()
 
-        // end of true branch, start new frame
+        // end of true branch, patch target and start new frame
 
         val endPos = encoder.length
         encoder.u2(endTargetPos, endPos - startPos)
@@ -586,8 +596,8 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
 
     override fun intEquality(whenTrue: CodeBuilder.() -> Unit, whenFalse: CodeBuilder.() -> Unit) {
         val startPos = encoder.length
-        encoder.u1(0xa0) // if_icmpne
 
+        encoder.u1(0xa0) // if_icmpne
         val falseBranchTargetPos = encoder.length
         encoder.u2(0) // target false branch
         pop(2)
@@ -609,6 +619,36 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
         encoder.u2(endTargetPos, encoder.length - startTruePos)
         // this reuses the frame from the false branch, but this is not correct if the false branch ends with a return opcode
         startFrame()
+    }
+
+    override fun intWhileLessThan(loadA: CodeBuilder.() -> Unit, loadB: CodeBuilder.() -> Unit, loop: CodeBuilder.() -> Unit) {
+        val startPos = encoder.length
+
+        startFrame()
+
+        loadA()
+        loadB()
+
+        val startCheck = encoder.length
+        encoder.u1(0xa0) // if_icmpne
+        val endTargetPos = encoder.length
+        encoder.u2(0) // target false branch
+        pop(2)
+
+        val frame = snapshotFrame()
+
+        loop()
+
+        val endLoopPos = encoder.length
+        encoder.u1(0xc8) // goto_w
+        encoder.u4(startPos - endLoopPos)
+
+        // end of true branch, patch target and start new frame
+
+        val endPos = encoder.length
+        encoder.u2(endTargetPos, endPos - startCheck)
+
+        startFrame(frame)
     }
 
     override fun checkCast(type: TypeDescriptor.ReferenceType) {
@@ -1004,6 +1044,9 @@ private class Encoder {
         pos += 4
     }
 
+    /**
+     * Updates previously encoded u2 that the given position.
+     */
     fun u2(pos: Int, value: Int) {
         bytes[pos] = value.shr(8).and(0xFF).toByte()
         bytes[pos + 1] = value.and(0xFF).toByte()

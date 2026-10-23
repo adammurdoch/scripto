@@ -59,10 +59,16 @@ class JvmGenerator {
                 JvmVariableDeclaration("builder", stringBuilder, ConstructorCall(stringBuilder, voidMethod, emptyList())),
                 VirtualMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString("["))),
                 JvmVariableDeclaration("index", TypeDescriptor.Int, JvmInt(0)),
-                VirtualMethodCall(
-                    collectValue, collectorArg, listOf(
-                        JvmGetArrayElement(TypeDescriptor.Object, listArg, index),
-                        builder
+                WhileIntLessThan(
+                    index, length, listOf(
+                        VirtualMethodCall(
+                            collectValue, collectorArg, listOf(
+                                JvmGetArrayElement(TypeDescriptor.Object, listArg, index),
+                                builder
+                            )
+                        ),
+                        VirtualMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString(", "))),
+                        JvmSetVariable("index", JvmIntAddition(index, JvmInt(1)))
                     )
                 ),
                 VirtualMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString("]"))),
@@ -310,7 +316,13 @@ class JvmGenerator {
                 storeLocal(slots.getValue(operation.name))
             }
 
+            is JvmSetVariable -> {
+                push(operation.value, slots)
+                storeLocal(slots.getValue(operation.name))
+            }
+
             is VirtualMethodCall -> callMethod(operation, slots)
+
             is IfIntsEqual -> {
                 push(operation.left, slots)
                 push(operation.right, slots)
@@ -319,6 +331,18 @@ class JvmGenerator {
                         generate(nested, slots)
                     }
                 }
+            }
+
+            is WhileIntLessThan -> {
+                intWhileLessThan(
+                    { push(operation.left, slots) },
+                    { push(operation.right, slots) },
+                    {
+                        for (operation in operation.loop) {
+                            generate(operation, slots)
+                        }
+                    }
+                )
             }
 
             is ReturnVoid -> returnVoid()

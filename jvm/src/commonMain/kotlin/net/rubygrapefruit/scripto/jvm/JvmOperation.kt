@@ -22,3 +22,19 @@ internal class IfIntsEqual(val left: JvmExpression, val right: JvmExpression, va
         }
     }
 }
+
+internal class WhileIntLessThan(val left: JvmExpression, val right: JvmExpression, val loop: List<JvmOperation>) : JvmOperation {
+    override fun visitExpressions(visitor: (JvmExpression) -> Unit) {
+        left.visitExpressions(visitor)
+        right.visitExpressions(visitor)
+        for (operation in loop) {
+            operation.visitExpressions(visitor)
+        }
+    }
+}
+
+internal class JvmSetVariable(val name: String, val value: JvmExpression) : JvmOperation {
+    override fun visitExpressions(visitor: (JvmExpression) -> Unit) {
+        value.visitExpressions(visitor)
+    }
+}
