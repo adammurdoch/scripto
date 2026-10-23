@@ -89,21 +89,26 @@ internal class VirtualMethodCall(
     val name: String,
     val descriptor: MethodDescriptor,
     val receiver: JvmExpression,
-    val arguments: List<JvmExpression>
+    val arguments: List<JvmExpression>,
+    val declaredBy: JvmDeclaration? = null
 ) : JvmCompositeExpression(), JvmOperation {
     constructor(method: JvmGeneratedMethod, receiver: JvmExpression, arguments: List<JvmExpression>) : this(
         method.owner.descriptor,
         method.name,
         method.descriptor,
         receiver,
-        arguments
+        arguments,
+        method
     )
 
-    override fun visitExpressions(visitor: (JvmExpression) -> Unit) {
-        receiver.visitExpressions(visitor)
-        for (argument in arguments) {
-            argument.visitExpressions(visitor)
+    override fun visitDeclarations(visitor: (JvmDeclaration) -> Unit) {
+        if (declaredBy != null) {
+            visitor(declaredBy)
         }
+    }
+
+    override fun visitExpressions(visitor: (JvmExpression) -> Unit) {
+        super<JvmCompositeExpression>.visitExpressions(visitor)
     }
 
     override fun visitChildren(visitor: (JvmExpression) -> Unit) {

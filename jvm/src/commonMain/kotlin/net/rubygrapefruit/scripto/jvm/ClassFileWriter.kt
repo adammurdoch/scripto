@@ -4,10 +4,10 @@ import net.rubygrapefruit.file.RegularFile
 import kotlin.jvm.JvmInline
 
 internal class ClassFileWriter {
-    fun write(classDescriptor: TypeDescriptor.ObjectType, flags: ClassFlags, builder: ClassBuilder.() -> Unit): ByteArray {
+    fun write(type: TypeDescriptor.ObjectType, flags: ClassFlags, builder: ClassBuilder.() -> Unit): ByteArray {
         val constantPool = ConstantPool()
 
-        val thisClass = constantPool.addClassInfo(classDescriptor)
+        val thisClass = constantPool.addClassInfo(type)
         val objectClass = constantPool.addClassInfo(TypeDescriptor.Object)
         val codeAttributeName = constantPool.addUtf8("Code")
 
@@ -27,7 +27,11 @@ internal class ClassFileWriter {
         constantPool.appendTo(encoder)
 
         // flags
-        encoder.u2(flags.flags)
+        if (type.isInterface) {
+            encoder.u2(flags.flags.or(0x600)) // interface and abstract flags
+        } else {
+            encoder.u2(flags.flags)
+        }
 
         // this, super
         encoder.u2(thisClass.index)
@@ -164,6 +168,7 @@ internal class ClassFlags(val flags: Int) {
 internal class MethodFlags(val flags: Int) {
     companion object {
         val Public = MethodFlags(0x1)
+        val PackageProtected = MethodFlags(0)
         val PublicStatic = MethodFlags(0x9)
         val PrivateStatic = MethodFlags(0xA)
     }
@@ -173,28 +178,44 @@ private class MethodInfo(
     private val name: ConstantPool.Entry.Utf8,
     private val descriptor: ConstantPool.Entry.Utf8,
     private val flags: MethodFlags,
-    private val codeAttribute: ByteArray
+    private val codeAttribute: ByteArray?
 ) {
     fun appendTo(encoder: Encoder, codeAttributeName: ConstantPool.Entry.Utf8) {
         // Access flags
-        encoder.u2(flags.flags)
+        if (codeAttribute == null) {
+            encoder.u2(flags.flags.or(0x400)) // abstract flag
+        } else {
+            encoder.u2(flags.flags)
+        }
 
         // Name, descriptor
         encoder.u2(name.index)
         encoder.u2(descriptor.index)
 
         // Attributes
-        encoder.u2(1)
+        if (codeAttribute == null) {
+            encoder.u2(0)
+        } else {
+            encoder.u2(1)
 
-        // Code attribute
-        encoder.u2(codeAttributeName.index)
-        encoder.u4(codeAttribute.size)
-        encoder.bytes(codeAttribute)
+            // Code attribute
+            encoder.u2(codeAttributeName.index)
+            encoder.u4(codeAttribute.size)
+            encoder.bytes(codeAttribute)
+        }
     }
 }
 
 internal interface ClassBuilder {
+    /**
+     * Adds a method.
+     */
     fun method(name: String, descriptor: MethodDescriptor, flags: MethodFlags, builder: CodeBuilder.() -> Unit)
+
+    /**
+     * Adds an abstract method.
+     */
+    fun method(name: String, descriptor: MethodDescriptor, flags: MethodFlags)
 }
 
 private class DefaultClassBuilder(private val constantPool: ConstantPool) : ClassBuilder {
@@ -214,6 +235,19 @@ private class DefaultClassBuilder(private val constantPool: ConstantPool) : Clas
             flags,
             codeBuilder.codeAttribute()
         )
+        methods.add(method)
+    }
+
+    override fun method(name: String, descriptor: MethodDescriptor, flags: MethodFlags) {
+        val nameEntry = constantPool.addUtf8(name)
+        val descriptorEntry = constantPool.addUtf8(descriptor.descriptor.value)
+        val method = MethodInfo(
+            nameEntry,
+            descriptorEntry,
+            flags,
+            null
+        )
+
         methods.add(method)
     }
 }
@@ -609,11 +643,33 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
     }
 
     override fun invokeVirtual(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor) {
-        val methodRef = constantPool.addMethodRef(owner, name, type)
+        if (owner.isInterface) {
+            val methodRef = constantPool.addInterfaceMethodRef(owner, name, type)
 
-        encoder.u1(0xb6) // invokevirtual
+            encoder.u1(0xb9) // invokeinterface
+            encoder.u2(methodRef.index)
+            encoder.u1(type.parameters.size + 1)
+            encoder.u1(0)
+            pop(type.stackChange + 1)
+        } else {
+            val methodRef = constantPool.addMethodRef(owner, name, type)
+
+            encoder.u1(0xb6) // invokevirtual
+            encoder.u2(methodRef.index)
+            pop(type.stackChange + 1)
+        }
+    }
+
+    override fun invokeStatic(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor) {
+        val methodRef = if (owner.isInterface) {
+            constantPool.addInterfaceMethodRef(owner, name, type)
+        } else {
+            constantPool.addMethodRef(owner, name, type)
+        }
+
+        encoder.u1(0xb8) // invokestatic
         encoder.u2(methodRef.index)
-        pop(type.stackChange + 1)
+        pop(type.stackChange)
     }
 
     override fun invokeSpecial(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor) {
@@ -631,18 +687,6 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
         encoder.u2(classInfo.index)
 
         push(type)
-    }
-
-    override fun invokeStatic(owner: TypeDescriptor.ObjectType, name: String, type: MethodDescriptor) {
-        val methodRef = if (owner.isInterface) {
-            constantPool.addInterfaceMethodRef(owner, name, type)
-        } else {
-            constantPool.addMethodRef(owner, name, type)
-        }
-
-        encoder.u1(0xb8) // invokestatic
-        encoder.u2(methodRef.index)
-        pop(type.stackChange)
     }
 
     override fun returnVoid() {

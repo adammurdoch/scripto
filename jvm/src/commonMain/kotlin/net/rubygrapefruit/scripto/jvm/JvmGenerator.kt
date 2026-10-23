@@ -245,11 +245,6 @@ class JvmGenerator {
     }
 
     private fun generate(generatedClass: JvmGeneratedClass, methods: List<JvmGeneratedMethod>, output: Directory): RegularFile {
-        println("-> GENERATE ${generatedClass.name}")
-        for (method in methods) {
-            println("  ${method.name}() ${method.descriptor.descriptor.value}")
-        }
-
         val classFile = output.file("${generatedClass.name}.class")
         ClassFileWriter().writeTo(generatedClass.descriptor, generatedClass.flags, classFile) {
             for (method in methods) {
@@ -260,10 +255,14 @@ class JvmGenerator {
     }
 
     private fun ClassBuilder.generate(method: JvmGeneratedMethod) {
-        method(method.name, method.descriptor, method.flags) {
-            val slots = mutableMapOf<String, LocalVariable>()
-            for (operation in method.operations) {
-                generate(operation, slots)
+        if (method.operations.isEmpty()) {
+            method(method.name, method.descriptor, method.flags)
+        } else {
+            method(method.name, method.descriptor, method.flags) {
+                val slots = mutableMapOf<String, LocalVariable>()
+                for (operation in method.operations) {
+                    generate(operation, slots)
+                }
             }
         }
     }
