@@ -1,6 +1,7 @@
 package net.rubygrapefruit.scripto.c
 
 import net.rubygrapefruit.file.RegularFile
+import net.rubygrapefruit.scripto.generator.Declaration
 import net.rubygrapefruit.scripto.generator.FunctionMapper
 import net.rubygrapefruit.scripto.generator.OperationMapper
 import net.rubygrapefruit.scripto.generator.writeTo
@@ -19,8 +20,11 @@ class CGenerator {
         statements.add(CReturnStatement(CInt(0)))
 
         val variableState = VariableState()
-        val declarationQueue = mutableListOf<CDeclaration>()
-        val declarationState = mutableMapOf<CDeclaration, VisitState>()
+        val declarationQueue = Declaration.Queue<CDeclaration>()
+        val declarationVisitor: (CDeclaration) -> Unit = { element ->
+            declarationQueue.add(element)
+        }
+
         var index = 0
         while (index < statements.size) {
             val original = statements[index]
@@ -33,12 +37,6 @@ class CGenerator {
                 original
             }
 
-            val declarationVisitor: (CDeclaration) -> Unit = { element ->
-                if (!declarationState.containsKey(element)) {
-                    declarationQueue.add(element)
-                    declarationState[element] = VisitState.Queued
-                }
-            }
             statement.visitOwnDeclarations(declarationVisitor)
             statement.visitExpressions { expression ->
                 expression.visitOwnDeclarations(declarationVisitor)
@@ -53,24 +51,9 @@ class CGenerator {
         }
 
         val declarations = mutableListOf<CDeclaration>()
-        while (declarationQueue.isNotEmpty()) {
-            val declaration = declarationQueue.first()
-            val state = declarationState[declaration]
-            if (state == null || state == VisitState.Queued) {
-                declaration.visitOwnDeclarations { declarationQueue.add(0, it) }
-                declarationState[declaration] = VisitState.DependenciesQueued
-            } else {
-                if (state == VisitState.DependenciesQueued) {
-                    declarations.add(declaration)
-                    declarationState[declaration] = VisitState.Finished
-                }
-                declarationQueue.removeFirst()
-            }
-        }
+        declarationQueue.visitAll { declaration -> declarations.add(declaration) }
 
-        writeTo(outputFile) {
-            appendln("// generated file")
-
+        writeTo(outputFile, "//") {
             for (header in declarations.filterIsInstance<Header>()) {
                 append("#include ")
                 appendln(header.name)

@@ -1,9 +1,5 @@
 package net.rubygrapefruit.scripto.jvm
 
-internal sealed interface JvmDeclaration {
-    /**
-     * Visits the declarations used directly by this declaration.
-     */
-    fun visitDeclarations(visitor: (JvmDeclaration) -> Unit) {
-    }
-}
+import net.rubygrapefruit.scripto.generator.Declaration
+
+internal sealed interface JvmDeclaration : Declaration<JvmDeclaration>

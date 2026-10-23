@@ -5,7 +5,7 @@ internal sealed interface JvmExpression {
     }
 
     /**
-     * Visits this expression plus any nested expressions
+     * Visits this expression plus any nested expressions. Expressions are visited in dependency order.
      */
     fun visitExpressions(visitor: (JvmExpression) -> Unit) {
         visitor(this)

@@ -11,7 +11,7 @@ internal class JvmGeneratedMethod(
     val isStatic: Boolean,
     val operations: List<JvmOperation>
 ) : JvmDeclaration {
-    override fun visitDeclarations(visitor: (JvmDeclaration) -> Unit) {
+    override fun visitOwnDeclarations(visitor: (JvmDeclaration) -> Unit) {
         for (operation in operations) {
             operation.visitExpressions { expression ->
                 expression.visitDeclarations(visitor)

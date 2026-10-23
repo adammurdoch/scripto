@@ -1,6 +1,9 @@
 package net.rubygrapefruit.scripto.jvm
 
 internal sealed interface JvmOperation {
+    /**
+     * Visits all expressions used by this operation, including nested expressions.
+     */
     fun visitExpressions(visitor: (JvmExpression) -> Unit) {
     }
 }

@@ -6,6 +6,10 @@ import net.rubygrapefruit.scripto.generator.*
 import net.rubygrapefruit.scripto.ir.*
 
 class BashGenerator {
+    private val listToString by lazy {
+        BashGeneratedFunction("_list_to_string")
+    }
+
     fun generate(program: Program, outputFile: RegularFile) {
         val scope = StatementScope()
 
@@ -13,12 +17,21 @@ class BashGenerator {
         val operationMapper = createOperationMapper(functionMapper)
 
         val statements = operationMapper.map(program.operations)
-        val bashProgram = BashProgram(statements)
 
-        writeTo(outputFile) {
-            appendln("# generated file")
-            appendln()
-            for (statement in bashProgram.statements) {
+        val queue = Declaration.Queue<BashGeneratedFunction>()
+        for (statement in statements) {
+            statement.visitExpressions { expression ->
+                expression.visitDeclarations { declaration ->
+                    queue.add(declaration)
+                }
+            }
+        }
+        queue.visitAll {
+            println("need to generate $it")
+        }
+
+        writeTo(outputFile, "#") {
+            for (statement in statements) {
                 append(statement)
             }
         }
@@ -101,7 +114,8 @@ class BashGenerator {
                                     )
                                 ),
                                 BashVariableValueAppend(resultVarName, BashString("]")),
-                            )
+                            ),
+                            listToString
                         )
                     }
 

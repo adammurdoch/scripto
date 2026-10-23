@@ -2,7 +2,17 @@ package net.rubygrapefruit.scripto.bash
 
 import net.rubygrapefruit.scripto.generator.ExpressionWithDependencies
 
-internal sealed interface BashExpression : ExpressionWithDependencies<BashStatement>
+internal sealed interface BashExpression : ExpressionWithDependencies<BashStatement> {
+    fun visitDeclarations(visitor: (BashGeneratedFunction) -> Unit) {
+    }
+
+    /**
+     * Visits this expression plus any nested expressions. Expressions are visited in dependency order.
+     */
+    fun visitExpressions(visitor: (BashExpression) -> Unit) {
+        visitor(this)
+    }
+}
 
 /**
  * A string that may need quoting or escaping.
@@ -49,7 +59,13 @@ internal class BashArrayLiteral(val elements: List<BashExpression>) : BashExpres
 /**
  * An expression that requires a statement to be executed before it can be evaluated.
  */
-internal class BashCommandInvocationExpression(val intermediateVariable: String, val statements: List<BashStatement>) : BashExpression {
+internal class BashCommandInvocationExpression(val intermediateVariable: String, val statements: List<BashStatement>, val uses: BashGeneratedFunction? = null) : BashExpression {
+    override fun visitDeclarations(visitor: (BashGeneratedFunction) -> Unit) {
+        if (uses != null) {
+            visitor(uses)
+        }
+    }
+
     override fun visitDependencies(visitor: (BashStatement) -> Unit) {
         statements.forEach(visitor)
     }

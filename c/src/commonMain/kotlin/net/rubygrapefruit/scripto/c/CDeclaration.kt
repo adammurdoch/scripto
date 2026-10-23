@@ -1,13 +1,12 @@
 package net.rubygrapefruit.scripto.c
 
+import net.rubygrapefruit.scripto.generator.Declaration
+
 /**
  * Something that provides one or more declarations of types or functions.
  */
-internal interface CDeclaration {
-    /**
-     * Visits the declarations directly required by this declaration.
-     */
-    fun visitOwnDeclarations(visitor: (CDeclaration) -> Unit) {
+internal interface CDeclaration : Declaration<CDeclaration> {
+    override fun visitOwnDeclarations(visitor: (CDeclaration) -> Unit) {
     }
 }
 

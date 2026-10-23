@@ -1,6 +1,7 @@
 package net.rubygrapefruit.scripto.jvm
 
 import net.rubygrapefruit.file.Directory
+import net.rubygrapefruit.scripto.generator.Declaration
 import net.rubygrapefruit.scripto.generator.FunctionMapper
 import net.rubygrapefruit.scripto.generator.OperationMapper
 import net.rubygrapefruit.scripto.ir.*
@@ -88,6 +89,7 @@ class JvmGenerator {
     }
 
     private fun appendToStringBuilder(receiver: JvmExpression, value: JvmExpression): JvmOperation {
+        // pop the return value of append() from the stack
         return JvmDiscard(VirtualMethodCall(stringBuilder, "append", stringToStringBuilder, receiver, listOf(value)))
     }
 
@@ -99,25 +101,14 @@ class JvmGenerator {
         operationMapper.mapInto(program.operations, operations)
         operations.add(ReturnVoid)
 
-        val stringArray = stringArray
-
         val mainMethod = JvmGeneratedMethod(mainClass, "main", MethodDescriptor.ofVoid(stringArray), MethodVisibility.Public, true, operations)
 
         val classes = mutableMapOf<JvmGeneratedType, MutableList<JvmGeneratedMethod>>()
-        val seen = mutableSetOf<JvmDeclaration>()
-        val queue = mutableListOf<JvmDeclaration>()
+        val queue = Declaration.Queue<JvmDeclaration>()
         queue.add(mainMethod)
-        while (queue.isNotEmpty()) {
-            val declaration = queue.removeFirst()
-            if (seen.add(declaration)) {
-                declaration.visitDeclarations {
-                    if (!seen.contains(it)) {
-                        queue.add(it)
-                    }
-                }
-                if (declaration is JvmGeneratedMethod) {
-                    classes.getOrPutIfNull(declaration.owner) { mutableListOf() }.add(declaration)
-                }
+        queue.visitAll { declaration ->
+            if (declaration is JvmGeneratedMethod) {
+                classes.getOrPutIfNull(declaration.owner) { mutableListOf() }.add(declaration)
             }
         }
 

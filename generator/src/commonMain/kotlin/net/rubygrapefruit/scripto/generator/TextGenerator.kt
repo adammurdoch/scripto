@@ -2,9 +2,15 @@ package net.rubygrapefruit.scripto.generator
 
 import net.rubygrapefruit.file.RegularFile
 
-fun writeTo(file: RegularFile, builder: SourceGenerator.() -> Unit) {
+fun writeTo(file: RegularFile, commentPrefix: String, builder: SourceGenerator.() -> Unit) {
     val text = StringBuilder()
-    DefaultSourceGenerator(text).builder()
+    val generator = DefaultSourceGenerator(text)
+    generator.appendln(commentPrefix)
+    generator.append(commentPrefix)
+    generator.appendln(" GENERATED FILE - DO NOT EDIT")
+    generator.appendln(commentPrefix)
+    generator.appendln()
+    generator.builder()
     file.writeText(text.toString())
 }
 
