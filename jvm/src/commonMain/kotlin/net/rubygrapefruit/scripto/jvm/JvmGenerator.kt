@@ -61,14 +61,18 @@ class JvmGenerator {
                 JvmVariableDeclaration("index", TypeDescriptor.Int, JvmInt(0)),
                 WhileIntLessThan(
                     index, length, listOf(
+                        IfIntGreaterThan(
+                            index, JvmInt(0), listOf(
+                                JvmDiscard(VirtualMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString(", "))))
+                            )
+                        ),
                         VirtualMethodCall(
                             collectValue, collectorArg, listOf(
                                 JvmGetArrayElement(TypeDescriptor.Object, listArg, index),
                                 builder
                             )
                         ),
-                        JvmDiscard(VirtualMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString(", ")))),
-                        JvmSetVariable("index", JvmIntAddition(index, JvmInt(1)))
+                        JvmIncrementVariable("index")
                     )
                 ),
                 VirtualMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString("]"))),
@@ -316,9 +320,8 @@ class JvmGenerator {
                 storeLocal(slots.getValue(operation.name))
             }
 
-            is JvmSetVariable -> {
-                push(operation.value, slots)
-                storeLocal(slots.getValue(operation.name))
+            is JvmIncrementVariable -> {
+                incrementLocal(slots.getValue(operation.name))
             }
 
             is VirtualMethodCall -> callMethod(operation, slots)
@@ -326,7 +329,17 @@ class JvmGenerator {
             is IfIntsEqual -> {
                 push(operation.left, slots)
                 push(operation.right, slots)
-                intEquality {
+                intsEqual {
+                    for (nested in operation.whenTrue) {
+                        generate(nested, slots)
+                    }
+                }
+            }
+
+            is IfIntGreaterThan -> {
+                push(operation.left, slots)
+                push(operation.right, slots)
+                intGreaterThan {
                     for (nested in operation.whenTrue) {
                         generate(nested, slots)
                     }
@@ -397,7 +410,7 @@ class JvmGenerator {
             is JvmIntEquality -> {
                 push(expression.left, slots)
                 push(expression.right, slots)
-                intEquality({
+                intsEqual({
                     loadConstant(true)
                 }, {
                     loadConstant(false)

@@ -299,6 +299,8 @@ internal interface CodeBuilder {
 
     fun storeLocal(variable: LocalVariable)
 
+    fun incrementLocal(variable: LocalVariable)
+
     fun loadParameter(index: Int, type: TypeDescriptor)
 
     fun loadLocal(variable: LocalVariable)
@@ -332,14 +334,19 @@ internal interface CodeBuilder {
     fun returnValue(type: TypeDescriptor)
 
     /**
-     * Compares 2 ints and runs block if they are equal
+     * Compares 2 ints `a` and `b` and runs block if `a == b`
      */
-    fun intEquality(whenTrue: CodeBuilder.() -> Unit)
+    fun intsEqual(whenTrue: CodeBuilder.() -> Unit)
 
     /**
-     * Compares 2 ints and runs first block if they are equal or second block if they are not equal
+     * Compares 2 ints `a` and `b` and runs first block if `a == b` else runs second block
      */
-    fun intEquality(whenTrue: CodeBuilder.() -> Unit, whenFalse: CodeBuilder.() -> Unit)
+    fun intsEqual(whenTrue: CodeBuilder.() -> Unit, whenFalse: CodeBuilder.() -> Unit)
+
+    /**
+     * Compares 2 ints `a` and `b` and runs block if `a > b`
+     */
+    fun intGreaterThan(whenTrue: CodeBuilder.() -> Unit)
 
     /**
      * Compares 2 ints `a` and `b` and runs block while `a < b`
@@ -490,6 +497,12 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
         }
     }
 
+    override fun incrementLocal(variable: LocalVariable) {
+        encoder.u1(0x84) // iinc
+        encoder.u1(variable.slot)
+        encoder.u1(1)
+    }
+
     override fun loadLocal(variable: LocalVariable) {
         loadLocal(variable.slot, variable.type)
     }
@@ -576,9 +589,17 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
         pop()
     }
 
-    override fun intEquality(whenTrue: CodeBuilder.() -> Unit) {
+    override fun intGreaterThan(whenTrue: CodeBuilder.() -> Unit) {
+        intsCompare(0xa4, whenTrue) // if_icmple
+    }
+
+    override fun intsEqual(whenTrue: CodeBuilder.() -> Unit) {
+        intsCompare(0xa0, whenTrue) // if_icmpne
+    }
+
+    private fun intsCompare(falseOpCode: Int, whenTrue: CodeBuilder.() -> Unit) {
         val startPos = encoder.length
-        encoder.u1(0xa0) // if_icmpne
+        encoder.u1(falseOpCode)
 
         val endTargetPos = encoder.length
         encoder.u2(0) // target end of true branch
@@ -596,7 +617,7 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
         startFrame(frame)
     }
 
-    override fun intEquality(whenTrue: CodeBuilder.() -> Unit, whenFalse: CodeBuilder.() -> Unit) {
+    override fun intsEqual(whenTrue: CodeBuilder.() -> Unit, whenFalse: CodeBuilder.() -> Unit) {
         val startPos = encoder.length
 
         encoder.u1(0xa0) // if_icmpne
