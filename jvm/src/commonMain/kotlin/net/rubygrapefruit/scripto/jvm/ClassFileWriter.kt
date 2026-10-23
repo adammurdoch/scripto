@@ -4,11 +4,12 @@ import net.rubygrapefruit.file.RegularFile
 import kotlin.jvm.JvmInline
 
 internal class ClassFileWriter {
-    fun write(type: TypeDescriptor.ObjectType, flags: ClassFlags, builder: ClassBuilder.() -> Unit): ByteArray {
+    fun write(type: TypeDescriptor.ObjectType, flags: ClassFlags, interfaces: List<TypeDescriptor.ObjectType>, builder: ClassBuilder.() -> Unit): ByteArray {
         val constantPool = ConstantPool()
 
         val thisType = constantPool.addClassInfo(type)
         val objectClass = constantPool.addClassInfo(TypeDescriptor.Object)
+        val interfaceTypes = interfaces.map { constantPool.addClassInfo(it) }
         val codeAttributeName = constantPool.addUtf8("Code")
 
         val classBuilder = DefaultClassBuilder(type, constantPool)
@@ -38,7 +39,10 @@ internal class ClassFileWriter {
         encoder.u2(objectClass.index)
 
         // interfaces
-        encoder.u2(0)
+        encoder.u2(interfaceTypes.size)
+        for (interfaceType in interfaceTypes) {
+            encoder.u2(interfaceType.index)
+        }
 
         // fields
         encoder.u2(0)
@@ -55,8 +59,8 @@ internal class ClassFileWriter {
         return encoder.toByteArray()
     }
 
-    fun writeTo(classDescriptor: TypeDescriptor.ObjectType, flags: ClassFlags, output: RegularFile, builder: ClassBuilder.() -> Unit) {
-        val bytecode = write(classDescriptor, flags, builder)
+    fun writeTo(classDescriptor: TypeDescriptor.ObjectType, flags: ClassFlags, interfaces: List<TypeDescriptor.ObjectType>, output: RegularFile, builder: ClassBuilder.() -> Unit) {
+        val bytecode = write(classDescriptor, flags, interfaces, builder)
         output.writeBytes(bytecode)
     }
 }
@@ -171,7 +175,6 @@ internal class MethodFlags(val flags: Int) {
 
     companion object {
         val Public = MethodFlags(0x1)
-        val PackageProtected = MethodFlags(0)
         val PublicStatic = MethodFlags(0x9)
         val PrivateStatic = MethodFlags(0xA)
     }
@@ -211,6 +214,11 @@ private class MethodInfo(
 
 internal interface ClassBuilder {
     /**
+     * Adds a default constructor
+     */
+    fun constructor(flags: MethodFlags)
+
+    /**
      * Adds a method.
      */
     fun method(name: String, descriptor: MethodDescriptor, flags: MethodFlags, builder: CodeBuilder.() -> Unit)
@@ -224,6 +232,14 @@ internal interface ClassBuilder {
 private class DefaultClassBuilder(private val thisType: TypeDescriptor.ObjectType, private val constantPool: ConstantPool) : ClassBuilder {
     val methods: List<MethodInfo>
         field = mutableListOf<MethodInfo>()
+
+    override fun constructor(flags: MethodFlags) {
+        method("<init>", MethodDescriptor.ofVoid(), flags) {
+            loadParameter(0, thisType)
+            invokeSpecial(TypeDescriptor.Object, "<init>", MethodDescriptor.ofVoid())
+            returnVoid()
+        }
+    }
 
     override fun method(name: String, descriptor: MethodDescriptor, flags: MethodFlags, builder: CodeBuilder.() -> Unit) {
         val params = if (flags.isStatic) {
@@ -282,6 +298,8 @@ internal interface CodeBuilder {
     fun loadConstant(value: Boolean)
 
     fun loadNull()
+
+    fun checkCast(type: TypeDescriptor.ReferenceType)
 
     fun dup()
 
@@ -578,6 +596,13 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
         encoder.u2(endTargetPos, encoder.length - startTruePos)
         // this reuses the frame from the false branch, but this is not correct if the false branch ends with a return opcode
         startFrame()
+    }
+
+    override fun checkCast(type: TypeDescriptor.ReferenceType) {
+        encoder.u1(0xc0)
+        encoder.u2(constantPool.addClassInfo(type).index)
+        pop()
+        push(type)
     }
 
     override fun dup() {

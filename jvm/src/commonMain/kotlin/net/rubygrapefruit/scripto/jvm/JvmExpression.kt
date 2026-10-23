@@ -26,6 +26,12 @@ internal class JvmVariableReference(val name: String, val type: TypeDescriptor) 
 
 internal class JvmParameterReference(val index: Int, val type: TypeDescriptor) : JvmExpression
 
+internal class JvmCast(val type: TypeDescriptor.ReferenceType, val value: JvmExpression) : JvmCompositeExpression() {
+    override fun visitChildren(visitor: (JvmExpression) -> Unit) {
+        visitor(value)
+    }
+}
+
 internal class GetStaticField(val owner: TypeDescriptor.ObjectType, val name: String, val type: TypeDescriptor) : JvmExpression
 
 internal sealed class JvmCompositeExpression : JvmExpression {

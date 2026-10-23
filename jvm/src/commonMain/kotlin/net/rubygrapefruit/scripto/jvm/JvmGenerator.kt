@@ -14,6 +14,7 @@ class JvmGenerator {
     private val path = TypeDescriptor.ofInterface("java.nio.file.Path")
     private val arrays = TypeDescriptor.ofClass("java.util.Arrays")
     private val objectArray = TypeDescriptor.Object.arrayType()
+    private val stringArray = TypeDescriptor.String.arrayType()
     private val printStream = TypeDescriptor.ofClass("java.io.PrintStream")
     private val system = TypeDescriptor.ofClass("java.lang.System")
     private val stringBuilder = TypeDescriptor.ofClass("java.lang.StringBuilder")
@@ -22,7 +23,9 @@ class JvmGenerator {
     private val toStringMethod = MethodDescriptor.of(TypeDescriptor.String)
     private val stringToVoidMethod = MethodDescriptor.ofVoid(TypeDescriptor.String)
     private val stringToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.String)
-    private val stringToPathMethod = MethodDescriptor.of(path, TypeDescriptor.String, TypeDescriptor.String.arrayType())
+    private val stringToStringBuilder = MethodDescriptor.of(stringBuilder, TypeDescriptor.String)
+
+    private val stringToPathMethod = MethodDescriptor.of(path, TypeDescriptor.String, stringArray)
     private val intToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.Int)
     private val boolToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.Boolean)
     private val objectToBoolMethod = MethodDescriptor.of(TypeDescriptor.Boolean, TypeDescriptor.Object)
@@ -49,7 +52,6 @@ class JvmGenerator {
         val index = JvmVariableReference("index", TypeDescriptor.Int)
         val listArg = JvmParameterReference(0, objectArray)
         val collectorArg = JvmParameterReference(1, stringCollector.descriptor)
-        val stringToStringBuilder = MethodDescriptor.of(stringBuilder, TypeDescriptor.String)
         JvmGeneratedMethod(
             mainClass, "\$listToString", MethodDescriptor.of(TypeDescriptor.String, objectArray, stringCollector.descriptor), MethodFlags.PrivateStatic, listOf(
                 JvmVariableDeclaration("length", TypeDescriptor.Int, JvmArrayLength(listArg)),
@@ -80,7 +82,7 @@ class JvmGenerator {
         operationMapper.mapInto(program.operations, operations)
         operations.add(ReturnVoid)
 
-        val stringArray = TypeDescriptor.String.arrayType()
+        val stringArray = stringArray
 
         val mainMethod = JvmGeneratedMethod(mainClass, "main", MethodDescriptor.ofVoid(stringArray), MethodFlags.PublicStatic, operations)
 
@@ -189,19 +191,33 @@ class JvmGenerator {
 
     private fun listToString(elementType: Type, expression: JvmExpression): JvmExpression {
         return when (elementType) {
-            is Type.String -> StaticMethodCall(arrays, "toString", objectArrayToStringMethod, listOf(expression))
+            is Type.String -> stringListToString(expression)
             is Type.Int -> StaticMethodCall(arrays, "toString", intArrayToStringMethod, listOf(expression))
             is Type.Boolean -> StaticMethodCall(arrays, "toString", booleanArrayToStringMethod, listOf(expression))
-            is Type.List -> StaticMethodCall(listToString, listOf(expression, stringElementCollector()))
+            is Type.List -> StaticMethodCall(listToString, listOf(expression, stringListCollector()))
             is Type.Any -> StaticMethodCall(listToString, listOf(expression, JvmNull))
             is Type.File -> StaticMethodCall(listToString, listOf(expression, JvmNull))
         }
     }
 
-    private fun stringElementCollector(): JvmExpression {
-        val stringListCollector = JvmGeneratedClass("StringStringCollector", TypeDescriptor.ofClass("StringStringCollector"), ClassFlags.PackageProtected)
+    private fun stringListToString(expression: JvmExpression): JvmExpression {
+        return StaticMethodCall(arrays, "toString", objectArrayToStringMethod, listOf(expression))
+    }
+
+    private fun stringListCollector(): JvmExpression {
+        val stringListCollector = JvmGeneratedClass(
+            "StringStringCollector",
+            TypeDescriptor.ofClass("StringStringCollector"),
+            ClassFlags.PackageProtected,
+            listOf(stringCollector)
+        )
         val collectMethod = JvmGeneratedMethod(
             stringListCollector, collectValue.name, collectValue.descriptor, collectValue.flags, listOf(
+                VirtualMethodCall(
+                    stringBuilder, "append", stringToStringBuilder, JvmParameterReference(2, stringBuilder), listOf(
+                        stringListToString(JvmCast(stringArray, JvmParameterReference(1, TypeDescriptor.Object)))
+                    )
+                ),
                 ReturnVoid
             )
         )
@@ -256,7 +272,13 @@ class JvmGenerator {
 
     private fun generate(generatedClass: JvmGeneratedClass, methods: List<JvmGeneratedMethod>, output: Directory): RegularFile {
         val classFile = output.file("${generatedClass.name}.class")
-        ClassFileWriter().writeTo(generatedClass.descriptor, generatedClass.flags, classFile) {
+        val needsConstructor = !generatedClass.descriptor.isInterface && methods.any { !it.flags.isStatic }
+        val interfaces = generatedClass.interfaces.map { it.descriptor }
+
+        ClassFileWriter().writeTo(generatedClass.descriptor, generatedClass.flags, interfaces, classFile) {
+            if (needsConstructor) {
+                constructor(MethodFlags.Public)
+            }
             for (method in methods) {
                 generate(method)
             }
@@ -355,6 +377,11 @@ class JvmGenerator {
                 push(expression.left, slots)
                 push(expression.right, slots)
                 invokeVirtual(TypeDescriptor.Object, "equals", objectToBoolMethod)
+            }
+
+            is JvmCast -> {
+                push(expression.value, slots)
+                checkCast(expression.type)
             }
 
             is JvmVariableReference -> {
