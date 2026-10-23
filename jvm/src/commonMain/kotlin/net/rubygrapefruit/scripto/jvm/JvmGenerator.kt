@@ -14,6 +14,7 @@ class JvmGenerator {
     private val path = TypeDescriptor.ofInterface("java.nio.file.Path")
     private val arrays = TypeDescriptor.ofClass("java.util.Arrays")
     private val objectArray = TypeDescriptor.Object.arrayType()
+    private val intArray = TypeDescriptor.Int.arrayType()
     private val stringArray = TypeDescriptor.String.arrayType()
     private val printStream = TypeDescriptor.ofClass("java.io.PrintStream")
     private val system = TypeDescriptor.ofClass("java.lang.System")
@@ -31,7 +32,7 @@ class JvmGenerator {
     private val objectToBoolMethod = MethodDescriptor.of(TypeDescriptor.Boolean, TypeDescriptor.Object)
     private val pathToStringMethod = MethodDescriptor.of(TypeDescriptor.String, path)
     private val objectArrayToStringMethod = MethodDescriptor.of(TypeDescriptor.String, objectArray)
-    private val intArrayToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.Int.arrayType())
+    private val intArrayToStringMethod = MethodDescriptor.of(TypeDescriptor.String, intArray)
     private val booleanArrayToStringMethod = MethodDescriptor.of(TypeDescriptor.String, TypeDescriptor.Boolean.arrayType())
 
     private val systemOut = GetStaticField(system, "out", printStream)
@@ -57,13 +58,13 @@ class JvmGenerator {
                 JvmVariableDeclaration("length", TypeDescriptor.Int, JvmArrayLength(listArg)),
                 IfIntsEqual(length, JvmInt(0), listOf(ReturnValue(TypeDescriptor.String, JvmString("[]")))),
                 JvmVariableDeclaration("builder", stringBuilder, ConstructorCall(stringBuilder, voidMethod, emptyList())),
-                VirtualMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString("["))),
+                appendToStringBuilder(builder, JvmString("[")),
                 JvmVariableDeclaration("index", TypeDescriptor.Int, JvmInt(0)),
                 WhileIntLessThan(
                     index, length, listOf(
                         IfIntGreaterThan(
                             index, JvmInt(0), listOf(
-                                JvmDiscard(VirtualMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString(", "))))
+                                appendToStringBuilder(builder, JvmString(", "))
                             )
                         ),
                         VirtualMethodCall(
@@ -75,13 +76,17 @@ class JvmGenerator {
                         JvmIncrementVariable("index")
                     )
                 ),
-                VirtualMethodCall(stringBuilder, "append", stringToStringBuilder, builder, listOf(JvmString("]"))),
+                appendToStringBuilder(builder, JvmString("]")),
                 ReturnValue(
                     TypeDescriptor.String,
                     VirtualMethodCall(stringBuilder, "toString", toStringMethod, builder, emptyList())
                 )
             )
         )
+    }
+
+    private fun appendToStringBuilder(receiver: JvmExpression, value: JvmExpression): JvmOperation {
+        return JvmDiscard(VirtualMethodCall(stringBuilder, "append", stringToStringBuilder, receiver, listOf(value)))
     }
 
     fun generate(program: Program, output: Directory): GeneratedClass {
@@ -181,7 +186,7 @@ class JvmGenerator {
             is Type.Int -> TypeDescriptor.Int
             is Type.String -> TypeDescriptor.String
             is Type.File -> TypeDescriptor.String
-            is Type.List -> objectArray
+            is Type.List -> TypeDescriptor.Object
             is Type.Any -> TypeDescriptor.Object
         }
     }
@@ -202,37 +207,67 @@ class JvmGenerator {
     private fun listToString(elementType: Type, expression: JvmExpression): JvmExpression {
         return when (elementType) {
             is Type.String -> stringListToString(expression)
-            is Type.Int -> StaticMethodCall(arrays, "toString", intArrayToStringMethod, listOf(expression))
+            is Type.Int -> intListToString(expression)
             is Type.Boolean -> StaticMethodCall(arrays, "toString", booleanArrayToStringMethod, listOf(expression))
-            is Type.List -> StaticMethodCall(listToString, listOf(expression, stringListCollector()))
+            is Type.List -> {
+                val collector = when (elementType.param) {
+                    is Type.Int -> intListStringCollector
+                    else -> stringListStringCollector
+                }
+                StaticMethodCall(listToString, listOf(expression, collector))
+            }
+
             is Type.Any -> StaticMethodCall(listToString, listOf(expression, JvmNull))
             is Type.File -> StaticMethodCall(listToString, listOf(expression, JvmNull))
         }
+    }
+
+    private fun intListToString(expression: JvmExpression): JvmExpression {
+        return StaticMethodCall(arrays, "toString", intArrayToStringMethod, listOf(expression))
     }
 
     private fun stringListToString(expression: JvmExpression): JvmExpression {
         return StaticMethodCall(arrays, "toString", objectArrayToStringMethod, listOf(expression))
     }
 
-    private fun stringListCollector(): JvmExpression {
-        val stringListCollector = JvmGeneratedClass(
-            "StringStringCollector",
-            TypeDescriptor.ofClass("StringStringCollector"),
+    /**
+     * int[] -> String
+     */
+    private val intListStringCollector by lazy {
+        val collector = JvmGeneratedClass(
+            "IntListStringCollector",
+            TypeDescriptor.ofClass("IntListStringCollector"),
             ClassVisibility.PackageProtected,
             true,
             listOf(stringCollector)
         )
         val collectMethod = JvmGeneratedMethod(
-            stringListCollector, collectValue.name, collectValue.descriptor, MethodVisibility.Public, false, listOf(
-                VirtualMethodCall(
-                    stringBuilder, "append", stringToStringBuilder, JvmParameterReference(2, stringBuilder), listOf(
-                        stringListToString(JvmCast(stringArray, JvmParameterReference(1, TypeDescriptor.Object)))
-                    )
-                ),
+            collector, collectValue.name, collectValue.descriptor, MethodVisibility.Public, false, listOf(
+                appendToStringBuilder(JvmParameterReference(2, stringBuilder), intListToString(JvmCast(intArray, JvmParameterReference(1, TypeDescriptor.Object)))),
                 ReturnVoid
             )
         )
-        return ConstructorCall(stringListCollector.descriptor, voidMethod, emptyList(), collectMethod)
+        ConstructorCall(collector.descriptor, voidMethod, emptyList(), collectMethod)
+    }
+
+    /**
+     * String[] -> String
+     */
+    private val stringListStringCollector by lazy {
+        val collector = JvmGeneratedClass(
+            "StringListStringCollector",
+            TypeDescriptor.ofClass("StringListStringCollector"),
+            ClassVisibility.PackageProtected,
+            true,
+            listOf(stringCollector)
+        )
+        val collectMethod = JvmGeneratedMethod(
+            collector, collectValue.name, collectValue.descriptor, MethodVisibility.Public, false, listOf(
+                appendToStringBuilder(JvmParameterReference(2, stringBuilder), stringListToString(JvmCast(stringArray, JvmParameterReference(1, TypeDescriptor.Object)))),
+                ReturnVoid
+            )
+        )
+        ConstructorCall(collector.descriptor, voidMethod, emptyList(), collectMethod)
     }
 
     private fun toExpression(expression: Expression, functionMapper: FunctionMapper<JvmExpression>): JvmExpression {
