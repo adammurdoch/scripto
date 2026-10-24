@@ -1,12 +1,13 @@
 plugins {
-    id("net.rubygrapefruit.jvm.cli-app")
+    id("net.rubygrapefruit.native.cli-app")
 }
 
 application {
-    targetJvmVersion = 25
     appName = "scripto"
 
-    dependencies {
+    macOS()
+
+    common {
         implementation(versions.libs.coordinates("file-io"))
         implementation(versions.libs.coordinates("cli-app"))
         implementation(project(":compiler"))

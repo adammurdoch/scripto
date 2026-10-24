@@ -40,6 +40,7 @@ JVM
 
 C
 
+- Bundle or download C compiler and libc to build executable, rather than relying on installed compiler
 - Garbage collect strings created by `+` operator, `Int.toString()`, `File.toString()`, `List.toString()` and `File.readText()`
   - Variable values
   - Function arguments

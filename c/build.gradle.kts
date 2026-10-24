@@ -5,7 +5,11 @@ plugins {
 
 library {
     jvm()
-    macOS()
+    macOS {
+        dependencies {
+            implementation(versions.libs.coordinates("process"))
+        }
+    }
 
     common {
         api(versions.libs.coordinates("file-io"))
