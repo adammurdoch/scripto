@@ -265,10 +265,6 @@ class CGenerator {
     private fun fileToString(expression: Expression, functionMapper: FunctionMapper<CExpression>): CExpression {
         return concatString(CString("File("), concatString(toExpression(expression, functionMapper), CString(")")))
     }
-
-    private enum class VisitState {
-        Queued, DependenciesQueued, Finished
-    }
 }
 
 internal class VariableState {
