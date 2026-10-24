@@ -181,7 +181,7 @@ class CGenerator {
         return CFunctionCall(FunctionSnippet.StringConcatenation, listOf(left, right))
     }
 
-    private fun println(call: FunctionCall, functionMapper: FunctionMapper<CExpression>): CStatement {
+    private fun println(call: UnitFunctionCall, functionMapper: FunctionMapper<CExpression>): CStatement {
         val arg = call.arguments.first()
         return when (arg.type) {
             is Type.String -> CFunctionCall("puts", listOf(toExpression(arg, functionMapper)), Header.Stdio)

@@ -56,14 +56,14 @@ object StandardLibrary : Functions {
     /**
      * Replaces println(Any) with println(String)
      */
-    fun convertPrintln(call: FunctionCall): FunctionCall {
+    fun convertPrintln(call: UnitFunctionCall): UnitFunctionCall {
         val arg = call.arguments.first()
         return when (arg.type) {
             is Type.String -> call
-            is Type.Boolean -> FunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, BooleanFunctions.toString, emptyList())))
-            is Type.Int -> FunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, IntFunctions.toString, emptyList())))
-            is Type.File -> FunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, FileFunctions.toString, emptyList())))
-            is Type.List -> FunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, ListFunctions.toString, emptyList())))
+            is Type.Boolean -> UnitFunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, BooleanFunctions.toString, emptyList())))
+            is Type.Int -> UnitFunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, IntFunctions.toString, emptyList())))
+            is Type.File -> UnitFunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, FileFunctions.toString, emptyList())))
+            is Type.List -> UnitFunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, ListFunctions.toString, emptyList())))
             else -> throw IllegalArgumentException()
         }
     }

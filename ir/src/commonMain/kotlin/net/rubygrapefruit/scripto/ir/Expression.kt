@@ -2,6 +2,13 @@ package net.rubygrapefruit.scripto.ir
 
 sealed interface Expression {
     val type: Type
+
+    /**
+     * Visits this expression and all expressions it includes.
+     */
+    fun visitExpressions(visitor: (Expression) -> Unit) {
+        visitor(this)
+    }
 }
 
 class VariableReference(val target: VariableDeclaration) : Expression {
@@ -12,11 +19,25 @@ class VariableReference(val target: VariableDeclaration) : Expression {
 class FunctionCallExpression(val target: TypedFunctionDefinition, val args: List<Expression>) : Expression {
     override val type: Type
         get() = target.returnType
+
+    override fun visitExpressions(visitor: (Expression) -> Unit) {
+        for (arg in args) {
+            arg.visitExpressions(visitor)
+        }
+        visitor(this)
+    }
 }
 
 class ReceiverFunctionCallExpression(val receiver: Expression, val target: TypedFunctionDefinition, val args: List<Expression>) : Expression {
     override val type: Type
         get() = target.returnType
+
+    override fun visitExpressions(visitor: (Expression) -> Unit) {
+        for (arg in args) {
+            arg.visitExpressions(visitor)
+        }
+        visitor(this)
+    }
 }
 
 sealed interface Literal : Expression

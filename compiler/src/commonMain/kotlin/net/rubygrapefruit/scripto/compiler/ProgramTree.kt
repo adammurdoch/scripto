@@ -32,7 +32,7 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         operation: FunctionCallTree,
         variables: Map<String, VariableDeclaration>,
         library: StandardLibrary
-    ): ResolveResult<FunctionCall> {
+    ): ResolveResult<UnitFunctionCall> {
         val arguments = resolveExpressions(operation.arguments, variables, library)
         val definition = locateFunction(operation, library)
         return zipping(definition, arguments) { definition, arguments ->
@@ -40,7 +40,7 @@ internal class ProgramTree(val operations: List<OperationTree>) {
             if (resolved !is UnitFunctionDefinition) {
                 NotResolved.of("Return value ignored for function '${operation.name}'")
             } else {
-                Resolved(FunctionCall(resolved, arguments))
+                Resolved(UnitFunctionCall(resolved, arguments))
             }
         }
     }

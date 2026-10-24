@@ -5,13 +5,11 @@ import net.rubygrapefruit.scripto.ir.Program
 import kotlin.test.assertEquals
 
 abstract class AppFixture(val workDir: Directory) {
+    abstract fun generateAndRun(program: Program): String
 
-    fun generateAndRun(program: Program, expectedOutput: String) {
-        val output = generateAndRun(program)
-        assertEquals(expectedOutput, output)
+    open fun generateAndFail(program: Program) {
+        throw IllegalStateException()
     }
-
-    protected abstract fun generateAndRun(program: Program): String
 
     protected fun run(commandLine: List<String>): String {
         return section("Run ${commandLine.joinToString(" ")}") {
@@ -32,5 +30,9 @@ abstract class AppFixture(val workDir: Directory) {
         val result = action()
         println("----")
         return result
+    }
+
+    open fun supports(feature: Feature): Boolean {
+        return true
     }
 }

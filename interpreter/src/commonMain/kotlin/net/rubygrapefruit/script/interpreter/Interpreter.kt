@@ -13,7 +13,7 @@ class Interpreter {
                     vars[operation.name] = value
                 }
 
-                is FunctionCall -> {
+                is UnitFunctionCall -> {
                     if (operation.target == StandardLibrary.printlnNoArgs) {
                         stdOut.println("")
                     } else if (operation.target == StandardLibrary.printlnOneArg) {

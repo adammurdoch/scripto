@@ -40,7 +40,7 @@ abstract class GenerateTests : DefaultTask() {
 
     private fun generateTestFor(relativePath: String, outputDir: Path): Int {
         val sourceClassName = relativePath.substringAfterLast("/").removeSuffix(".kt")
-        if (sourceClassName == "AbstractIntegrationTest" || sourceClassName == "AppFixture") {
+        if (sourceClassName == "AbstractIntegrationTest" || sourceClassName == "AppFixture" || sourceClassName == "Feature") {
             return 0
         }
         val sourceDirPart = relativePath.substringBeforeLast("/")

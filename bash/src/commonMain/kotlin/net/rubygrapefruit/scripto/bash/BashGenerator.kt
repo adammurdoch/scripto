@@ -4,11 +4,12 @@ import net.rubygrapefruit.file.PosixPermissions
 import net.rubygrapefruit.file.RegularFile
 import net.rubygrapefruit.scripto.generator.*
 import net.rubygrapefruit.scripto.ir.*
+import kotlin.math.exp
 
 class BashGenerator {
     private val listToString by lazy {
         BashGeneratedFunction(
-            "_list_to_string", $$"""
+            "_list_to_string", "_LIST_TO_STRING", $$"""
 local RESULT="["                
 local SEPARATOR=""
 local ARRAY_REF="$1[@]"
@@ -23,6 +24,18 @@ _LIST_TO_STRING="$RESULT"
     }
 
     fun generate(program: Program, outputFile: RegularFile) {
+        program.visitExpressions { expression ->
+            if (expression is FunctionCallExpression) {
+                val target = expression.target
+                if (target is RealizedFunctionDefinition && target.definition == StandardLibrary.listConstructor) {
+                    if (target.argument is Type.List) {
+                        outputFile.delete()
+                        throw IllegalArgumentException("${expression.target.returnType} is not supported for Bash")
+                    }
+                }
+            }
+        }
+
         val scope = StatementScope()
 
         val functionMapper = createFunctionMapper(scope)
@@ -108,12 +121,12 @@ _LIST_TO_STRING="$RESULT"
             mapReceiver(FileFunctions.toString) { expression, functionMapper ->
                 BashConcatenatedExpressions(listOf(BashString("File("), toExpression(expression.receiver, functionMapper), BashString(")")))
             }
-            mapReceiver(ListFunctions.toString) { expression, functionMapper ->
+            mapReceiver(ListFunctions.toString) { expression, _ ->
                 val receiver = expression.receiver
                 when (receiver) {
                     is VariableReference -> {
                         BashCommandInvocationExpression(
-                            "_LIST_TO_STRING", listOf(
+                            listToString.returnVar, listOf(
                                 BashCommandInvocation(listToString.name, listOf(BashWord(receiver.target.name)))
                             ),
                             listToString

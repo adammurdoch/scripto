@@ -8,6 +8,7 @@ General
   - Add `+`
   - Inline list literal `List.toString()` and `println(List)`
 - Improve error message when operator called with arguments of incorrect type
+- Include source location in every error message
 - Inline constants
     - Evaluate functions with constant args at compile time
     - Need some way to initialize variables to arbitrary value in order to test this, e.g. function defs or args to main
@@ -16,16 +17,16 @@ General
 - Define int size
 - Consistent formatting for parse errors and semantic errors
 - Trailing commas in list literal, parameter lists and argument lists
+- Improve experience when unsupported feature is not used
 
 Stdlib
 
-- Split `println()` into type specific overloads
 - `readText()` fails when file cannot be read
 
 Interpreter
 
 - Encode `File` as `RegularFile`
-    - Need to get relative path for `toString()` implementation
+    - Need to get original path for `toString()` implementation
 
 JVM
 
@@ -43,6 +44,8 @@ C
 
 Bash
 
+- Report "List<List<*>> is not supported" warning the same way as semantic errors, and include source location information
+  - Do this even if compilation fails
 - Implement `List.toString()` when receiver is not a variable reference
 - Strongly type `BashExpression` types that can be used in bash commands and those that can be used in arithmetic contexts?
 - Don't use a temporary variable to calculate variable initializer, e.g. for `File.readText()`

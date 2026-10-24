@@ -1,7 +1,7 @@
 package net.rubygrapefruit.scripto.compiler
 
 import net.rubygrapefruit.scripto.ir.BooleanLiteral
-import net.rubygrapefruit.scripto.ir.FunctionCall
+import net.rubygrapefruit.scripto.ir.UnitFunctionCall
 import net.rubygrapefruit.scripto.ir.IntLiteral
 import net.rubygrapefruit.scripto.ir.StringLiteral
 import kotlin.test.Test
@@ -22,7 +22,7 @@ class LiteralIntegrationTest : AbstractCompilerIntegrationTest() {
             assertEquals(1, program.operations.size)
 
             val operation = program.operations.first()
-            assertIs<FunctionCall>(operation)
+            assertIs<UnitFunctionCall>(operation)
 
             assertEquals(1, operation.arguments.size)
 
@@ -51,7 +51,7 @@ class LiteralIntegrationTest : AbstractCompilerIntegrationTest() {
             assertEquals(1, program.operations.size)
 
             val operation = program.operations.first()
-            assertIs<FunctionCall>(operation)
+            assertIs<UnitFunctionCall>(operation)
 
             assertEquals(1, operation.arguments.size)
 
@@ -110,7 +110,7 @@ Expected ")", "-", "0", "[", "false", "true", '"', an identifier, an integer, sp
             assertEquals(1, program.operations.size)
 
             val operation = program.operations.first()
-            assertIs<FunctionCall>(operation)
+            assertIs<UnitFunctionCall>(operation)
 
             assertEquals(1, operation.arguments.size)
 

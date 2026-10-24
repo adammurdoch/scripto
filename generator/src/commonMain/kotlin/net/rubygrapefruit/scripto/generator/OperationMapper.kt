@@ -1,6 +1,6 @@
 package net.rubygrapefruit.scripto.generator
 
-import net.rubygrapefruit.scripto.ir.FunctionCall
+import net.rubygrapefruit.scripto.ir.UnitFunctionCall
 import net.rubygrapefruit.scripto.ir.Operation
 import net.rubygrapefruit.scripto.ir.UnitFunctionDefinition
 import net.rubygrapefruit.scripto.ir.VariableDeclaration
@@ -9,7 +9,7 @@ import net.rubygrapefruit.scripto.ir.VariableDeclaration
  * Maps a sequence of [Operation] to a sequence of type [T].
  */
 class OperationMapper<T> private constructor(
-    private val mappings: Map<UnitFunctionDefinition, Context<T>.(FunctionCall) -> Unit>,
+    private val mappings: Map<UnitFunctionDefinition, Context<T>.(UnitFunctionCall) -> Unit>,
     private val varMap: Context<T>.(VariableDeclaration) -> Unit,
     private val collectDependencies: Context<T>.(T) -> Unit
 ) {
@@ -28,7 +28,7 @@ class OperationMapper<T> private constructor(
 
     private fun map(operation: Operation, context: Context<T>) {
         when (operation) {
-            is FunctionCall -> {
+            is UnitFunctionCall -> {
                 val mapping = mappings[operation.target] ?: throw IllegalArgumentException("No mapping for function ${operation.target.name}()")
                 mapping(context, operation)
             }
@@ -63,9 +63,9 @@ class OperationMapper<T> private constructor(
     }
 
     interface Builder<T> {
-        fun map(definition: UnitFunctionDefinition, map: (FunctionCall) -> T)
+        fun map(definition: UnitFunctionDefinition, map: (UnitFunctionCall) -> T)
 
-        fun mapN(definition: UnitFunctionDefinition, map: Context<T>.(FunctionCall) -> Unit)
+        fun mapN(definition: UnitFunctionDefinition, map: Context<T>.(UnitFunctionCall) -> Unit)
 
         fun map(map: (VariableDeclaration) -> T)
 
@@ -75,15 +75,15 @@ class OperationMapper<T> private constructor(
     }
 
     private class DefaultBuilder<T> : Builder<T> {
-        private val mappings = mutableMapOf<UnitFunctionDefinition, Context<T>.(FunctionCall) -> Unit>()
+        private val mappings = mutableMapOf<UnitFunctionDefinition, Context<T>.(UnitFunctionCall) -> Unit>()
         private var varMapping: Context<T>.(VariableDeclaration) -> Unit = { throw IllegalArgumentException("No mapping for variable declaration") }
         private var collectDependencies: Context<T>.(T) -> Unit = {}
 
-        override fun map(definition: UnitFunctionDefinition, map: (FunctionCall) -> T) {
+        override fun map(definition: UnitFunctionDefinition, map: (UnitFunctionCall) -> T) {
             mappings[definition] = { add(map(it)) }
         }
 
-        override fun mapN(definition: UnitFunctionDefinition, map: Context<T>.(FunctionCall) -> Unit) {
+        override fun mapN(definition: UnitFunctionDefinition, map: Context<T>.(UnitFunctionCall) -> Unit) {
             mappings[definition] = map
         }
 
