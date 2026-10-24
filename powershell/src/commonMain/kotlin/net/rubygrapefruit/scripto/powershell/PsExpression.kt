@@ -12,6 +12,8 @@ internal data object PsTrue : PsExpression
 
 internal data object PsFalse : PsExpression
 
+internal class PsRaw(val value: String) : PsExpression
+
 internal class PsVariableReference(val name: String) : PsExpression
 
 internal class PsIsNull(val value: PsExpression) : PsExpression
@@ -47,4 +49,7 @@ internal class PsCommandInvocationExpression(val intermediateVariable: String, v
     override fun visitDependencies(visitor: (PsStatement) -> Unit) {
         statements.forEach(visitor)
     }
+}
+
+internal class PsDotNetFunctionInvocation(val qualifiedName: String, val arguments: List<PsExpression>): PsExpression {
 }

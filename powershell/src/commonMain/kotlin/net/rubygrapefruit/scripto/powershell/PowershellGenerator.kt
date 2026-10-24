@@ -157,9 +157,11 @@ class PowershellGenerator {
             }
 
             FileFunctions.readText -> {
-                val varName = scope.newVarName("read_text")
-                val commands = readFileIntoVar(toExpression(expression.receiver, scope, functionMapper), varName)
-                PsCommandInvocationExpression(varName, commands)
+                PsDotNetFunctionInvocation(
+                    "[System.IO.File]::ReadAllText", listOf(
+                        PsCommandInvocation("Convert-Path", listOf(toExpression(expression.receiver, scope, functionMapper)))
+                    )
+                )
             }
 
             ListFunctions.toString -> {
@@ -168,16 +170,6 @@ class PowershellGenerator {
 
             else -> throw IllegalArgumentException("Unknown ${target.displayName} for ${expression.receiver.type}")
         }
-    }
-
-    private fun readFileIntoVar(file: PsExpression, varName: String): List<PsStatement> {
-        val readCommand = PsPipe(
-            PsCommandInvocation("Get-Content -raw", listOf(file)),
-            PsCommandInvocation("Set-Variable $varName", emptyList())
-        )
-        // Does not set variable when file is empty
-        val checkNotNull = PsIf(PsIsNull(PsVariableReference(varName)), PsCommandInvocation("Set-Variable $varName \"\"", emptyList()))
-        return listOf(readCommand, checkNotNull)
     }
 
     private fun SourceGenerator.appendDeclaration(declaration: PsVariableDeclaration) {
@@ -224,6 +216,8 @@ class PowershellGenerator {
 
     internal fun SourceGenerator.append(expression: PsExpression) {
         when (expression) {
+            is PsRaw -> append(expression.value)
+
             is PsString -> {
                 append("\"")
                 for (ch in expression.value) {
@@ -298,6 +292,22 @@ class PowershellGenerator {
                         append(")")
                     }
                 }
+            }
+
+            is PsCommandInvocation -> {
+                append("(")
+                appendNoNewLine(expression)
+                append(")")
+            }
+
+            is PsDotNetFunctionInvocation -> {
+                append("(")
+                append(expression.qualifiedName)
+                append("(")
+                append(expression.arguments, ", ") { argument ->
+                    append(argument)
+                }
+                append("))")
             }
 
             is PsCommandInvocationExpression -> {

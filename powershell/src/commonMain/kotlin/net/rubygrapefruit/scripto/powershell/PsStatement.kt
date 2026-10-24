@@ -5,7 +5,7 @@ import net.rubygrapefruit.scripto.ir.VariableDeclaration
 
 internal sealed interface PsStatement : ExpressionWithDependencies<PsStatement>
 
-internal class PsCommandInvocation(val command: String, val args: List<PsExpression>) : PsStatement {
+internal class PsCommandInvocation(val command: String, val args: List<PsExpression>) : PsStatement, PsExpression {
     override fun visitDependencies(visitor: (PsStatement) -> Unit) {
         args.forEach { it.visitDependencies(visitor) }
     }
