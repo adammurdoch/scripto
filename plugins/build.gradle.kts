@@ -7,6 +7,7 @@ pluginBundle {
     plugin("scripto.test-suite", "net.rubygraperuit.scripto.plugins.TestSuitePlugin")
 
     dependencies {
+        implementation(versions.libs.coordinates("machine-info"))
         implementation(versions.libs.coordinates("download"))
         implementation(versions.plugins.basePluginsCoordinates)
     }

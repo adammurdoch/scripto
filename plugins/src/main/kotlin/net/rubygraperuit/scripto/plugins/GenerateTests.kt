@@ -7,6 +7,7 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
+import java.io.File
 import java.io.PrintWriter
 import java.nio.file.Path
 import kotlin.io.path.*
@@ -31,7 +32,7 @@ abstract class GenerateTests : DefaultTask() {
 
         var testClasses = 0
         sourceDir.walk().forEach { file ->
-            testClasses += generateTestFor(sourceDir.relativize(file).toString(), outputDir)
+            testClasses += generateTestFor(sourceDir.relativize(file).toString().replace(File.separator, "/"), outputDir)
         }
         if (testClasses == 0) {
             throw RuntimeException("Could not find any test classes in $sourceDir")
