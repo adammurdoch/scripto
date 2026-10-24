@@ -7,7 +7,19 @@ import net.rubygrapefruit.scripto.ir.*
 
 class BashGenerator {
     private val listToString by lazy {
-        BashGeneratedFunction("_list_to_string")
+        BashGeneratedFunction(
+            "_list_to_string", $$"""
+local RESULT="["                
+local SEPARATOR=""
+local ARRAY_REF="$1[@]"
+for ELEMENT in "${!ARRAY_REF}"; do
+    RESULT+="$SEPARATOR$ELEMENT"
+    SEPARATOR=", "
+done
+RESULT+="]"
+_LIST_TO_STRING="$RESULT"
+            """.trimIndent()
+        )
     }
 
     fun generate(program: Program, outputFile: RegularFile) {
@@ -26,11 +38,11 @@ class BashGenerator {
                 }
             }
         }
-        queue.visitAll {
-            println("need to generate $it")
-        }
 
         writeTo(outputFile, "#") {
+            queue.visitAll { function ->
+                append(function)
+            }
             for (statement in statements) {
                 append(statement)
             }
@@ -96,30 +108,19 @@ class BashGenerator {
             mapReceiver(FileFunctions.toString) { expression, functionMapper ->
                 BashConcatenatedExpressions(listOf(BashString("File("), toExpression(expression.receiver, functionMapper), BashString(")")))
             }
-            mapReceiver(ListFunctions.toString) { expression, _ ->
+            mapReceiver(ListFunctions.toString) { expression, functionMapper ->
                 val receiver = expression.receiver
                 when (receiver) {
                     is VariableReference -> {
-                        val resultVarName = scope.newVarName("ARRAY_STR")
-                        val separatorVarName = scope.newVarName("SEPARATOR")
-                        val elementVarName = scope.newVarName("ELEMENT")
                         BashCommandInvocationExpression(
-                            resultVarName, listOf(
-                                BashVariableAssignment(resultVarName, BashString("[")),
-                                BashVariableAssignment(separatorVarName, BashString("")),
-                                BashForLoop(
-                                    elementVarName, BashWord("\"\${${receiver.target.name}[@]}\""), listOf(
-                                        BashVariableValueAppend(resultVarName, BashWord("\"\$$separatorVarName\$$elementVarName\"")),
-                                        BashVariableAssignment(separatorVarName, BashString(", "))
-                                    )
-                                ),
-                                BashVariableValueAppend(resultVarName, BashString("]")),
+                            "_LIST_TO_STRING", listOf(
+                                BashCommandInvocation(listToString.name, listOf(BashWord(receiver.target.name)))
                             ),
                             listToString
                         )
                     }
 
-                    else -> throw IllegalArgumentException()
+                    else -> BashString("??")
                 }
             }
             mapReceiver(FileFunctions.readText) { expression, functionMapper ->
@@ -151,13 +152,25 @@ class BashGenerator {
 
     private fun varReferenceToBash(expression: VariableReference): BashWord {
         return when (expression.type) {
-            Type.String, Type.File -> BashWord("\"\$${expression.target.name}\"")
+            is Type.String, is Type.File, is Type.List -> BashWord("\"\$${expression.target.name}\"")
             else -> BashWord("\$${expression.target.name}")
         }
     }
 
     private fun readFileIntoVar(file: BashExpression, varName: String): BashCommandInvocation {
         return BashCommandInvocation("IFS= read -rd '' $varName", emptyList(), redirectInput = file)
+    }
+
+    private fun SourceGenerator.append(function: BashGeneratedFunction) {
+        append("function ")
+        append(function.name)
+        appendln(" {")
+        for (line in function.body.lines()) {
+            append("    ")
+            appendln(line)
+        }
+        appendln("}")
+        appendln()
     }
 
     private fun SourceGenerator.append(statement: BashStatement) {
