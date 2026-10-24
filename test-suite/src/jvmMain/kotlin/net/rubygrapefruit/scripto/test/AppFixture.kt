@@ -2,9 +2,13 @@ package net.rubygrapefruit.scripto.test
 
 import net.rubygrapefruit.file.Directory
 import net.rubygrapefruit.scripto.ir.Program
+import net.rubygrapefruit.scripto.ir.TargetRuntime
 import kotlin.test.assertEquals
 
 abstract class AppFixture(val workDir: Directory) {
+    open val targetRuntime: TargetRuntime
+        get() = TargetRuntime.NoOp
+
     abstract fun generateAndRun(program: Program): String
 
     open fun generateAndFail(program: Program) {

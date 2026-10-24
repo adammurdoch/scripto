@@ -3,12 +3,15 @@ package net.rubygrapefruit.scripto.bash
 import net.rubygrapefruit.file.Directory
 import net.rubygrapefruit.file.missing
 import net.rubygrapefruit.scripto.ir.Program
+import net.rubygrapefruit.scripto.ir.TargetRuntime
 import net.rubygrapefruit.scripto.test.AppFixture
 import net.rubygrapefruit.scripto.test.Feature
-import kotlin.test.assertFails
 import kotlin.test.assertTrue
 
 class BashFixture(workDir: Directory) : AppFixture(workDir) {
+    override val targetRuntime: TargetRuntime
+        field = BashGenerator()
+
     override fun generateAndRun(program: Program): String {
         val generator = BashGenerator()
         val outputScript = workDir.file("app.bash")
@@ -22,13 +25,9 @@ class BashFixture(workDir: Directory) : AppFixture(workDir) {
     }
 
     override fun generateAndFail(program: Program) {
-        val generator = BashGenerator()
         val outputScript = workDir.file("app.bash")
 
-        val e = assertFails { generator.generate(program, outputScript) }
-        println("Generation failed with: ${e.message}")
-        assertTrue(e.message!!.endsWith(" is not supported for Bash"))
-
+        targetRuntime.generate(program, outputScript)
         assertTrue(outputScript.metadata().missing)
     }
 

@@ -3,17 +3,17 @@ package net.rubygrapefruit.scripto.compiler
 import net.rubygrapefruit.scripto.ir.*
 
 internal class ProgramTree(val operations: List<OperationTree>) {
-    fun resolve(library: StandardLibrary): ResolveResult<Program> {
+    fun resolve(library: StandardLibrary, target: TargetRuntime): ResolveResult<Program> {
         val variables = mutableMapOf<String, VariableDeclaration>()
 
         val resolvedOperations = operations.resolving { operation ->
             when (operation) {
                 is FunctionCallTree -> {
-                    resolveFunctionCall(operation, variables, library)
+                    resolveFunctionCall(operation, variables, library, target)
                 }
 
                 is VariableDeclarationTree -> {
-                    val result = resolveVariableDeclaration(operation, variables, library)
+                    val result = resolveVariableDeclaration(operation, variables, library, target)
                     if (result is Resolved) {
                         val declaration = result.result
                         variables[operation.name] = declaration
@@ -31,12 +31,14 @@ internal class ProgramTree(val operations: List<OperationTree>) {
     private fun resolveFunctionCall(
         operation: FunctionCallTree,
         variables: Map<String, VariableDeclaration>,
-        library: StandardLibrary
+        library: StandardLibrary,
+        target: TargetRuntime
     ): ResolveResult<UnitFunctionCall> {
-        val arguments = resolveExpressions(operation.arguments, variables, library)
+        val arguments = resolveExpressions(operation.arguments, variables, library, target)
         val definition = locateFunction(operation, library)
         return zipping(definition, arguments) { definition, arguments ->
             val resolved = resolve(definition, arguments)
+            target.inspect(resolved)
             if (resolved !is UnitFunctionDefinition) {
                 NotResolved.of(operation.position, "Return value ignored for function '${operation.name}'")
             } else {
@@ -48,9 +50,10 @@ internal class ProgramTree(val operations: List<OperationTree>) {
     private fun resolveVariableDeclaration(
         operation: VariableDeclarationTree,
         variables: Map<String, VariableDeclaration>,
-        library: StandardLibrary
+        library: StandardLibrary,
+        target: TargetRuntime
     ): ResolveResult<VariableDeclaration> {
-        val initializer = resolve(operation.value, variables, library)
+        val initializer = resolve(operation.value, variables, library, target)
         return initializer.mapping { initializer ->
             if (variables.containsKey(operation.name)) {
                 NotResolved.of(operation.position, "Variable '${operation.name}' declared multiple times")
@@ -63,29 +66,33 @@ internal class ProgramTree(val operations: List<OperationTree>) {
     private fun resolveExpressions(
         expressions: List<ExpressionTree>,
         variables: Map<String, VariableDeclaration>,
-        library: StandardLibrary
+        library: StandardLibrary,
+        target: TargetRuntime
     ): ResolveResult<List<Expression>> {
-        return expressions.resolving { resolve(it, variables, library) }
+        return expressions.resolving { resolve(it, variables, library, target) }
     }
 
-    private fun resolve(expression: ExpressionTree, variables: Map<String, VariableDeclaration>, library: StandardLibrary): ResolveResult<Expression> {
+    private fun resolve(expression: ExpressionTree, variables: Map<String, VariableDeclaration>, library: StandardLibrary, target: TargetRuntime): ResolveResult<Expression> {
         return when (expression) {
             is LiteralTree -> Resolved(expression.literal)
             is VariableReferenceTree -> resolveVariableReference(variables, expression)
-            is InfixOperatorTree -> resolveInfixOperator(library, expression, variables)
+            is InfixOperatorTree -> resolveInfixOperator(library, expression, variables, target)
             is ListLiteralTree -> {
-                val arguments = resolveExpressions(expression.elements, variables, library)
+                val arguments = resolveExpressions(expression.elements, variables, library, target)
                 arguments.mapping { arguments ->
                     val elementType = inferTypeParamFromArguments(arguments)
-                    Resolved(FunctionCallExpression(StandardLibrary.listConstructor.evaluate(elementType), arguments))
+                    val resolved = StandardLibrary.listConstructor.evaluate(elementType)
+                    target.inspect(resolved)
+                    Resolved(FunctionCallExpression(resolved, arguments))
                 }
             }
 
             is FunctionCallTree -> {
-                val arguments = resolveExpressions(expression.arguments, variables, library)
+                val arguments = resolveExpressions(expression.arguments, variables, library, target)
                 val definition = locateFunction(expression, library)
                 zipping(definition, arguments) { definition, arguments ->
                     val resolved = resolve(definition, arguments)
+                    target.inspect(resolved)
                     if (resolved !is TypedFunctionDefinition) {
                         NotResolved.of(expression.position, "Function ${expression.name}() has no return value")
                     } else {
@@ -95,13 +102,14 @@ internal class ProgramTree(val operations: List<OperationTree>) {
             }
 
             is ReceiverFunctionCallTree -> {
-                val receiver = resolve(expression.receiver, variables, library)
-                val arguments = resolveExpressions(expression.target.arguments, variables, library)
+                val receiver = resolve(expression.receiver, variables, library, target)
+                val arguments = resolveExpressions(expression.target.arguments, variables, library, target)
                 val definition = receiver.mapping { receiver ->
                     locateFunction(receiver.type, expression.target, library)
                 }
                 zipping(receiver, definition, arguments) { receiver, definition, arguments ->
                     val resolved = resolve(definition, arguments)
+                    target.inspect(resolved)
                     if (resolved !is TypedFunctionDefinition) {
                         NotResolved.of(expression.target.position, "Function ${receiver.type}.${expression.target.name}() has no return value")
                     } else {
@@ -179,11 +187,12 @@ internal class ProgramTree(val operations: List<OperationTree>) {
     private fun resolveInfixOperator(
         library: StandardLibrary,
         expression: InfixOperatorTree,
-        variables: Map<String, VariableDeclaration>
+        variables: Map<String, VariableDeclaration>,
+        target: TargetRuntime
     ): ResolveResult<FunctionCallExpression> {
         val functions = library.operator(expression.operator)
-        val left = resolve(expression.left, variables, library)
-        val right = resolve(expression.right, variables, library)
+        val left = resolve(expression.left, variables, library, target)
+        val right = resolve(expression.right, variables, library, target)
         return zipping(left, right) { left, right ->
             val function = functions.find { left.type == it.parameters[0].type && right.type == it.parameters[1].type }
             if (function == null) {

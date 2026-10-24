@@ -3,6 +3,7 @@ package net.rubygrapefruit.scripto.compiler
 import net.rubygrapefruit.file.RegularFile
 import net.rubygrapefruit.file.toDir
 import net.rubygrapefruit.scripto.ir.Program
+import net.rubygrapefruit.scripto.ir.TargetRuntime
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import kotlin.test.assertEquals
@@ -20,12 +21,12 @@ abstract class AbstractCompilerIntegrationTest {
     }
 
     protected fun compile(sourceFile: RegularFile): Program {
-        return Compiler().compile(sourceFile).get()
+        return Compiler().compile(sourceFile, TargetRuntime.NoOp).get()
     }
 
     protected fun compileFails(sourceFile: RegularFile, message: String) {
         val compiler = Compiler()
-        val result = compiler.compile(sourceFile)
+        val result = compiler.compile(sourceFile, TargetRuntime.NoOp)
         assertIs<Compiler.Result.Failure>(result)
         assertEquals(listOf(message), result.errors.map { it.message })
         val e = assertFails {
@@ -36,7 +37,7 @@ abstract class AbstractCompilerIntegrationTest {
 
     protected fun compileFails(sourceFile: RegularFile, messages: List<String>) {
         val compiler = Compiler()
-        val result = compiler.compile(sourceFile)
+        val result = compiler.compile(sourceFile, TargetRuntime.NoOp)
         assertIs<Compiler.Result.Failure>(result)
         assertEquals(messages, result.errors.map { it.message })
         val e = assertFails {

@@ -8,6 +8,7 @@ import net.rubygrapefruit.scripto.bash.BashGenerator
 import net.rubygrapefruit.scripto.c.CGenerator
 import net.rubygrapefruit.scripto.c.compile.CCompiler
 import net.rubygrapefruit.scripto.compiler.Compiler
+import net.rubygrapefruit.scripto.ir.TargetRuntime
 import net.rubygrapefruit.scripto.jvm.JvmGenerator
 import net.rubygrapefruit.scripto.powershell.PowershellGenerator
 
@@ -27,22 +28,23 @@ class CompileAction : CliAction() {
     val sourceFile by file(mustExist = true).option("source").required()
 
     override fun run() {
-        val compiler = Compiler()
-        val program = compiler.compile(sourceFile).get()
-
         val bashGenerator = BashGenerator()
+        val powershellGenerator = PowershellGenerator()
+        val cGenerator = CGenerator()
+        val jvmGenerator = JvmGenerator()
+
+        val compiler = Compiler()
+        val program = compiler.compile(sourceFile, bashGenerator).get()
+
         bashGenerator.generate(program, outputDir.file("app.bash"))
 
-        val powershellGenerator = PowershellGenerator()
         powershellGenerator.generate(program, outputDir.file("app.ps"))
 
-        val cGenerator = CGenerator()
         val cSourceFile = outputDir.file("app.c")
         cGenerator.generate(program, cSourceFile)
         val cCompiler = CCompiler()
         cCompiler.compile(cSourceFile, outputDir.file("app"))
 
-        val jvmGenerator = JvmGenerator()
         jvmGenerator.generate(program, outputDir)
     }
 }
@@ -52,7 +54,7 @@ class RunAction : CliAction() {
 
     override fun run() {
         val compiler = Compiler()
-        val program = compiler.compile(sourceFile).get()
+        val program = compiler.compile(sourceFile, TargetRuntime.NoOp).get()
 
         val interpreter = Interpreter()
         interpreter.run(program, StdOut.Default)

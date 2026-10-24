@@ -5,7 +5,7 @@ import net.rubygrapefruit.file.RegularFile
 import net.rubygrapefruit.scripto.generator.*
 import net.rubygrapefruit.scripto.ir.*
 
-class BashGenerator {
+class BashGenerator : TargetRuntime {
     private val listToString by lazy {
         BashGeneratedFunction(
             "_list_to_string", "_LIST_TO_STRING", $$"""
@@ -22,17 +22,22 @@ _LIST_TO_STRING="$RESULT"
         )
     }
 
-    fun generate(program: Program, outputFile: RegularFile) {
-        program.visitExpressions { expression ->
-            if (expression is FunctionCallExpression) {
-                val target = expression.target
-                if (target is RealizedFunctionDefinition && target.definition == StandardLibrary.listConstructor) {
-                    if (target.argument is Type.List) {
-                        outputFile.delete()
-                        println("${expression.target.returnType} is not supported for Bash")
-                    }
-                }
+    private var enabled = true
+
+    override fun inspect(function: FunctionDefinition) {
+        val target = function
+        if (target is RealizedFunctionDefinition && target.definition == StandardLibrary.listConstructor) {
+            if (target.argument is Type.List) {
+                println("${target.returnType} is not supported for Bash")
+                enabled = false
             }
+        }
+    }
+
+    fun generate(program: Program, outputFile: RegularFile) {
+        if (!enabled) {
+            outputFile.delete()
+            return
         }
 
         val scope = StatementScope()

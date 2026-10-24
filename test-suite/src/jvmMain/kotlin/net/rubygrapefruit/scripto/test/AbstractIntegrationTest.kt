@@ -19,10 +19,10 @@ abstract class AbstractIntegrationTest {
     protected fun compileAndRun(sourceFile: RegularFile, vararg features: Feature, builder: InspectionFixture.() -> Unit) {
         val spec = DefaultInspectionFixture()
         spec.builder()
-        val compiler = Compiler()
-        val program = compiler.compile(sourceFile).get()
-        spec.inspect(program)
         val fixture = fixture()
+        val compiler = Compiler()
+        val program = compiler.compile(sourceFile, fixture.targetRuntime).get()
+        spec.inspect(program)
         if (features.any { !fixture.supports(it) }) {
             fixture.generateAndFail(program)
         } else {

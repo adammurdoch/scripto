@@ -66,8 +66,7 @@ class RealizedFunctionDefinition(
     val argument: Type,
     override val returnType: Type,
     override val parameters: List<Parameter>
-) :
-    TypedFunctionDefinition {
+) : TypedFunctionDefinition {
     override val displayName: String
         get() = "function ${definition.name}()"
 }

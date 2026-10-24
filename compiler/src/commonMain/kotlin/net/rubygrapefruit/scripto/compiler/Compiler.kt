@@ -13,8 +13,8 @@ import net.rubygrapefruit.scripto.ir.*
 class Compiler {
     private val parser = createParser()
 
-    fun compile(sourceFile: RegularFile): Result {
-        val result = doCompile(sourceFile)
+    fun compile(sourceFile: RegularFile, target: TargetRuntime): Result {
+        val result = doCompile(sourceFile, target)
         if (result is Result.Failure) {
             for (error in result.errors) {
                 println(error.message)
@@ -23,7 +23,7 @@ class Compiler {
         return result
     }
 
-    private fun doCompile(sourceFile: RegularFile): Result {
+    private fun doCompile(sourceFile: RegularFile, target: TargetRuntime): Result {
         val sourceText = sourceFile.readText()
         val parseResult = parser.parse(sourceText)
         val trees = try {
@@ -32,7 +32,7 @@ class Compiler {
             return Result.Failure(listOf(Error(e.message!!)))
         }
 
-        val resolveResult = ProgramTree(trees).resolve(StandardLibrary)
+        val resolveResult = ProgramTree(trees).resolve(StandardLibrary, target)
         return when (resolveResult) {
             is NotResolved -> {
                 val errors = resolveResult.problems.distinct().map { problem ->
