@@ -4,7 +4,6 @@ import net.rubygrapefruit.file.PosixPermissions
 import net.rubygrapefruit.file.RegularFile
 import net.rubygrapefruit.scripto.generator.*
 import net.rubygrapefruit.scripto.ir.*
-import kotlin.math.exp
 
 class BashGenerator {
     private val listToString by lazy {
@@ -30,7 +29,7 @@ _LIST_TO_STRING="$RESULT"
                 if (target is RealizedFunctionDefinition && target.definition == StandardLibrary.listConstructor) {
                     if (target.argument is Type.List) {
                         outputFile.delete()
-                        throw IllegalArgumentException("${expression.target.returnType} is not supported for Bash")
+                        println("${expression.target.returnType} is not supported for Bash")
                     }
                 }
             }

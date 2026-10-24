@@ -8,7 +8,6 @@ General
   - Add `+`
   - Inline list literal `List.toString()` and `println(List)`
 - Improve error message when operator called with arguments of incorrect type
-- Include source location in every error message
 - Inline constants
     - Evaluate functions with constant args at compile time
     - Need some way to initialize variables to arbitrary value in order to test this, e.g. function defs or args to main

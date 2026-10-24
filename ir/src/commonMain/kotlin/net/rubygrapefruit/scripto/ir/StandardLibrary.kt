@@ -93,11 +93,10 @@ object StandardLibrary : Functions {
         }
     }
 
-    fun operator(name: String): List<OperatorDefinition> {
-        return when (name) {
-            "+" -> listOf(intAddition, stringConcatenation)
-            "==" -> listOf(intEquality, booleanEquality, stringEquality)
-            else -> emptyList()
+    fun operator(operator: Operator): List<OperatorDefinition> {
+        return when (operator) {
+            Operator.Plus -> listOf(intAddition, stringConcatenation)
+            Operator.Equality -> listOf(intEquality, booleanEquality, stringEquality)
         }
     }
 }

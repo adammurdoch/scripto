@@ -69,6 +69,10 @@ class Compiler {
         return sequence(parsers.map { discard(it) })
     }
 
+    fun <IN, A, B, OUT> surrounded(prefix: Parser<IN, *>, a: Parser<IN, A>, b: Parser<IN, B>, suffix: Parser<IN, *>, map: (A, B) -> OUT): Parser<IN, OUT> {
+        return surrounded(prefix, sequence(a, b, map), suffix)
+    }
+
     private fun createParser(): Parser<TextInput, List<OperationTree>> {
         val whitespaceChar = oneOf(' ', '\t')
         val optionalWhitespace = discard(zeroOrMore(whitespaceChar))
@@ -80,7 +84,8 @@ class Compiler {
 
         val quote = literal('"')
         val stringBody = match(zeroOrMore(oneExcept(oneOf(endOfLine(), quote))))
-        val stringLiteral = surrounded(quote, stringBody, quote) { LiteralTree(StringLiteral(it)) }
+        val string = surrounded(quote, stringBody, quote) { literal -> StringLiteral(literal) }
+//        val stringLiteral = surrounded(quote, position(), stringBody, quote) { position, literal -> LiteralTree(position, StringLiteral(literal)) }
 
         val zero = literal("0", 0)
         val firstDigit = discard(oneInRange('1'..'9'))
@@ -94,10 +99,10 @@ class Compiler {
         }
         val negativeNumber = map(match(sequence(literal("-"), firstDigit, zeroOrMore(subsequentDigit)))) { it.toInt() }
 
-        val intLiteral = map(oneOf(zero, negativeNumber, number)) { LiteralTree(IntLiteral(it)) }
+        val int = map(oneOf(zero, negativeNumber, number)) { literal -> IntLiteral(literal) }
 
-        val trueLiteral = literal("true", LiteralTree(BooleanLiteral(true)))
-        val falseLiteral = literal("false", LiteralTree(BooleanLiteral(false)))
+        val booleanTrue = literal("true", BooleanLiteral(true))
+        val booleanFalse = literal("false", BooleanLiteral(false))
 
         val variableReference = sequence(position(), identifier) { pos, id -> VariableReferenceTree(pos, id) }
 
@@ -110,13 +115,14 @@ class Compiler {
 
         val listLiteralPrefix = sequence(literal('['), optionalWhitespace)
         val listLiteralSuffix = sequence(optionalWhitespace, literal(']'))
-        val listLiteral = map(surrounded(listLiteralPrefix, zeroOrMore(expression, separator = argSeparator), listLiteralSuffix)) { elements ->
-            ListLiteralTree(elements)
+        val listLiteral = surrounded(listLiteralPrefix, position(), zeroOrMore(expression, separator = argSeparator), listLiteralSuffix) { position, elements ->
+            ListLiteralTree(position, elements)
         }
 
         val functionCall = sequence(position(), identifier, argsList) { pos, name, args -> FunctionCallTree(pos, name, args) }
 
-        val functionReceiver = oneOf(intLiteral, stringLiteral, trueLiteral, falseLiteral, functionCall, variableReference, listLiteral)
+        val literal = sequence(position(), oneOf(string, int, booleanTrue, booleanFalse)) { position, literal -> LiteralTree(position, literal) }
+        val functionReceiver = oneOf(literal, functionCall, variableReference, listLiteral)
 
         val receiverSeparator = sequence(optionalWhitespace, literal('.'), optionalWhitespace)
         val receiverFunctionCall = sequence(functionReceiver, zeroOrMore(prefixed(receiverSeparator, functionCall))) { receiver, calls ->
@@ -126,13 +132,13 @@ class Compiler {
         val infixArgument = receiverFunctionCall
 
         val operator = oneOf(
-            literal("+", "+"),
-            literal("==", "=="),
+            literal("+", Operator.Plus),
+            literal("==", Operator.Equality),
         )
         val infixOperator = surrounded(optionalWhitespace, operator, optionalWhitespace)
-        val infix = sequence(infixOperator, infixArgument) { op, arg -> Pair(op, arg) }
+        val infix = sequence(position(), infixOperator, infixArgument) { position, op, arg -> OperatorSuffix(position, op, arg) }
         val infixFunctionCall = sequence(infixArgument, zeroOrMore(infix)) { first, calls ->
-            calls.fold(first) { left, op -> InfixOperatorTree(left, op.first, op.second) }
+            calls.fold(first) { left, op -> InfixOperatorTree(left, op.position, op.operator, op.right) }
         }
 
         expression.parser(infixFunctionCall)
@@ -151,6 +157,8 @@ class Compiler {
 
         return surrounded(blankLines, zeroOrMore(statement, separator = blankLines), blankLines)
     }
+
+    private class OperatorSuffix(val position: Position, val operator: Operator, val right: ExpressionTree)
 
     sealed interface Result {
         fun get(): Program

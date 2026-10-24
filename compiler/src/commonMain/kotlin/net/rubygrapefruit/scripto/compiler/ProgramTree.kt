@@ -38,7 +38,7 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         return zipping(definition, arguments) { definition, arguments ->
             val resolved = resolve(definition, arguments)
             if (resolved !is UnitFunctionDefinition) {
-                NotResolved.of("Return value ignored for function '${operation.name}'")
+                NotResolved.of(operation.position, "Return value ignored for function '${operation.name}'")
             } else {
                 Resolved(UnitFunctionCall(resolved, arguments))
             }
@@ -182,23 +182,20 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         variables: Map<String, VariableDeclaration>
     ): ResolveResult<FunctionCallExpression> {
         val functions = library.operator(expression.operator)
-        if (functions.isEmpty()) {
-            return NotResolved.of("Unknown operator '${expression.operator}")
-        }
         val left = resolve(expression.left, variables, library)
         val right = resolve(expression.right, variables, library)
         return zipping(left, right) { left, right ->
             val function = functions.find { left.type == it.parameters[0].type && right.type == it.parameters[1].type }
             if (function == null) {
                 val definition = functions.first()
-                val problems = mutableListOf<String>()
+                val problems = mutableListOf<Problem>()
                 if (left.type != definition.parameters[0].type) {
-                    problems.add("Argument is not of type ${definition.parameters[0].type}")
+                    problems.add(Problem(expression.left.position, "Argument is not of type ${definition.parameters[0].type}"))
                 }
                 if (right.type != definition.parameters[1].type) {
-                    problems.add("Argument is not of type ${definition.parameters[1].type}")
+                    problems.add(Problem(expression.right.position, "Argument is not of type ${definition.parameters[1].type}"))
                 }
-                NotResolved.of(problems)
+                NotResolved(problems)
             } else {
                 Resolved(FunctionCallExpression(function, listOf(left, right)))
             }

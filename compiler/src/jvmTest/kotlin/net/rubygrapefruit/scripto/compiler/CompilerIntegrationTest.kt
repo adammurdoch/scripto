@@ -140,7 +140,7 @@ println(false + 2)
         """.trimIndent()
         )
 
-        compileFails("Argument is not of type Int")
+        compileFails("Line 1: 9: Argument is not of type Int")
     }
 
     @Test
@@ -151,7 +151,7 @@ println(2 + "string")
         """.trimIndent()
         )
 
-        compileFails("Argument is not of type Int")
+        compileFails("Line 1: 13: Argument is not of type Int")
     }
 
     @Test
