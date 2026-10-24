@@ -67,11 +67,8 @@ Bash
 
 PowerShell
 
-- Strongly type array variables 
+- Declare variable types 
 - Cannot use `Write-Output` inside a function, as this adds the output to the function return value
-- When a variable's value is a temporary variable, use the temporary variable's value directly
-  - e.g. `val x = file.readText()` could set `x` directly instead of a temporary variable
-- Reuse temporary variables across statements
 - Use string interpolation for `File.toString()`?
 - Don't wrap '+' operators in `$()` or `()` when already in arithmetic mode
 

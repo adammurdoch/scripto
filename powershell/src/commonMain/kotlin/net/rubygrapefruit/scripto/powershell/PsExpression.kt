@@ -1,8 +1,6 @@
 package net.rubygrapefruit.scripto.powershell
 
-import net.rubygrapefruit.scripto.generator.ExpressionWithDependencies
-
-internal sealed interface PsExpression : ExpressionWithDependencies<PsStatement>
+internal sealed interface PsExpression
 
 internal class PsString(val value: String) : PsExpression
 
@@ -18,38 +16,12 @@ internal class PsVariableReference(val name: String) : PsExpression
 
 internal class PsIsNull(val value: PsExpression) : PsExpression
 
-internal class PsTernaryExpression(val condition: PsExpression, val left: PsExpression, val right: PsExpression) : PsExpression {
-    override fun visitDependencies(visitor: (PsStatement) -> Unit) {
-        condition.visitDependencies(visitor)
-        left.visitDependencies(visitor)
-        right.visitDependencies(visitor)
-    }
-}
+internal class PsTernaryExpression(val condition: PsExpression, val left: PsExpression, val right: PsExpression) : PsExpression
 
-internal class PsInfixOperation(val left: PsExpression, val operator: String, val right: PsExpression) : PsExpression {
-    override fun visitDependencies(visitor: (PsStatement) -> Unit) {
-        left.visitDependencies(visitor)
-        right.visitDependencies(visitor)
-    }
-}
+internal class PsInfixOperation(val left: PsExpression, val operator: String, val right: PsExpression) : PsExpression
 
-internal class PsFunctionCall(val receiver: PsExpression, val name: String) : PsExpression {
-    override fun visitDependencies(visitor: (PsStatement) -> Unit) {
-        receiver.visitDependencies(visitor)
-    }
-}
+internal class PsFunctionCall(val receiver: PsExpression, val name: String) : PsExpression
 
-internal class PsArrayOperator(val elements: List<PsExpression>) : PsExpression {
-    override fun visitDependencies(visitor: (PsStatement) -> Unit) {
-        elements.forEach { it.visitDependencies(visitor) }
-    }
-}
+internal class PsArrayOperator(val elements: List<PsExpression>) : PsExpression
 
-internal class PsCommandInvocationExpression(val intermediateVariable: String, val statements: List<PsStatement>) : PsExpression {
-    override fun visitDependencies(visitor: (PsStatement) -> Unit) {
-        statements.forEach(visitor)
-    }
-}
-
-internal class PsDotNetFunctionInvocation(val qualifiedName: String, val arguments: List<PsExpression>): PsExpression {
-}
+internal class PsDotNetFunctionInvocation(val qualifiedName: String, val arguments: List<PsExpression>) : PsExpression
