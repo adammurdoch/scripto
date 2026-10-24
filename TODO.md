@@ -1,8 +1,10 @@
 General
 
 - Lists
-  - Infer element type  
+  - Fail when list elements have different type (for now) 
+    - Handle a list of lists where some elements are empty, eg `[[1, 2], [], [3]]`
   - `toString()` delegates to correct implementation
+  - Add `args` parameter to main function 
   - Add `==`
   - Add `[]`
   - Add `+`
@@ -16,7 +18,9 @@ General
 - Define int size
 - Consistent formatting for parse errors and semantic errors
 - Trailing commas in list literal, parameter lists and argument lists
-- Improve experience when unsupported feature is not used
+- Improve experience when unsupported feature is used
+  - For example, script can declare targets and so compilation fails when feature is used
+  - For example, list targets when invoking compiler and fail when feature is used
 
 Stdlib
 
@@ -30,33 +34,43 @@ Interpreter
 JVM
 
 - Use `StringConcatFactory` for string concatenation
+- Set locals that are not referenced later in the function to null
+- Reuse local slots
 - Include debug information
 
 C
 
+- Garbage collect strings created by `+` operator, `Int.toString()`, `File.toString()`, `List.toString()` and `File.readText()`
+  - Variable values
+  - Function arguments
 - Use an allocator for `List.toString()`
 - Add a string builder and use for `List.toString()`, and `String + String`
-- Garbage collect strings created by `+` operator, `Int.toString()`, `File.toString()`, `List.toString()` and `File.readText()`
+- Reuse temporary variables across statements
 - Add a helper function for `File.toString()`?
 - Use `whar_t*` or `char16_t*` to represent strings?
 - Interesting reference counting approach https://www.microsoft.com/en-us/research/wp-content/uploads/2020/11/perceus-tr-v1.pdf
 
 Bash
 
+- Maybe support nested lists?
+  - e.g. by encoding list as `list.flatMap { nested -> listOf(nested.size) + nested }`
 - Report "List<List<*>> is not supported" warning the same way as semantic errors, and include source location information
   - Do this even if compilation fails
-- Implement `List.toString()` when receiver is not a variable reference
 - Strongly type `BashExpression` types that can be used in bash commands and those that can be used in arithmetic contexts?
-- Don't use a temporary variable to calculate variable initializer, e.g. for `File.readText()`
+- When a variable's value is a temporary variable, use the temporary variable's value directly
+  - e.g. `val x = a == b` could generate an if statement that sets the value of `x` instead of a temporary variable 
 - Reuse temporary variables across statements
+- Unset variables that are no longer referenced
 - Add a helper function for `List.toString()`?
 - Don't wrap '+' operators in paren when already in arithmetic mode
-- Use `declare -i` for int variables?
+- Use `declare` for int and array variables?
 
 PowerShell
 
 - Strongly type array variables 
-- Don't use a temporary variable to calculate variable initializer, e.g. for `File.readText()`
+- Cannot use `Write-Output` inside a function, as this adds the output to the function return value
+- When a variable's value is a temporary variable, use the temporary variable's value directly
+  - e.g. `val x = file.readText()` could set `x` directly instead of a temporary variable
 - Reuse temporary variables across statements
 - Use string interpolation for `File.toString()`?
 - Don't wrap '+' operators in `$()` or `()` when already in arithmetic mode
@@ -94,4 +108,5 @@ More features
 - function type + literal
 - named function declarations
 - structs
+- maps
 - release vs debug executable (e.g. no range checks, etc.)

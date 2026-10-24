@@ -79,9 +79,7 @@ class PowershellGenerator {
             is StringLiteral -> PsString(expression.value)
             is IntLiteral -> PsString(expression.value.toString())
             is BooleanLiteral -> PsString(expression.value.toString())
-            is VariableReference -> convertToString(expression, PsVariableReference(expression.target.name))
-            is FunctionCallExpression -> convertToString(expression, functionMapper.map(expression))
-            is ReceiverFunctionCallExpression -> convertToString(expression, mapFunctionCall(expression, scope, functionMapper))
+            else -> convertToString(expression, toExpression(expression, scope, functionMapper))
         }
     }
 
@@ -135,7 +133,8 @@ class PowershellGenerator {
     }
 
     private fun mapFunctionCall(expression: ReceiverFunctionCallExpression, scope: StatementScope, functionMapper: FunctionMapper<PsExpression>): PsExpression {
-        return when (expression.target) {
+        val target = expression.target
+        return when (target) {
             StringFunctions.toString -> toExpression(expression.receiver, scope, functionMapper)
             IntFunctions.toString -> {
                 val receiver = expression.receiver
@@ -163,7 +162,11 @@ class PowershellGenerator {
                 PsCommandInvocationExpression(varName, commands)
             }
 
-            else -> throw IllegalArgumentException("Unknown ${expression.target.displayName} for ${expression.receiver.type}")
+            ListFunctions.toString -> {
+                listToString(toExpression(expression.receiver, scope, functionMapper))
+            }
+
+            else -> throw IllegalArgumentException("Unknown ${target.displayName} for ${expression.receiver.type}")
         }
     }
 
@@ -282,14 +285,17 @@ class PowershellGenerator {
                 when (expression.elements.size) {
                     0 -> append("@()")
                     1 -> {
-                        append(",")
+                        append("(,")
                         append(expression.elements.first())
+                        append(")")
                     }
 
                     else -> {
+                        append("(")
                         append(expression.elements, ",") { element ->
                             append(element)
                         }
+                        append(")")
                     }
                 }
             }
