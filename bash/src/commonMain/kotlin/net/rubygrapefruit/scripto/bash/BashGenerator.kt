@@ -8,16 +8,16 @@ import net.rubygrapefruit.scripto.ir.*
 class BashGenerator : TargetRuntime {
     private val listToString by lazy {
         BashGeneratedFunction(
-            "_list_to_string", "_LIST_TO_STRING", $$"""
-local RESULT="["                
-local SEPARATOR=""
-local ARRAY_REF="$1[@]"
-for ELEMENT in "${!ARRAY_REF}"; do
-    RESULT+="$SEPARATOR$ELEMENT"
-    SEPARATOR=", "
+            "_list_to_string", "_list_to_string_r", $$"""
+local result="["                
+local separator=""
+local array_ref="$1[@]"
+for element in "${!array_ref}"; do
+    result+="$separator$element"
+    separator=", "
 done
-RESULT+="]"
-_LIST_TO_STRING="$RESULT"
+result+="]"
+_list_to_string_r="$result"
             """.trimIndent()
         )
     }
@@ -40,16 +40,25 @@ _LIST_TO_STRING="$RESULT"
             return
         }
 
-        val scope = StatementScope()
-
-        val functionMapper = createFunctionMapper(scope)
+        val functionMapper = createFunctionMapper()
         val operationMapper = createOperationMapper(functionMapper)
 
         val statements = operationMapper.map(program.operations)
 
+        val variableState = VariableState()
+
         val queue = Declaration.Queue<BashGeneratedFunction>()
         for (statement in statements) {
             statement.visitExpressions { expression ->
+                if (expression is BashVariableReference && expression.variable is BashVariable.Temporary) {
+                    variableState.assign(expression.variable)
+                }
+                if (expression is BashVariableName && expression.variable is BashVariable.Temporary) {
+                    variableState.assign(expression.variable)
+                }
+                if (expression is BashCommandInvocationExpression && expression.result is BashVariable.Temporary) {
+                    variableState.assign(expression.result)
+                }
                 expression.visitDeclarations { declaration ->
                     queue.add(declaration)
                 }
@@ -61,7 +70,7 @@ _LIST_TO_STRING="$RESULT"
                 append(function)
             }
             for (statement in statements) {
-                append(statement)
+                append(statement, variableState)
             }
         }
         outputFile.setPermissions(PosixPermissions.readWriteFile.executable())
@@ -79,7 +88,7 @@ _LIST_TO_STRING="$RESULT"
             }
             map { declaration ->
                 val value = declaration.value
-                BashVariableAssignment(declaration.name, toExpression(value, functionMapper))
+                BashVariableAssignment(BashVariable.Named(declaration.name), toExpression(value, functionMapper))
             }
             collectDependencies { statement: BashStatement ->
                 addDependencies(statement)
@@ -87,7 +96,7 @@ _LIST_TO_STRING="$RESULT"
         }
     }
 
-    private fun createFunctionMapper(scope: StatementScope): FunctionMapper<BashExpression> {
+    private fun createFunctionMapper(): FunctionMapper<BashExpression> {
         return FunctionMapper.of {
             map(StandardLibrary.fileConstructor) { expression, functionMapper ->
                 toExpression(expression.args.first(), functionMapper)
@@ -103,11 +112,12 @@ _LIST_TO_STRING="$RESULT"
             }
 
             val equality = { left: BashExpression, right: BashExpression ->
+                val result = BashVariable.Temporary("equal")
                 val test = listOf(left, BashWord("="), right)
-                val trueBranch = BashVariableAssignment("TMP_VAR", BashWord("true"))
-                val falseBranch = BashVariableAssignment("TMP_VAR", BashWord("false"))
+                val trueBranch = BashVariableAssignment(result, BashWord("true"))
+                val falseBranch = BashVariableAssignment(result, BashWord("false"))
                 val statement = BashIfStatement(test, trueBranch, falseBranch)
-                BashCommandInvocationExpression("TMP_VAR", listOf(statement))
+                BashCommandInvocationExpression(result, listOf(statement))
             }
             mapOperator(StandardLibrary.stringEquality, equality)
             mapOperator(StandardLibrary.intEquality, equality)
@@ -125,25 +135,28 @@ _LIST_TO_STRING="$RESULT"
             mapReceiver(FileFunctions.toString) { expression, functionMapper ->
                 BashConcatenatedExpressions(listOf(BashString("File("), toExpression(expression.receiver, functionMapper), BashString(")")))
             }
-            mapReceiver(ListFunctions.toString) { expression, _ ->
-                val receiver = expression.receiver
-                when (receiver) {
-                    is VariableReference -> {
-                        BashCommandInvocationExpression(
-                            listToString.returnVar, listOf(
-                                BashCommandInvocation(listToString.name, listOf(BashWord(receiver.target.name)))
-                            ),
-                            listToString
+            mapReceiver(ListFunctions.toString) { expression, functionMapper ->
+                val receiver = toExpression(expression.receiver, functionMapper)
+                // Have to pass a variable name to the function
+                val statements = when (receiver) {
+                    is BashVariableReference -> listOf(
+                        BashCommandInvocation(listToString.name, listOf(BashVariableName(receiver.variable)))
+                    )
+
+                    else -> {
+                        val tmp = BashVariable.Temporary("list")
+                        listOf(
+                            BashVariableAssignment(tmp, receiver),
+                            BashCommandInvocation(listToString.name, listOf(BashVariableName(tmp)))
                         )
                     }
-
-                    else -> BashString("??")
                 }
+                BashCommandInvocationExpression(BashVariable.Named(listToString.returnVar), statements, listToString)
             }
             mapReceiver(FileFunctions.readText) { expression, functionMapper ->
-                val varName = scope.newVarName("READ_TEXT")
-                val readText = readFileIntoVar(toExpression(expression.receiver, functionMapper), varName)
-                BashCommandInvocationExpression(varName, listOf(readText))
+                val result = BashVariable.Temporary("text")
+                val readText = readFileIntoVar(toExpression(expression.receiver, functionMapper), result)
+                BashCommandInvocationExpression(result, listOf(readText))
             }
         }
     }
@@ -167,15 +180,15 @@ _LIST_TO_STRING="$RESULT"
         }
     }
 
-    private fun varReferenceToBash(expression: VariableReference): BashWord {
+    private fun varReferenceToBash(expression: VariableReference): BashExpression {
         return when (expression.type) {
-            is Type.String, is Type.File, is Type.List -> BashWord("\"\$${expression.target.name}\"")
-            else -> BashWord("\$${expression.target.name}")
+            is Type.Boolean, is Type.Int -> BashVariableReference(BashVariable.Named(expression.target.name), false)
+            else -> BashVariableReference(BashVariable.Named(expression.target.name), true)
         }
     }
 
-    private fun readFileIntoVar(file: BashExpression, varName: String): BashCommandInvocation {
-        return BashCommandInvocation("IFS= read -rd '' $varName", emptyList(), redirectInput = file)
+    private fun readFileIntoVar(file: BashExpression, target: BashVariable): BashCommandInvocation {
+        return BashCommandInvocation("IFS= read -rd ''", listOf(BashVariableName(target)), redirectInput = file)
     }
 
     private fun SourceGenerator.append(function: BashGeneratedFunction) {
@@ -190,69 +203,76 @@ _LIST_TO_STRING="$RESULT"
         appendln()
     }
 
-    private fun SourceGenerator.append(statement: BashStatement) {
+    private fun SourceGenerator.append(statement: BashStatement, state: VariableState) {
         when (statement) {
-            is BashVariableAssignment -> append(statement)
-            is BashVariableValueAppend -> append(statement)
-            is BashCommandInvocation -> append(statement)
-            is BashIfStatement -> append(statement)
-            is BashForLoop -> append(statement)
+            is BashVariableAssignment -> append(statement, state)
+            is BashVariableValueAppend -> append(statement, state)
+            is BashCommandInvocation -> append(statement, state)
+            is BashIfStatement -> append(statement, state)
+            is BashForLoop -> append(statement, state)
         }
     }
 
-    private fun SourceGenerator.append(statement: BashVariableAssignment) {
-        append(statement.name)
+    private fun SourceGenerator.append(statement: BashVariableAssignment, state: VariableState) {
+        append(statement.target, state)
         append("=")
-        append(statement.value)
+        append(statement.value, state)
         appendln()
     }
 
-    private fun SourceGenerator.append(statement: BashVariableValueAppend) {
+    private fun SourceGenerator.append(target: BashVariable, state: VariableState) {
+        when (target) {
+            is BashVariable.Named -> append(target.name)
+            is BashVariable.Temporary -> append(state.varFor(target))
+        }
+    }
+
+    private fun SourceGenerator.append(statement: BashVariableValueAppend, state: VariableState) {
         append(statement.name)
         append("+=")
-        append(statement.value)
+        append(statement.value, state)
         appendln()
     }
 
-    private fun SourceGenerator.append(statement: BashCommandInvocation) {
+    private fun SourceGenerator.append(statement: BashCommandInvocation, state: VariableState) {
         append(statement.command)
         for (arg in statement.arguments) {
             append(" ")
-            append(arg)
+            append(arg, state)
         }
         if (statement.redirectInput != null) {
             append("<")
-            append(statement.redirectInput)
+            append(statement.redirectInput, state)
         }
         appendln()
     }
 
-    private fun SourceGenerator.append(statement: BashIfStatement) {
+    private fun SourceGenerator.append(statement: BashIfStatement, state: VariableState) {
         append("if [ ")
         for (arg in statement.test) {
-            append(arg)
+            append(arg, state)
             append(' ')
         }
         appendln("]; then")
-        append(statement.trueBranch)
+        append(statement.trueBranch, state)
         appendln("else")
-        append(statement.falseBranch)
+        append(statement.falseBranch, state)
         appendln("fi")
     }
 
-    private fun SourceGenerator.append(statement: BashForLoop) {
+    private fun SourceGenerator.append(statement: BashForLoop, state: VariableState) {
         append("for ")
         append(statement.elementVarName)
         append(" in ")
-        append(statement.elements)
+        append(statement.elements, state)
         append("; do\n")
         for (loopStatement in statement.statements) {
-            append(loopStatement)
+            append(loopStatement, state)
         }
         append("done\n")
     }
 
-    private fun SourceGenerator.append(expression: BashExpression) {
+    private fun SourceGenerator.append(expression: BashExpression, state: VariableState) {
         when (expression) {
             is BashString -> {
                 append("\"")
@@ -271,31 +291,46 @@ _LIST_TO_STRING="$RESULT"
 
             is BashWord -> append(expression.value)
 
+            is BashVariableReference -> {
+                if (expression.quoted) {
+                    append("\"$")
+                    append(expression.variable, state)
+                    append("\"")
+                } else {
+                    append("$")
+                    append(expression.variable, state)
+                }
+            }
+
+            is BashVariableName -> {
+                append(expression.variable, state)
+            }
+
             is BashConcatenatedExpressions -> {
                 for (nested in expression.values) {
-                    append(nested)
+                    append(nested, state)
                 }
             }
 
             is BashArithmetic -> {
                 append("$((")
-                append(expression.left)
+                append(expression.left, state)
                 append(expression.operator)
-                append(expression.right)
+                append(expression.right, state)
                 append("))")
             }
 
             is BashArrayLiteral -> {
                 append("(")
                 append(expression.elements, " ") { element ->
-                    append(element)
+                    append(element, state)
                 }
                 append(")")
             }
 
             is BashCommandInvocationExpression -> {
                 append("\"$")
-                append(expression.intermediateVariable)
+                append(expression.result, state)
                 append("\"")
             }
         }

@@ -1,5 +1,6 @@
 package net.rubygrapefruit.scripto.c
 
+import net.rubygrapefruit.scripto.generator.TemporaryValue
 import net.rubygrapefruit.scripto.ir.VariableReference
 
 internal sealed interface CExpression {
@@ -111,7 +112,7 @@ internal class CInitializer(val elements: List<CExpression>) : CCompositeExpress
 /**
  * An expression that must be placed into a variable.
  */
-internal class CTemporaryValue(val type: CType, val value: CExpression) : CCompositeExpression() {
+internal class CTemporaryValue(val type: CType, override val nameHint: String, val value: CExpression) : CCompositeExpression(), TemporaryValue {
     override fun visitChildren(visitor: (CExpression) -> Unit) {
         visitor(value)
     }

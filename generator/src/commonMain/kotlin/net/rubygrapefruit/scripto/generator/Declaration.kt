@@ -40,6 +40,12 @@ interface Declaration<out SELF : Declaration<SELF>> {
             }
         }
 
+        fun getAll(): List<T> {
+            val declarations = mutableListOf<T>()
+            visitAll(declarations::add)
+            return declarations
+        }
+
         private enum class VisitState {
             Queued, DependenciesQueued, Finished
         }

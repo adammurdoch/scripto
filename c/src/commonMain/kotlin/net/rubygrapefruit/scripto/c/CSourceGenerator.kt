@@ -1,6 +1,7 @@
 package net.rubygrapefruit.scripto.c
 
 import net.rubygrapefruit.scripto.generator.SourceGenerator
+import net.rubygrapefruit.scripto.generator.VariableState
 import net.rubygrapefruit.scripto.generator.append
 
 internal fun SourceGenerator.append(function: CGeneratedFunction, state: VariableState) {

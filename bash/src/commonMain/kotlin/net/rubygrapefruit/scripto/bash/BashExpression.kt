@@ -1,6 +1,7 @@
 package net.rubygrapefruit.scripto.bash
 
 import net.rubygrapefruit.scripto.generator.ExpressionWithDependencies
+import net.rubygrapefruit.scripto.generator.TemporaryValue
 
 internal sealed interface BashExpression : ExpressionWithDependencies<BashStatement> {
     fun visitDeclarations(visitor: (BashGeneratedFunction) -> Unit) {
@@ -24,42 +25,69 @@ internal class BashString(val value: String) : BashExpression
  */
 internal class BashWord(val value: String) : BashExpression
 
+internal sealed interface BashVariable {
+    class Named(val name: String) : BashVariable
+
+    class Temporary(override val nameHint: String) : BashVariable, TemporaryValue {
+        override fun toString(): String {
+            return nameHint
+        }
+    }
+}
+
+internal class BashVariableReference(val variable: BashVariable, val quoted: Boolean = true) : BashExpression
+
+internal class BashVariableName(val variable: BashVariable) : BashExpression
+
+internal sealed class BashCompositeExpression : BashExpression {
+    override fun visitExpressions(visitor: (BashExpression) -> Unit) {
+        visitChildren { expression ->
+            expression.visitExpressions(visitor)
+        }
+        visitor(this)
+    }
+
+    override fun visitDependencies(visitor: (BashStatement) -> Unit) {
+        visitChildren { expression ->
+            expression.visitDependencies(visitor)
+        }
+    }
+
+    protected abstract fun visitChildren(visitor: (BashExpression) -> Unit)
+}
+
 /**
  * A list of expressions concatenated together in the bash output.
  */
-internal class BashConcatenatedExpressions(val values: List<BashExpression>) : BashExpression {
-    override fun visitDependencies(visitor: (BashStatement) -> Unit) {
-        for (expression in values) {
-            expression.visitDependencies(visitor)
-        }
+internal class BashConcatenatedExpressions(val values: List<BashExpression>) : BashCompositeExpression() {
+    override fun visitChildren(visitor: (BashExpression) -> Unit) {
+        values.forEach(visitor)
     }
 }
 
 /**
  * An arithmetic expression.
  */
-internal class BashArithmetic(val left: BashExpression, val operator: String, val right: BashExpression) : BashExpression {
-    override fun visitDependencies(visitor: (BashStatement) -> Unit) {
-        left.visitDependencies(visitor)
-        right.visitDependencies(visitor)
+internal class BashArithmetic(val left: BashExpression, val operator: String, val right: BashExpression) : BashCompositeExpression() {
+    override fun visitChildren(visitor: (BashExpression) -> Unit) {
+        visitor(left)
+        visitor(right)
     }
 }
 
 /**
  * A list of expressions
  */
-internal class BashArrayLiteral(val elements: List<BashExpression>) : BashExpression {
-    override fun visitDependencies(visitor: (BashStatement) -> Unit) {
-        for (expression in elements) {
-            expression.visitDependencies(visitor)
-        }
+internal class BashArrayLiteral(val elements: List<BashExpression>) : BashCompositeExpression() {
+    override fun visitChildren(visitor: (BashExpression) -> Unit) {
+        elements.forEach(visitor)
     }
 }
 
 /**
  * An expression that requires a statement to be executed before it can be evaluated.
  */
-internal class BashCommandInvocationExpression(val intermediateVariable: String, val statements: List<BashStatement>, val uses: BashGeneratedFunction? = null) : BashExpression {
+internal class BashCommandInvocationExpression(val result: BashVariable, val statements: List<BashStatement>, val uses: BashGeneratedFunction? = null) : BashExpression {
     override fun visitDeclarations(visitor: (BashGeneratedFunction) -> Unit) {
         if (uses != null) {
             visitor(uses)
@@ -68,5 +96,12 @@ internal class BashCommandInvocationExpression(val intermediateVariable: String,
 
     override fun visitDependencies(visitor: (BashStatement) -> Unit) {
         statements.forEach(visitor)
+    }
+
+    override fun visitExpressions(visitor: (BashExpression) -> Unit) {
+        if (result is BashExpression) {
+            visitor(result)
+        }
+        visitor(this)
     }
 }

@@ -24,6 +24,7 @@ internal class BashCommandInvocation(
         for (argument in arguments) {
             argument.visitExpressions(visitor)
         }
+        redirectInput?.visitExpressions(visitor)
     }
 }
 
@@ -41,7 +42,7 @@ internal class BashIfStatement(val test: List<BashExpression>, val trueBranch: B
     }
 }
 
-internal class BashVariableAssignment(val name: String, val value: BashExpression) : BashStatement {
+internal class BashVariableAssignment(val target: BashVariable, val value: BashExpression) : BashStatement {
     override fun visitDependencies(visitor: (BashStatement) -> Unit) {
         value.visitDependencies(visitor)
     }

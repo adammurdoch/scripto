@@ -1,10 +1,7 @@
 package net.rubygrapefruit.scripto.c
 
 import net.rubygrapefruit.file.RegularFile
-import net.rubygrapefruit.scripto.generator.Declaration
-import net.rubygrapefruit.scripto.generator.FunctionMapper
-import net.rubygrapefruit.scripto.generator.OperationMapper
-import net.rubygrapefruit.scripto.generator.writeTo
+import net.rubygrapefruit.scripto.generator.*
 import net.rubygrapefruit.scripto.ir.*
 
 @OptIn(ExperimentalStdlibApi::class)
@@ -50,8 +47,7 @@ class CGenerator {
             index++
         }
 
-        val declarations = mutableListOf<CDeclaration>()
-        declarationQueue.visitAll { declaration -> declarations.add(declaration) }
+        val declarations = declarationQueue.getAll()
 
         writeTo(outputFile, "//") {
             for (header in declarations.filterIsInstance<Header>()) {
@@ -104,17 +100,19 @@ class CGenerator {
             }
             map(StandardLibrary.listConstructor) { expression, definition, functionMapper ->
                 if (expression.args.isEmpty()) {
-                    CTemporaryValue(TypeSnippet.ListStruct, CInitializer(listOf(CInt(0), CNull)))
+                    CTemporaryValue(TypeSnippet.ListStruct, "list", CInitializer(listOf(CInt(0), CNull)))
                 } else {
                     val elements = expression.args.map { toExpression(it, functionMapper) }
                     val elementArrayType = toCType(definition.argument).array()
                     CTemporaryValue(
                         TypeSnippet.ListStruct,
+                        "list",
                         CInitializer(
                             listOf(
                                 CInt(elements.size),
                                 CTemporaryValue(
                                     elementArrayType,
+                                    "elements",
                                     CInitializer(elements)
                                 )
                             )
@@ -264,19 +262,5 @@ class CGenerator {
 
     private fun fileToString(expression: Expression, functionMapper: FunctionMapper<CExpression>): CExpression {
         return concatString(CString("File("), concatString(toExpression(expression, functionMapper), CString(")")))
-    }
-}
-
-internal class VariableState {
-    private val expressions = mutableMapOf<CTemporaryValue, String>()
-
-    fun assign(expression: CTemporaryValue): String {
-        val varName = "_tmp_${expressions.size + 1}"
-        expressions[expression] = varName
-        return varName
-    }
-
-    fun varFor(expression: CTemporaryValue): String {
-        return expressions.getValue(expression)
     }
 }
