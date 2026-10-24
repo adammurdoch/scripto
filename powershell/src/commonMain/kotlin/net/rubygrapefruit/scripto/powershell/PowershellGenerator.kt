@@ -75,27 +75,33 @@ class PowershellGenerator {
             is StringLiteral -> PsString(expression.value)
             is IntLiteral -> PsString(expression.value.toString())
             is BooleanLiteral -> PsString(expression.value.toString())
-            else -> convertToString(expression, toExpression(expression, functionMapper))
+            else -> convertToString(expression.type, toExpression(expression, functionMapper))
         }
     }
 
-    private fun convertToString(expression: Expression, psExpression: PsExpression): PsExpression {
-        return when (expression.type) {
-            is Type.String -> psExpression
-            is Type.File -> fileToString(psExpression)
-            is Type.Int -> psExpression
-            is Type.Boolean -> booleanToString(psExpression)
-            is Type.List -> listToString(psExpression)
+    private fun convertToString(type: Type, expression: PsExpression): PsExpression {
+        return when (type) {
+            is Type.String -> expression
+            is Type.File -> fileToString(expression)
+            is Type.Int -> expression
+            is Type.Boolean -> booleanToString(expression)
+            is Type.List -> listToString(type, expression)
             is Type.Any -> throw IllegalArgumentException()
         }
     }
 
-    private fun listToString(expression: PsExpression): PsExpression {
-        val list = PsInfixOperation(
-            expression,
-            "-join",
-            PsString(", ")
-        )
+    private fun listToString(type: Type.List, expression: PsExpression): PsExpression {
+        val mapped = when (type.param) {
+            is Type.String, Type.Int, Type.Any -> expression
+            else -> PsMethodCall(
+                expression, "ForEach", listOf(
+                    PsScriptBlockExpression(
+                        convertToString(type.param, PsVariableReference("_"))
+                    )
+                )
+            )
+        }
+        val list = PsInfixOperation(mapped, "-join", PsString(", "))
         return surroundWith("[", list, "]")
     }
 
@@ -136,7 +142,7 @@ class PowershellGenerator {
                 val receiver = expression.receiver
                 when (receiver) {
                     is IntLiteral -> PsString(receiver.value.toString())
-                    else -> PsFunctionCall(toExpression(receiver, functionMapper), "ToString")
+                    else -> PsMethodCall(toExpression(receiver, functionMapper), "ToString", emptyList())
                 }
             }
 
@@ -161,7 +167,7 @@ class PowershellGenerator {
             }
 
             ListFunctions.toString -> {
-                listToString(toExpression(expression.receiver, functionMapper))
+                listToString(expression.receiver.type as Type.List, toExpression(expression.receiver, functionMapper))
             }
 
             else -> throw IllegalArgumentException("Unknown ${target.displayName} for ${expression.receiver.type}")
@@ -181,14 +187,14 @@ class PowershellGenerator {
             is PsVariableDeclaration -> appendDeclaration(statement)
 
             is PsCommandInvocation -> {
-                appendNoNewLine(statement)
+                appendCall(statement)
                 appendln()
             }
 
             is PsPipe -> {
-                appendNoNewLine(statement.left)
+                appendCall(statement.left)
                 append(" | ")
-                appendNoNewLine(statement.right)
+                appendCall(statement.right)
                 appendln()
             }
 
@@ -196,13 +202,13 @@ class PowershellGenerator {
                 append("if (")
                 append(statement.condition)
                 append(") { ")
-                appendNoNewLine(statement.statement)
+                appendCall(statement.statement)
                 appendln(" }")
             }
         }
     }
 
-    private fun SourceGenerator.appendNoNewLine(statement: PsCommandInvocation) {
+    private fun SourceGenerator.appendCall(statement: PsCommandInvocation) {
         append(statement.command)
         for (literal in statement.args) {
             append(" ")
@@ -264,11 +270,21 @@ class PowershellGenerator {
                 append(")")
             }
 
-            is PsFunctionCall -> {
+            is PsScriptBlockExpression -> {
+                append("{")
+                append(expression.value)
+                append("}")
+            }
+
+            is PsMethodCall -> {
                 append(expression.receiver)
                 append(".")
                 append(expression.name)
-                append("()")
+                append("(")
+                append(expression.arguments, ", ") { argument ->
+                    append(argument)
+                }
+                append(")")
             }
 
             is PsArrayOperator -> {
@@ -292,7 +308,7 @@ class PowershellGenerator {
 
             is PsCommandInvocation -> {
                 append("(")
-                appendNoNewLine(expression)
+                appendCall(expression)
                 append(")")
             }
 

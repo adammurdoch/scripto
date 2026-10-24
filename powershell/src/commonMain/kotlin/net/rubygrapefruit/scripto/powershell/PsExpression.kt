@@ -20,7 +20,9 @@ internal class PsTernaryExpression(val condition: PsExpression, val left: PsExpr
 
 internal class PsInfixOperation(val left: PsExpression, val operator: String, val right: PsExpression) : PsExpression
 
-internal class PsFunctionCall(val receiver: PsExpression, val name: String) : PsExpression
+internal class PsMethodCall(val receiver: PsExpression, val name: String, val arguments: List<PsExpression>) : PsExpression
+
+internal class PsScriptBlockExpression(val value: PsExpression) : PsExpression
 
 internal class PsArrayOperator(val elements: List<PsExpression>) : PsExpression
 
