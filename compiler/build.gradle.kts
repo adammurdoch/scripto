@@ -1,9 +1,14 @@
 plugins {
     id("net.rubygrapefruit.kmp.lib")
+    id("de.infix.testBalloon").version("1.1.0")
 }
 
 library {
-    jvm()
+    jvm {
+        test {
+            implementation("org.jetbrains.kotlin:kotlin-test-junit5:${versions.kotlin.version}")
+        }
+    }
     macOS()
     common {
         api(project(":ir"))
@@ -12,6 +17,7 @@ library {
         implementation(versions.libs.coordinates("file-parse"))
     }
     test {
+        implementation("de.infix.testBalloon:testBalloon-framework-core:1.1.0")
         implementation(versions.test.coordinates)
     }
 }
