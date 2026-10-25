@@ -16,7 +16,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFails
 import kotlin.test.assertIs
 
-class SourceFileFixture(private val workDir: Directory, val sourceFile: RegularFile) {
+class SourceFileFixture(private val workDir: Directory, val sourceFile: RegularFile) : AutoCloseable {
+    override fun close() {
+        workDir.deleteRecursively()
+    }
+
     fun compile(sourceFile: RegularFile = this.sourceFile): Program {
         return Compiler().compile(sourceFile, TargetRuntime.NoOp).get()
     }
