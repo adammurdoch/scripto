@@ -1,5 +1,5 @@
 
-A strongly typed scripting language that compiles to C, JVM byte code, Bash and PowerShell.
+A statically typed language with automatic memory management that compiles to native executables, C, JVM byte code, Bash and PowerShell.
 
 Language
 ----

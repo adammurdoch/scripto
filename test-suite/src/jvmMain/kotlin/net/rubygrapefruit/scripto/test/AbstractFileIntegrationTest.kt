@@ -31,7 +31,7 @@ println(File("some file.txt"))
     }
 
     @Test
-    fun `compiles call to File toString()`() {
+    fun `compiles call to File constructor toString()`() {
         val sourceFile = workDir.file("app.scripto")
         sourceFile.writeText(
             """

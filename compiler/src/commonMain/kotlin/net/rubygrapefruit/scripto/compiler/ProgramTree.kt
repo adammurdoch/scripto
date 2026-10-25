@@ -175,7 +175,7 @@ internal class ProgramTree(val operations: List<OperationTree>) {
             if (argumentCount == candidate.parameterCount) {
                 return candidate
             }
-            if (argumentCount > candidate.parameterCount && candidate.isVarargs) {
+            if (candidate.isVarargs && argumentCount >= candidate.parameterCount - 1) {
                 return candidate
             }
         }

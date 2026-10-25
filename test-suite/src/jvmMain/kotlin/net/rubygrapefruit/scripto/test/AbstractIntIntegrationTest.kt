@@ -4,7 +4,7 @@ import kotlin.test.Test
 
 abstract class AbstractIntIntegrationTest : AbstractIntegrationTest() {
     @Test
-    fun `compiles int variable defintion initialized with literal`() {
+    fun `compiles variable defintion initialized with interface literal`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(
@@ -21,7 +21,7 @@ println(i)
     }
 
     @Test
-    fun `compiles multiple int variable defintion initialized with literal`() {
+    fun `compiles multiple variable defintions initialized with int literals`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(
@@ -53,7 +53,7 @@ println(e)
     }
 
     @Test
-    fun `compiles call to literal toString() function`() {
+    fun `compiles call to int literal toString() function`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(

@@ -4,7 +4,7 @@ import kotlin.test.Test
 
 abstract class AbstractStringIntegrationTest : AbstractIntegrationTest() {
     @Test
-    fun `compiles string variable defintion initialized with literal`() {
+    fun `compiles variable defintion initialized with string literal`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(
@@ -21,7 +21,7 @@ println(s)
     }
 
     @Test
-    fun `compiles multiple string variable defintion initialized with literal`() {
+    fun `compiles multiple variable defintions initialized with string literals`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(
@@ -52,6 +52,9 @@ e
         }
     }
 
+    /**
+     * function call with string variable argument is covered by variable definition test above
+     */
     @Test
     fun `compiles function call with string literal argument`() {
         val sourceFile = workDir.file("app.scripto")
@@ -69,7 +72,7 @@ println("some text")
     }
 
     @Test
-    fun `compiles call to literal toString() function`() {
+    fun `compiles call to string literal toString() function`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(

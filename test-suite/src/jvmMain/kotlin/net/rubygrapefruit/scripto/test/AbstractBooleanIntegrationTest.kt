@@ -4,7 +4,7 @@ import kotlin.test.Test
 
 abstract class AbstractBooleanIntegrationTest : AbstractIntegrationTest() {
     @Test
-    fun `compiles boolean variable defintion initialized with literal`() {
+    fun `compiles variable defintion initialized with boolean literal`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(
@@ -37,7 +37,7 @@ println(false)
     }
 
     @Test
-    fun `compiles call to literal toString() function`() {
+    fun `compiles call to boolean literal toString() function`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(
