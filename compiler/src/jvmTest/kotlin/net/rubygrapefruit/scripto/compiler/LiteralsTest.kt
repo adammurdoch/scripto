@@ -13,28 +13,30 @@ import kotlin.test.assertIs
  */
 val LiteralsTest by testSuite {
     withCompiler {
-        test("parses string literals") {
+        testSuite("parses string literals") {
             val candidates = listOf("", "abc")
 
             for (candidate in candidates) {
-                sourceFile.writeText("""println("$candidate")""")
+                test("literal '$candidate'") {
+                    sourceFile.writeText("""println("$candidate")""")
 
-                val program = compile()
-                assertEquals(1, program.operations.size)
+                    val program = compile()
+                    assertEquals(1, program.operations.size)
 
-                val operation = program.operations.first()
-                assertIs<UnitFunctionCall>(operation)
+                    val operation = program.operations.first()
+                    assertIs<UnitFunctionCall>(operation)
 
-                assertEquals(1, operation.arguments.size)
+                    assertEquals(1, operation.arguments.size)
 
-                val literal = operation.arguments.first()
-                assertIs<StringLiteral>(literal)
+                    val literal = operation.arguments.first()
+                    assertIs<StringLiteral>(literal)
 
-                assertEquals(candidate, literal.value)
+                    assertEquals(candidate, literal.value)
+                }
             }
         }
 
-        test("parses int literals") {
+        testSuite("parses int literals") {
             val candidates = listOf(
                 "0" to 0,
                 "1" to 1,
@@ -45,24 +47,26 @@ val LiteralsTest by testSuite {
             )
 
             for (candidate in candidates) {
-                sourceFile.writeText("""println(${candidate.first})""")
+                test("literal '${candidate.first}'") {
+                    sourceFile.writeText("""println(${candidate.first})""")
 
-                val program = compile()
-                assertEquals(1, program.operations.size)
+                    val program = compile()
+                    assertEquals(1, program.operations.size)
 
-                val operation = program.operations.first()
-                assertIs<UnitFunctionCall>(operation)
+                    val operation = program.operations.first()
+                    assertIs<UnitFunctionCall>(operation)
 
-                assertEquals(1, operation.arguments.size)
+                    assertEquals(1, operation.arguments.size)
 
-                val literal = operation.arguments.first()
-                assertIs<IntLiteral>(literal)
+                    val literal = operation.arguments.first()
+                    assertIs<IntLiteral>(literal)
 
-                assertEquals(candidate.second, literal.value)
+                    assertEquals(candidate.second, literal.value)
+                }
             }
         }
 
-        test("fails when int literal is badly formed") {
+        testSuite("fails when int literal is badly formed") {
             val candidates = listOf(
                 "012" to """")", "+", ",", ".", "==", space, tab""",
                 "002" to """")", "+", ",", ".", "==", space, tab""",
@@ -70,19 +74,21 @@ val LiteralsTest by testSuite {
             )
 
             for (candidate in candidates) {
-                sourceFile.writeText(
-                    """
+                test("literal '${candidate.first}'") {
+                    sourceFile.writeText(
+                        """
 println(${candidate.first})
         """.trimIndent()
-                )
+                    )
 
-                compileFails(
-                    """
+                    compileFails(
+                        """
                 1 | println(${candidate.first})
                              ^
                 Expected ${candidate.second}
             """.trimIndent()
-                )
+                    )
+                }
             }
         }
 
@@ -96,27 +102,29 @@ Expected ")", "-", "0", "[", "false", "true", '"', an identifier, an integer, sp
             )
         }
 
-        test("parses boolean literals") {
+        testSuite("parses boolean literals") {
             val candidates = listOf(
                 "true" to true,
                 "false" to false
             )
 
             for (candidate in candidates) {
-                sourceFile.writeText("""println(${candidate.first})""")
+                test("literal '${candidate.first}'") {
+                    sourceFile.writeText("""println(${candidate.first})""")
 
-                val program = compile()
-                assertEquals(1, program.operations.size)
+                    val program = compile()
+                    assertEquals(1, program.operations.size)
 
-                val operation = program.operations.first()
-                assertIs<UnitFunctionCall>(operation)
+                    val operation = program.operations.first()
+                    assertIs<UnitFunctionCall>(operation)
 
-                assertEquals(1, operation.arguments.size)
+                    assertEquals(1, operation.arguments.size)
 
-                val literal = operation.arguments.first()
-                assertIs<BooleanLiteral>(literal)
+                    val literal = operation.arguments.first()
+                    assertIs<BooleanLiteral>(literal)
 
-                assertEquals(candidate.second, literal.value)
+                    assertEquals(candidate.second, literal.value)
+                }
             }
         }
     }
