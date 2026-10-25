@@ -45,10 +45,24 @@ C
   - Variable values
   - Function arguments
 - Use an allocator for `List.toString()`
+  - macOS/Linux: use mmap() + madvise() to free up chunks, can also use malloc()
+  - Windows: VirtualAlloc() (reserve buffer, then commit chunks as required) + VirtualFree() to uncommit chunks
 - Add a string builder and use for `List.toString()`, and `String + String`
 - Reuse temporary variables across statements
 - Add a helper function for `File.toString()`?
 - Use `whar_t*` or `char16_t*` to represent strings?
+- Lists
+  - Pack metadata and elements into a single byte array 
+  - Don't store list size if it is known at compile time
+  - Declaring a max size allows inlining into something else
+  - Encode List<Boolean> as a bit field
+  - Encode length as a variable length int? https://en.wikipedia.org/wiki/LEB128
+- Memory safety
+  - Construct data structures directly into their final location e.g. `val l = [a] + someList()` can pass `someList()` a pointer to where to place its result
+  - References within a structure can be relative offsets, so the structure can be easily moved or copied
+  - Function metadata indicates which params the result references
+  - Function metadata indicates whether object layout changes
+  - For example, can combine the above to replace with a copy or perhaps fail
 - Interesting reference counting approach https://www.microsoft.com/en-us/research/wp-content/uploads/2020/11/perceus-tr-v1.pdf
 
 Bash
@@ -107,4 +121,4 @@ More features
 - named function declarations
 - structs
 - maps
-- release vs debug executable (e.g. no range checks, etc.)
+- release vs debug executable (e.g. no range checks, overflow checks, etc.)
