@@ -6,7 +6,7 @@ import net.rubygrapefruit.scripto.ir.Program
 import net.rubygrapefruit.scripto.test.AppFixture
 
 class CFixture(workDir: Directory) : AppFixture(workDir) {
-    override fun generateAndRun(program: Program, args: List<String>): String {
+    override fun generate(program: Program): App {
         val generator = CGenerator()
 
         val cSource = workDir.file("app.c")
@@ -18,6 +18,6 @@ class CFixture(workDir: Directory) : AppFixture(workDir) {
 
         val exe = workDir.file("app")
         CCompiler().compile(cSource, exe)
-        return run(listOf(exe.absolutePath) + args)
+        return running(listOf(exe.absolutePath))
     }
 }

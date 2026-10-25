@@ -8,11 +8,17 @@ import net.rubygrapefruit.scripto.test.AppFixture
 import java.io.StringWriter
 
 class InterpreterFixture(workDir: Directory) : AppFixture(workDir) {
-    override fun generateAndRun(program: Program, args: List<String>): String {
-        val stdout = CollectingStdOut()
-        val interpreter = Interpreter()
-        interpreter.run(program, args, stdout)
-        return stdout.writer.toString()
+    override fun generate(program: Program): App {
+        return InterpreterApp(program)
+    }
+
+    private class InterpreterApp(val program: Program) : App {
+        override fun execute(args: List<String>): String {
+            val stdout = CollectingStdOut()
+            val interpreter = Interpreter()
+            interpreter.run(program, args, stdout)
+            return stdout.writer.toString()
+        }
     }
 
     private class CollectingStdOut : StdOut {

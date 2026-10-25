@@ -12,7 +12,7 @@ class BashFixture(workDir: Directory) : AppFixture(workDir) {
     override val targetRuntime: TargetRuntime
         field = BashGenerator()
 
-    override fun generateAndRun(program: Program, args: List<String>): String {
+    override fun generate(program: Program): App {
         val generator = BashGenerator()
         val outputScript = workDir.file("app.bash")
         generator.generate(program, outputScript)
@@ -21,7 +21,7 @@ class BashFixture(workDir: Directory) : AppFixture(workDir) {
             println(outputScript.readText())
         }
 
-        return run(listOf(outputScript.absolutePath) + args)
+        return running(listOf(outputScript.absolutePath))
     }
 
     override fun generationFails(program: Program) {

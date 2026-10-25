@@ -5,7 +5,7 @@ import net.rubygrapefruit.scripto.ir.Program
 import net.rubygrapefruit.scripto.test.AppFixture
 
 class PowershellFixture(workDir: Directory) : AppFixture(workDir) {
-    override fun generateAndRun(program: Program, args: List<String>): String {
+    override fun generate(program: Program): App {
         val generator = PowershellGenerator()
         val outputScript = workDir.file("app.ps")
         generator.generate(program, outputScript)
@@ -14,6 +14,6 @@ class PowershellFixture(workDir: Directory) : AppFixture(workDir) {
             println(outputScript.readText())
         }
 
-        return run(listOf("build/powershell/pwsh", outputScript.absolutePath) + args)
+        return running(listOf("build/powershell/pwsh", outputScript.absolutePath))
     }
 }

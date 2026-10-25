@@ -9,7 +9,7 @@ abstract class AppFixture(val workDir: Directory) {
     open val targetRuntime: TargetRuntime
         get() = TargetRuntime.NoOp
 
-    abstract fun generateAndRun(program: Program, args: List<String>): String
+    abstract fun generate(program: Program): App
 
     open fun generationFails(program: Program) {
         throw IllegalStateException()
@@ -28,6 +28,14 @@ abstract class AppFixture(val workDir: Directory) {
         }
     }
 
+    protected fun running(commandLine: List<String>): App {
+        return object : App {
+            override fun execute(args: List<String>): String {
+                return run(commandLine + args)
+            }
+        }
+    }
+
     protected inline fun <T> section(title: String, action: () -> T): T {
         println(title)
         println("----")
@@ -38,5 +46,9 @@ abstract class AppFixture(val workDir: Directory) {
 
     open fun supports(feature: Feature): Boolean {
         return true
+    }
+
+    interface App {
+        fun execute(args: List<String>): String
     }
 }

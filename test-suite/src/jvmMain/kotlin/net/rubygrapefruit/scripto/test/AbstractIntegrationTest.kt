@@ -32,7 +32,12 @@ abstract class AbstractIntegrationTest {
         val fixture = fixture()
         val compiler = Compiler()
         val program = compiler.compile(sourceFile, fixture.targetRuntime).get()
-        DefaultCompilationResultFixture(program, features, fixture).config()
+        if (features.any { !fixture.supports(it) }) {
+            fixture.generationFails(program)
+        } else {
+            val app = fixture.generate(program)
+            DefaultCompilationResultFixture(program, app).config()
+        }
     }
 
     interface InspectionFixture {
@@ -61,18 +66,14 @@ abstract class AbstractIntegrationTest {
         }
     }
 
-    private class DefaultCompilationResultFixture(val program: Program, val features: List<Feature>, val fixture: AppFixture) : CompilationResultFixture {
+    private class DefaultCompilationResultFixture(val program: Program, val app: AppFixture.App) : CompilationResultFixture {
         override fun statements(expectedCount: Int) {
             assertEquals(expectedCount, program.operations.size)
         }
 
         override fun execute(vararg args: String, config: ExecutionResultFixture.() -> Unit) {
-            if (features.any { !fixture.supports(it) }) {
-                fixture.generationFails(program)
-            } else {
-                val output = fixture.generateAndRun(program, args.toList())
-                DefaultExecutionResultFixture(output).config()
-            }
+            val output = app.execute(args.toList())
+            DefaultExecutionResultFixture(output).config()
         }
     }
 
