@@ -4,10 +4,7 @@ sealed interface Expression {
     val type: Type
 }
 
-class VariableReference(val target: VariableDeclaration) : Expression {
-    override val type: Type
-        get() = target.type
-}
+class VariableReference(override val type: Type, val name: String) : Expression
 
 class FunctionCallExpression(val target: TypedFunctionDefinition, val args: List<Expression>) : Expression {
     override val type: Type

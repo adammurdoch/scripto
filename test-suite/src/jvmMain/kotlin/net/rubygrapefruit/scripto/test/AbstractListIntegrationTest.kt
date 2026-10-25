@@ -127,7 +127,7 @@ val l = [["a", "b"], ["c"]]
 println(l)
         """
         )
-        compileAndRun(sourceFile, Feature.ListOfList) {
+        compileAndRun(sourceFile, features =  listOf(Feature.ListOfList)) {
             output("[[a, b], [c]]\n")
         }
     }
@@ -141,7 +141,7 @@ val l = [[6, 90], [-12]]
 println(l)
         """
         )
-        compileAndRun(sourceFile, Feature.ListOfList) {
+        compileAndRun(sourceFile, features =  listOf(Feature.ListOfList)) {
             output("[[6, 90], [-12]]\n")
         }
     }

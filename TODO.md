@@ -86,6 +86,7 @@ PowerShell
 - Cannot use `Write-Output` inside a function, as this adds the output to the function return value
 - Use string interpolation for `File.toString()`?
 - Don't wrap '+' operators in `$()` or `()` when already in arithmetic mode
+- PowerShell scripts can declare named and positional command line parameters and their types, so provide some way to declare this 
 
 Webassembly
 

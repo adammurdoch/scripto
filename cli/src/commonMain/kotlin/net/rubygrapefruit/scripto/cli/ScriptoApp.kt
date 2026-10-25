@@ -51,13 +51,14 @@ class CompileAction : CliAction() {
 
 class RunAction : CliAction() {
     val sourceFile by file(mustExist = true).option("source").required()
+    val args by remainder("args")
 
     override fun run() {
         val compiler = Compiler()
         val program = compiler.compile(sourceFile, TargetRuntime.NoOp).get()
 
         val interpreter = Interpreter()
-        interpreter.run(program, StdOut.Default)
+        interpreter.run(program, args, StdOut.Default)
     }
 }
 

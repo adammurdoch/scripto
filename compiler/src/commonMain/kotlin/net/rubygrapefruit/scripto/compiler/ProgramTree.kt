@@ -133,11 +133,14 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         variables: Map<String, VariableDeclaration>,
         expression: VariableReferenceTree
     ): ResolveResult<VariableReference> {
+        if (expression.name == StandardLibrary.argsVariable.name) {
+            return Resolved(StandardLibrary.argsVariable)
+        }
         val declaration = variables[expression.name]
         return if (declaration == null) {
             NotResolved.of(expression.position, "Unknown variable '${expression.name}'")
         } else {
-            Resolved(VariableReference(declaration))
+            Resolved(VariableReference(declaration.type, declaration.name))
         }
     }
 

@@ -9,9 +9,9 @@ abstract class AppFixture(val workDir: Directory) {
     open val targetRuntime: TargetRuntime
         get() = TargetRuntime.NoOp
 
-    abstract fun generateAndRun(program: Program): String
+    abstract fun generateAndRun(program: Program, args: List<String>): String
 
-    open fun generateAndFail(program: Program) {
+    open fun generationFails(program: Program) {
         throw IllegalStateException()
     }
 

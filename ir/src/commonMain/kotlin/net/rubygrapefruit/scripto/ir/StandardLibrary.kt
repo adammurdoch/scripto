@@ -43,6 +43,8 @@ object FileFunctions : ObjectFunctions() {
 object ListFunctions : ObjectFunctions()
 
 object StandardLibrary : Functions {
+    val argsVariable = VariableReference(Type.List(Type.String), "args")
+
     val printlnNoArgs = UnitFunctionDefinition("println")
     val printlnOneArg = UnitFunctionDefinition("println", Type.Any)
     val fileConstructor = NamedFunctionDefinition("File", Type.File, Type.String)

@@ -33,7 +33,14 @@ private val stringCollector by lazy {
 }
 
 private val collectValue by lazy {
-    JvmGeneratedMethod(stringCollector, "collect", MethodDescriptor.ofVoid(TypeDescriptor.Object, stringBuilder), MethodVisibility.Public, false, emptyList())
+    JvmGeneratedMethod(
+        stringCollector,
+        "collect",
+        MethodDescriptor.ofVoid(TypeDescriptor.Object, stringBuilder),
+        MethodVisibility.Public,
+        false,
+        emptyList()
+    )
 }
 
 private val mainClass = JvmGeneratedClass("App", TypeDescriptor.ofClass("App"), ClassVisibility.Public, true)
@@ -45,7 +52,12 @@ private val listToString by lazy {
     val listArg = JvmParameterReference(0, objectArray)
     val collectorArg = JvmParameterReference(1, stringCollector.descriptor)
     JvmGeneratedMethod(
-        mainClass, "\$listToString", MethodDescriptor.of(TypeDescriptor.String, objectArray, stringCollector.descriptor), MethodVisibility.Private, true, listOf(
+        mainClass,
+        "\$listToString",
+        MethodDescriptor.of(TypeDescriptor.String, objectArray, stringCollector.descriptor),
+        MethodVisibility.Private,
+        true,
+        listOf(
             JvmVariableDeclaration("length", TypeDescriptor.Int, JvmArrayLength(listArg)),
             IfIntsEqual(length, JvmInt(0), listOf(ReturnValue(TypeDescriptor.String, JvmString("[]")))),
             JvmVariableDeclaration("builder", stringBuilder, ConstructorCall(stringBuilder, voidMethod, emptyList())),
@@ -101,7 +113,14 @@ class JvmGenerator {
         operationMapper.mapInto(program.operations, operations)
         operations.add(ReturnVoid)
 
-        val mainMethod = JvmGeneratedMethod(mainClass, "main", MethodDescriptor.ofVoid(stringArray), MethodVisibility.Public, true, operations)
+        val mainMethod = JvmGeneratedMethod(
+            mainClass,
+            "main",
+            MethodDescriptor.ofVoid(stringArray),
+            MethodVisibility.Public,
+            true,
+            operations
+        )
 
         val classes = mutableMapOf<JvmGeneratedType, MutableList<JvmGeneratedMethod>>()
         val queue = Declaration.Queue<JvmDeclaration>()
@@ -197,7 +216,7 @@ class JvmGenerator {
             is StringLiteral -> JvmString(expression.value)
             is IntLiteral -> JvmInt(expression.value)
             is BooleanLiteral -> if (expression.value) JvmTrue else JvmFalse
-            is VariableReference -> JvmVariableReference(expression.target.name, toEncodedType(expression.type).jvmType)
+            is VariableReference -> JvmVariableReference(expression.name, toEncodedType(expression.type).jvmType)
             is FunctionCallExpression -> functionMapper.map(expression)
             is ReceiverFunctionCallExpression -> mapFunctionCall(expression, functionMapper)
         }
@@ -377,7 +396,12 @@ private fun collector(type: EncodedType.ReferenceType): JvmExpression {
         listOf(stringCollector)
     )
     val collectMethod = JvmGeneratedMethod(
-        collector, collectValue.name, collectValue.descriptor, MethodVisibility.Public, false, listOf(
+        collector,
+        collectValue.name,
+        collectValue.descriptor,
+        MethodVisibility.Public,
+        false,
+        listOf(
             appendToStringBuilder(
                 JvmParameterReference(2, stringBuilder),
                 type.toString(JvmCast(type.jvmType, JvmParameterReference(1, TypeDescriptor.Object)))

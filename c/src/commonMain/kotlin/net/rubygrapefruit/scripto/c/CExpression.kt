@@ -39,7 +39,7 @@ internal data object CTrue : CBooleanLiteral()
 internal data object CFalse : CBooleanLiteral()
 
 internal class CVariableReference(val name: String) : CExpression {
-    constructor(target: VariableReference) : this(target.target.name)
+    constructor(target: VariableReference) : this(target.name)
 }
 
 internal sealed class CCompositeExpression : CExpression {

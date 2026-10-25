@@ -40,12 +40,13 @@ Terminology
 ----
 
 - Type
-- Function
-- Static Function
+- Function - top level
+- Receiver Function
 
 Standard library
 ----
 
+- `args: List<String>` - the command-line arguments
 - `println()`
 - `println(Any)`
 

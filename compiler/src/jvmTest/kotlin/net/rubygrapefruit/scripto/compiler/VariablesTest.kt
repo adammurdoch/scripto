@@ -71,5 +71,15 @@ val a = 2
 
             compileFails("Line 2: 5: Variable 'a' declared multiple times")
         }
+
+        test("cannot shadow implicit args variable") {
+            sourceFile.writeText(
+                """
+val args = 1
+        """.trimIndent()
+            )
+
+            compileFails("Line 2: 5: Variable 'args' declared multiple times")
+        }
     }
 }

@@ -14,9 +14,13 @@ abstract class AbstractIntegrationTest {
 
     val workDir by lazy { temporaryFolder.newFolder().toDir() }
 
+    init {
+        temporaryFolder.create()
+    }
+
     abstract fun fixture(): AppFixture
 
-    protected fun compileAndRun(sourceFile: RegularFile, vararg features: Feature, builder: InspectionFixture.() -> Unit) {
+    protected fun compileAndRun(sourceFile: RegularFile, args: List<String> = emptyList(), features: List<Feature> = emptyList(), builder: InspectionFixture.() -> Unit) {
         val spec = DefaultInspectionFixture()
         spec.builder()
         val fixture = fixture()
@@ -24,9 +28,9 @@ abstract class AbstractIntegrationTest {
         val program = compiler.compile(sourceFile, fixture.targetRuntime).get()
         spec.inspect(program)
         if (features.any { !fixture.supports(it) }) {
-            fixture.generateAndFail(program)
+            fixture.generationFails(program)
         } else {
-            val output = fixture.generateAndRun(program)
+            val output = fixture.generateAndRun(program, args)
             assertEquals(spec.expectedOutput, output)
         }
     }

@@ -128,7 +128,7 @@ class PowershellGenerator {
             is StringLiteral -> PsString(expression.value)
             is IntLiteral -> PsInt(expression.value)
             is BooleanLiteral -> if (expression.value) PsTrue else PsFalse
-            is VariableReference -> PsVariableReference(expression.target.name)
+            is VariableReference -> PsVariableReference(expression.name)
             is FunctionCallExpression -> functionMapper.map(expression)
             is ReceiverFunctionCallExpression -> mapFunctionCall(expression, functionMapper)
         }

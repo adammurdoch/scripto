@@ -4,8 +4,9 @@ import net.rubygrapefruit.file.FileSystem
 import net.rubygrapefruit.scripto.ir.*
 
 class Interpreter {
-    fun run(program: Program, stdOut: StdOut) {
+    fun run(program: Program, args: List<String>, stdOut: StdOut) {
         val vars = mutableMapOf<String, Any>()
+        vars[StandardLibrary.argsVariable.name] = args
         for (operation in program.operations) {
             when (operation) {
                 is VariableDeclaration -> {
@@ -35,7 +36,7 @@ class Interpreter {
             is StringLiteral -> expression.value
             is IntLiteral -> expression.value
             is BooleanLiteral -> expression.value
-            is VariableReference -> vars.getValue(expression.target.name)
+            is VariableReference -> vars.getValue(expression.name)
             is FunctionCallExpression -> {
                 val args = expression.args.map { calculate(it, vars) }
                 val target = expression.target

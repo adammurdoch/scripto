@@ -182,8 +182,8 @@ _list_to_string_r="$result"
 
     private fun varReferenceToBash(expression: VariableReference): BashExpression {
         return when (expression.type) {
-            is Type.Boolean, is Type.Int -> BashVariableReference(BashVariable.Named(expression.target.name), false)
-            else -> BashVariableReference(BashVariable.Named(expression.target.name), true)
+            is Type.Boolean, is Type.Int -> BashVariableReference(BashVariable.Named(expression.name), false)
+            else -> BashVariableReference(BashVariable.Named(expression.name), true)
         }
     }
 
