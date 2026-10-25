@@ -295,6 +295,8 @@ value class MethodDescriptorString(val value: String)
 internal class LocalVariable(val slot: Int, val type: TypeDescriptor)
 
 internal interface CodeBuilder {
+    fun parameter(index: Int, type: TypeDescriptor): LocalVariable
+
     fun allocateLocal(type: TypeDescriptor): LocalVariable
 
     fun storeLocal(variable: LocalVariable)
@@ -458,6 +460,10 @@ private class DefaultCodeBuilder(private val params: List<TypeDescriptor>, priva
                 u2(constantPool.addClassInfo(local).index)
             }
         }
+    }
+
+    override fun parameter(index: Int, type: TypeDescriptor): LocalVariable {
+        return LocalVariable(index, type)
     }
 
     override fun allocateLocal(type: TypeDescriptor): LocalVariable {

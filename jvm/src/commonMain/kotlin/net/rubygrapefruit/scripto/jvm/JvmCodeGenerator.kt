@@ -26,6 +26,9 @@ private fun ClassBuilder.generate(method: JvmGeneratedMethod) {
     } else {
         method(method.name, method.descriptor, method.visibility, method.isStatic) {
             val slots = mutableMapOf<String, LocalVariable>()
+            method.parameterNames.forEachIndexed { index, param ->
+                slots[param] = parameter(index, method.descriptor.parameters[index])
+            }
             for (operation in method.operations) {
                 generate(operation, slots)
             }

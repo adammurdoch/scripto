@@ -9,6 +9,8 @@ internal class JvmGeneratedMethod(
     val descriptor: MethodDescriptor,
     val visibility: MethodVisibility,
     val isStatic: Boolean,
+    // Can be empty, does not expose the parameters by name to the operations. Can still reference parameters by index
+    val parameterNames: List<String>,
     val operations: List<JvmOperation>
 ) : JvmDeclaration {
     override fun visitOwnDeclarations(visitor: (JvmDeclaration) -> Unit) {

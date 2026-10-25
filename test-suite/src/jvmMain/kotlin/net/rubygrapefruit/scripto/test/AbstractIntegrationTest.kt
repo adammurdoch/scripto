@@ -20,42 +20,69 @@ abstract class AbstractIntegrationTest {
 
     abstract fun fixture(): AppFixture
 
-    protected fun compileAndRun(sourceFile: RegularFile, args: List<String> = emptyList(), features: List<Feature> = emptyList(), builder: InspectionFixture.() -> Unit) {
-        val spec = DefaultInspectionFixture()
-        spec.builder()
+    protected fun compileAndRun(sourceFile: RegularFile, features: List<Feature> = emptyList(), builder: InspectionFixture.() -> Unit) {
+        compile(sourceFile, features) {
+            execute {
+                DefaultInspectionFixture(this@compile, this).builder()
+            }
+        }
+    }
+
+    protected fun compile(sourceFile: RegularFile, features: List<Feature> = emptyList(), config: CompilationResultFixture.() -> Unit) {
         val fixture = fixture()
         val compiler = Compiler()
         val program = compiler.compile(sourceFile, fixture.targetRuntime).get()
-        spec.inspect(program)
-        if (features.any { !fixture.supports(it) }) {
-            fixture.generationFails(program)
-        } else {
-            val output = fixture.generateAndRun(program, args)
-            assertEquals(spec.expectedOutput, output)
-        }
+        DefaultCompilationResultFixture(program, features, fixture).config()
     }
 
     interface InspectionFixture {
-        fun statements(count: Int)
-        fun output(text: String)
+        fun statements(expectedCount: Int)
+        fun output(expected: String)
     }
 
-    private class DefaultInspectionFixture : InspectionFixture {
-        var expectedStatements = -1
-        var expectedOutput = ""
-
-        override fun statements(count: Int) {
-            expectedStatements = count
+    private class DefaultInspectionFixture(val compile: CompilationResultFixture, val execute: ExecutionResultFixture) : InspectionFixture {
+        override fun statements(expectedCount: Int) {
+            compile.statements(expectedCount)
         }
 
-        override fun output(text: String) {
-            expectedOutput = text
+        override fun output(expected: String) {
+            execute.output(expected)
         }
+    }
 
-        fun inspect(program: Program) {
-            if (expectedStatements > -1) {
-                assertEquals(expectedStatements, program.operations.size)
+    interface CompilationResultFixture {
+        fun statements(expectedCount: Int)
+        fun execute(vararg args: String, config: ExecutionResultFixture.() -> Unit)
+
+        fun output(expected: String) {
+            execute {
+                output(expected)
             }
+        }
+    }
+
+    private class DefaultCompilationResultFixture(val program: Program, val features: List<Feature>, val fixture: AppFixture) : CompilationResultFixture {
+        override fun statements(expectedCount: Int) {
+            assertEquals(expectedCount, program.operations.size)
+        }
+
+        override fun execute(vararg args: String, config: ExecutionResultFixture.() -> Unit) {
+            if (features.any { !fixture.supports(it) }) {
+                fixture.generationFails(program)
+            } else {
+                val output = fixture.generateAndRun(program, args.toList())
+                DefaultExecutionResultFixture(output).config()
+            }
+        }
+    }
+
+    interface ExecutionResultFixture {
+        fun output(expected: String)
+    }
+
+    private class DefaultExecutionResultFixture(val output: String) : ExecutionResultFixture {
+        override fun output(expected: String) {
+            assertEquals(expected, output)
         }
     }
 }

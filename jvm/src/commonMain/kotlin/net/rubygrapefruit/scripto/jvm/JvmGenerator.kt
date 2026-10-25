@@ -39,6 +39,7 @@ private val collectValue by lazy {
         MethodDescriptor.ofVoid(TypeDescriptor.Object, stringBuilder),
         MethodVisibility.Public,
         false,
+        emptyList(),
         emptyList()
     )
 }
@@ -57,6 +58,7 @@ private val listToString by lazy {
         MethodDescriptor.of(TypeDescriptor.String, objectArray, stringCollector.descriptor),
         MethodVisibility.Private,
         true,
+        emptyList(),
         listOf(
             JvmVariableDeclaration("length", TypeDescriptor.Int, JvmArrayLength(listArg)),
             IfIntsEqual(length, JvmInt(0), listOf(ReturnValue(TypeDescriptor.String, JvmString("[]")))),
@@ -119,6 +121,7 @@ class JvmGenerator {
             MethodDescriptor.ofVoid(stringArray),
             MethodVisibility.Public,
             true,
+            listOf("args"),
             operations
         )
 
@@ -401,6 +404,7 @@ private fun collector(type: EncodedType.ReferenceType): JvmExpression {
         collectValue.descriptor,
         MethodVisibility.Public,
         false,
+        emptyList(),
         listOf(
             appendToStringBuilder(
                 JvmParameterReference(2, stringBuilder),

@@ -117,9 +117,10 @@ New functions and types
 More features
 
 - `if` statement
-- string interpolation
-- function type + literal
-- named function declarations
-- structs
-- maps
-- release vs debug executable (e.g. no range checks, overflow checks, etc.)
+- String interpolation
+- Function type + literal
+- Named function declarations
+- Structs
+- Maps
+- Release vs debug executable (e.g. no range checks, overflow checks, etc.)
+- Allow command-line arguments to be declared
