@@ -79,7 +79,7 @@ val args = 1
         """.trimIndent()
             )
 
-            compileFails("Line 2: 5: Variable 'args' declared multiple times")
+            compileFails("Line 1: 5: Variable 'args' hides main function parameters")
         }
     }
 }

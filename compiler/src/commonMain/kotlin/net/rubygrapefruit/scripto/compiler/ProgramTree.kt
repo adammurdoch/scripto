@@ -55,7 +55,9 @@ internal class ProgramTree(val operations: List<OperationTree>) {
     ): ResolveResult<VariableDeclaration> {
         val initializer = resolve(operation.value, variables, library, target)
         return initializer.mapping { initializer ->
-            if (variables.containsKey(operation.name)) {
+            if (operation.name == StandardLibrary.argsVariable.name) {
+                NotResolved.of(operation.position, "Variable '${operation.name}' hides main function parameters")
+            } else if (variables.containsKey(operation.name)) {
                 NotResolved.of(operation.position, "Variable '${operation.name}' declared multiple times")
             } else {
                 Resolved(VariableDeclaration(operation.name, initializer))

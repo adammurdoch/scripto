@@ -7,6 +7,9 @@ internal sealed interface BashExpression : ExpressionWithDependencies<BashStatem
     fun visitDeclarations(visitor: (BashGeneratedFunction) -> Unit) {
     }
 
+    fun visitVariables(visitor: (BashVariable) -> Unit) {
+    }
+
     /**
      * Visits this expression plus any nested expressions. Expressions are visited in dependency order.
      */
@@ -35,9 +38,17 @@ internal sealed interface BashVariable {
     }
 }
 
-internal class BashVariableReference(val variable: BashVariable, val quoted: Boolean = true) : BashExpression
+internal class BashVariableReference(val variable: BashVariable, val quoted: Boolean = true) : BashExpression {
+    override fun visitVariables(visitor: (BashVariable) -> Unit) {
+        visitor(variable)
+    }
+}
 
-internal class BashVariableName(val variable: BashVariable) : BashExpression
+internal class BashVariableName(val variable: BashVariable) : BashExpression {
+    override fun visitVariables(visitor: (BashVariable) -> Unit) {
+        visitor(variable)
+    }
+}
 
 internal sealed class BashCompositeExpression : BashExpression {
     override fun visitExpressions(visitor: (BashExpression) -> Unit) {
@@ -92,6 +103,10 @@ internal class BashCommandInvocationExpression(val result: BashVariable, val sta
         if (uses != null) {
             visitor(uses)
         }
+    }
+
+    override fun visitVariables(visitor: (BashVariable) -> Unit) {
+        visitor(result)
     }
 
     override fun visitDependencies(visitor: (BashStatement) -> Unit) {

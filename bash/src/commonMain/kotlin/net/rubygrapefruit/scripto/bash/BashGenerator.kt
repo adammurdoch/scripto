@@ -43,32 +43,36 @@ _list_to_string_r="$result"
         val functionMapper = createFunctionMapper()
         val operationMapper = createOperationMapper(functionMapper)
 
-        val statements = operationMapper.map(program.operations)
+        val statements = mutableListOf<BashStatement>()
+        operationMapper.mapInto(program.operations, statements)
 
         val variableState = VariableState()
 
         val queue = Declaration.Queue<BashGeneratedFunction>()
-        for (statement in statements) {
+        var index = 0
+        while (index < statements.size) {
+            val statement = statements[index]
             statement.visitExpressions { expression ->
-                if (expression is BashVariableReference && expression.variable is BashVariable.Temporary) {
-                    variableState.assign(expression.variable)
-                }
-                if (expression is BashVariableName && expression.variable is BashVariable.Temporary) {
-                    variableState.assign(expression.variable)
-                }
-                if (expression is BashCommandInvocationExpression && expression.result is BashVariable.Temporary) {
-                    variableState.assign(expression.result)
+                expression.visitVariables { variable ->
+                    if (variable is BashVariable.Temporary) {
+                        variableState.assign(variable)
+                    } else if (variable is BashVariable.Named && variable.name == StandardLibrary.argsVariable.name) {
+                        statements.add(index, BashVariableAssignment(variable, BashWord("(\"$@\")")))
+                        index++
+                    }
                 }
                 expression.visitDeclarations { declaration ->
                     queue.add(declaration)
                 }
             }
+            index++
         }
 
         writeTo(outputFile, "#") {
             queue.visitAll { function ->
                 append(function)
             }
+
             for (statement in statements) {
                 append(statement, variableState)
             }
