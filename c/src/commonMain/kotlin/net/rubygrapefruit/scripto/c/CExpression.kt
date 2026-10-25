@@ -93,6 +93,11 @@ internal class CInfixOperator(val left: CExpression, val operator: String, val r
         visitor(left)
         visitor(right)
     }
+
+    companion object {
+        fun minus(left: CExpression, right: Int) = CInfixOperator(left, "-", CInt(right))
+        fun plus(left: CExpression, right: Int) = CInfixOperator(left, "+", CInt(right))
+    }
 }
 
 internal class CTernaryExpression(val condition: CExpression, val left: CExpression, val right: CExpression) : CCompositeExpression() {

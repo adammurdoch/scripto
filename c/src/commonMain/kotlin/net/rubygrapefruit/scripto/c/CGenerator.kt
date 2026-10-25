@@ -42,6 +42,18 @@ class CGenerator {
                     val varName = variableState.assign(expression)
                     statements.add(index, CVariableDeclaration(varName, expression.type, expression.value))
                     index++
+                } else if (expression is CVariableReference && expression.name == StandardLibrary.argsVariable.name) {
+                    statements.add(
+                        0, CVariableDeclaration(
+                            StandardLibrary.argsVariable.name, TypeSnippet.ListStruct, CInitializer(
+                                listOf(
+                                    CInfixOperator.minus(CVariableReference("argc"), 1),
+                                    CInfixOperator.plus(CVariableReference("argv"), 1)
+                                )
+                            )
+                        )
+                    )
+                    index++
                 }
             }
             index++
@@ -62,7 +74,7 @@ class CGenerator {
                 append(declaration, variableState)
             }
 
-            val mainFunction = CGeneratedFunction("main", CType.CInt, emptyList(), statements)
+            val mainFunction = CGeneratedFunction("main", CType.CInt, listOf(Parameter("argc", CType.CInt), Parameter("argv", CType.CString.array())), statements)
             append(mainFunction, variableState)
         }
     }
