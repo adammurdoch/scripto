@@ -151,7 +151,7 @@ class CGenerator {
             }
             mapReceiver(FileFunctions.toString) { expression, functionMapper ->
                 val receiver = expression.receiver
-                fileToString(receiver, functionMapper)
+                fileToString(toExpression(receiver, functionMapper))
             }
             mapReceiver(IntFunctions.toString) { expression, functionMapper ->
                 intToString(expression.receiver, functionMapper)
@@ -221,11 +221,11 @@ class CGenerator {
             is Type.String -> CFunctionCall(FunctionSnippet.StringListToString, listOf(CPointer(list)))
             is Type.Int -> listToString(list, elementType, CType.Int32, true) { expression -> intToString(expression) }
             is Type.Boolean -> listToString(list, elementType, CType.Bool, false) { expression -> booleanToString(expression) }
+            is Type.File -> listToString(list, elementType, CType.CString, false) { expression -> fileToString(expression) }
+            is Type.Any -> listToString(list, elementType, CType.Bool, false) { _ -> CString("??") }
             is Type.List -> listToString(list, elementType, TypeSnippet.ListStruct, true) { expression ->
                 listToString(expression, elementType.param)
             }
-
-            else -> listToString(list, elementType, toCType(elementType), false) { CString("??") }
         }
     }
 
@@ -272,7 +272,7 @@ class CGenerator {
         return CFunctionCall(FunctionSnippet.IntToString, listOf(value))
     }
 
-    private fun fileToString(expression: Expression, functionMapper: FunctionMapper<CExpression>): CExpression {
-        return concatString(CString("File("), concatString(toExpression(expression, functionMapper), CString(")")))
+    private fun fileToString(expression: CExpression): CExpression {
+        return concatString(CString("File("), concatString(expression, CString(")")))
     }
 }
