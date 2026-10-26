@@ -20,11 +20,7 @@ class Interpreter {
                     } else if (operation.target == StandardLibrary.printlnOneArg) {
                         val arg = operation.arguments.first()
                         val value = calculate(arg, vars)
-                        val string = when (arg.type) {
-                            is Type.File -> "File($value)"
-                            else -> value.toString()
-                        }
-                        stdOut.println(string)
+                        stdOut.println(value.toString())
                     }
                 }
             }
@@ -41,7 +37,7 @@ class Interpreter {
                 val args = expression.args.map { calculate(it, vars) }
                 val target = expression.target
                 when (target) {
-                    StandardLibrary.fileConstructor -> args.first()
+                    StandardLibrary.fileConstructor -> File(args.first() as String)
 
                     is OperatorDefinition -> {
                         val left = calculate(expression.args[0], vars)
@@ -74,11 +70,21 @@ class Interpreter {
                     IntFunctions.toString -> receiver.toString()
                     BooleanFunctions.toString -> receiver.toString()
                     ListFunctions.toString -> receiver.toString()
-                    FileFunctions.toString -> "File($receiver)"
-                    FileFunctions.readText -> FileSystem.local.currentDirectory.file(receiver as String).readText()
+                    FileFunctions.toString -> receiver.toString()
+                    FileFunctions.readText -> (receiver as File).readText()
                     else -> throw IllegalArgumentException("Unknown ${expression.target.displayName} for ${expression.receiver.type}")
                 }
             }
+        }
+    }
+
+    private class File(val path: String) {
+        override fun toString(): String {
+            return "File($path)"
+        }
+
+        fun readText(): String {
+            return FileSystem.local.currentDirectory.file(path).readText()
         }
     }
 }

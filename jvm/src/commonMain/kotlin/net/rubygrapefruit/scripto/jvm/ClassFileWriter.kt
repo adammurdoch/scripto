@@ -194,6 +194,7 @@ internal class MethodVisibility(val flags: Int) {
     companion object {
         val Private = MethodVisibility(2)
         val Public = MethodVisibility(1)
+        val PackageProtected = MethodVisibility(0)
     }
 }
 

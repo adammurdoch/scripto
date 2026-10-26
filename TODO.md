@@ -34,9 +34,10 @@ Interpreter
 JVM
 
 - Use `StringConcatFactory` for string concatenation
-- Set locals that are not referenced later in the function to null
+- Set locals that are not referenced later in the function to `null`
 - Reuse local slots
 - Include debug information
+- Don't emit a `pop` opcode if the next opcode is return void
 
 C
 

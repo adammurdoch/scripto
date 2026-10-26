@@ -8,6 +8,7 @@ import net.rubygrapefruit.scripto.ir.*
 
 private val boolean = TypeDescriptor.ofClass("java.lang.Boolean")
 private val integer = TypeDescriptor.ofClass("java.lang.Integer")
+private val path = TypeDescriptor.ofInterface("java.nio.file.Path")
 private val arrays = TypeDescriptor.ofClass("java.util.Arrays")
 private val objectArray = TypeDescriptor.Object.arrayType()
 private val stringArray = TypeDescriptor.String.arrayType()
@@ -56,7 +57,7 @@ private val listToString by lazy {
         mainClass,
         "\$listToString",
         MethodDescriptor.of(TypeDescriptor.String, objectArray, stringCollector.descriptor),
-        MethodVisibility.Private,
+        MethodVisibility.PackageProtected,
         true,
         emptyList(),
         listOf(
@@ -93,7 +94,6 @@ private val listToString by lazy {
 @OptIn(ExperimentalStdlibApi::class)
 class JvmGenerator {
     private val files = TypeDescriptor.ofClass("java.nio.file.Files")
-    private val path = TypeDescriptor.ofInterface("java.nio.file.Path")
     private val printStream = TypeDescriptor.ofClass("java.io.PrintStream")
     private val system = TypeDescriptor.ofClass("java.lang.System")
 
@@ -345,8 +345,8 @@ private sealed interface EncodedType {
         override val namePrefix: kotlin.String
             get() = "File"
 
-        override val jvmType: TypeDescriptor.ClassType
-            get() = TypeDescriptor.String
+        override val jvmType: TypeDescriptor.ObjectType
+            get() = path
 
         override fun toString(receiver: JvmExpression): JvmExpression {
             val strValue = VirtualMethodCall(TypeDescriptor.Object, "toString", MethodDescriptor.of(TypeDescriptor.String), receiver, emptyList())
@@ -360,7 +360,7 @@ private sealed interface EncodedType {
         override val namePrefix: kotlin.String = "List${elementType.namePrefix}"
 
         override val jvmType: TypeDescriptor.ReferenceType
-            get() = objectArray
+            get() = elementType.jvmType.arrayType()
 
         override fun toString(receiver: JvmExpression): JvmExpression {
             return StaticMethodCall(listToString, listOf(receiver, collector))
