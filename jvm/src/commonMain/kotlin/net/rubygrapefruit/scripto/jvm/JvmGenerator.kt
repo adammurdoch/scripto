@@ -259,7 +259,10 @@ class JvmGenerator {
 }
 
 private sealed interface EncodedType {
-    val namePrefix: kotlin.String
+    /**
+     * Prefix for types generated from this type.
+     */
+    val typeNamePrefix: kotlin.String
 
     val jvmType: TypeDescriptor
 
@@ -270,7 +273,7 @@ private sealed interface EncodedType {
     fun toString(receiver: JvmExpression): JvmExpression
 
     object String : ReferenceType {
-        override val namePrefix: kotlin.String
+        override val typeNamePrefix: kotlin.String
             get() = "String"
 
         override val jvmType: TypeDescriptor.ClassType
@@ -282,7 +285,7 @@ private sealed interface EncodedType {
     }
 
     object StringList : ReferenceType {
-        override val namePrefix: kotlin.String
+        override val typeNamePrefix: kotlin.String
             get() = "StringList"
 
         override val jvmType: TypeDescriptor.ReferenceType
@@ -294,7 +297,7 @@ private sealed interface EncodedType {
     }
 
     object Int : EncodedType {
-        override val namePrefix: kotlin.String
+        override val typeNamePrefix: kotlin.String
             get() = "Int"
 
         override val jvmType: TypeDescriptor
@@ -306,7 +309,7 @@ private sealed interface EncodedType {
     }
 
     object IntList : ReferenceType {
-        override val namePrefix: kotlin.String
+        override val typeNamePrefix: kotlin.String
             get() = "IntList"
 
         override val jvmType: TypeDescriptor.ReferenceType
@@ -318,7 +321,7 @@ private sealed interface EncodedType {
     }
 
     object Boolean : EncodedType {
-        override val namePrefix: kotlin.String
+        override val typeNamePrefix: kotlin.String
             get() = "Boolean"
 
         override val jvmType: TypeDescriptor
@@ -330,7 +333,7 @@ private sealed interface EncodedType {
     }
 
     object BooleanList : ReferenceType {
-        override val namePrefix: kotlin.String
+        override val typeNamePrefix: kotlin.String
             get() = "BooleanList"
 
         override val jvmType: TypeDescriptor.ReferenceType
@@ -342,7 +345,7 @@ private sealed interface EncodedType {
     }
 
     object File : ReferenceType {
-        override val namePrefix: kotlin.String
+        override val typeNamePrefix: kotlin.String
             get() = "File"
 
         override val jvmType: TypeDescriptor.ObjectType
@@ -357,7 +360,7 @@ private sealed interface EncodedType {
     class ObjectList(val elementType: ReferenceType) : ReferenceType {
         val collector by lazy { collector(elementType) }
 
-        override val namePrefix: kotlin.String = "List${elementType.namePrefix}"
+        override val typeNamePrefix: kotlin.String = "List${elementType.typeNamePrefix}"
 
         override val jvmType: TypeDescriptor.ReferenceType
             get() = elementType.jvmType.arrayType()
@@ -368,7 +371,7 @@ private sealed interface EncodedType {
     }
 
     object Any : ReferenceType {
-        override val namePrefix: kotlin.String
+        override val typeNamePrefix: kotlin.String
             get() = "Any"
 
         override val jvmType: TypeDescriptor.ReferenceType
@@ -390,7 +393,7 @@ private fun appendToStringBuilder(receiver: JvmExpression, value: JvmExpression)
 }
 
 private fun collector(type: EncodedType.ReferenceType): JvmExpression {
-    val className = "${type.namePrefix}StringCollector"
+    val className = "${type.typeNamePrefix}StringCollector"
     val collector = JvmGeneratedClass(
         className,
         TypeDescriptor.ofClass(className),

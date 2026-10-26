@@ -13,6 +13,7 @@ library {
     common {
         api(project(":ir"))
         api(versions.libs.coordinates("file-io"))
+        implementation(versions.libs.coordinates("basics"))
         implementation(versions.libs.coordinates("parse"))
         implementation(versions.libs.coordinates("file-parse"))
     }

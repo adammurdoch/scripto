@@ -246,24 +246,24 @@ class CGenerator {
 
     internal sealed interface EncodedType {
         /**
-         * A string that can be used in C identifiers.
+         * A string that can be used in C identifiers generated for this type.
          */
-        val identifier: kotlin.String
+        val identifierPrefix: kotlin.String
 
-        val type: CType
+        val cType: CType
 
-        val freeToStringResult: kotlin.Boolean
+        val shouldFreeToStringResult: kotlin.Boolean
 
         fun toString(receiver: CExpression): CExpression
 
         object String : EncodedType {
-            override val identifier: kotlin.String
+            override val identifierPrefix: kotlin.String
                 get() = "string"
 
-            override val type: CType
+            override val cType: CType
                 get() = CType.CString
 
-            override val freeToStringResult: kotlin.Boolean
+            override val shouldFreeToStringResult: kotlin.Boolean
                 get() = false
 
             override fun toString(receiver: CExpression): CExpression {
@@ -272,13 +272,13 @@ class CGenerator {
         }
 
         object StringList : EncodedType {
-            override val identifier: kotlin.String
+            override val identifierPrefix: kotlin.String
                 get() = "string_list"
 
-            override val type: CType
+            override val cType: CType
                 get() = TypeSnippet.ListStruct
 
-            override val freeToStringResult: kotlin.Boolean
+            override val shouldFreeToStringResult: kotlin.Boolean
                 get() = true
 
             override fun toString(receiver: CExpression): CExpression {
@@ -287,13 +287,13 @@ class CGenerator {
         }
 
         object Int : EncodedType {
-            override val identifier: kotlin.String
+            override val identifierPrefix: kotlin.String
                 get() = "int"
 
-            override val type: CType
+            override val cType: CType
                 get() = CType.Int32
 
-            override val freeToStringResult: kotlin.Boolean
+            override val shouldFreeToStringResult: kotlin.Boolean
                 get() = true
 
             override fun toString(receiver: CExpression): CExpression {
@@ -302,13 +302,13 @@ class CGenerator {
         }
 
         object Boolean : EncodedType {
-            override val identifier: kotlin.String
+            override val identifierPrefix: kotlin.String
                 get() = "boolean"
 
-            override val type: CType
+            override val cType: CType
                 get() = CType.Bool
 
-            override val freeToStringResult: kotlin.Boolean
+            override val shouldFreeToStringResult: kotlin.Boolean
                 get() = false
 
             override fun toString(receiver: CExpression): CExpression {
@@ -317,13 +317,13 @@ class CGenerator {
         }
 
         object File : EncodedType {
-            override val identifier: kotlin.String
+            override val identifierPrefix: kotlin.String
                 get() = "file"
 
-            override val type: CType
+            override val cType: CType
                 get() = CType.CString
 
-            override val freeToStringResult: kotlin.Boolean
+            override val shouldFreeToStringResult: kotlin.Boolean
                 get() = true
 
             override fun toString(receiver: CExpression): CExpression {
@@ -332,34 +332,34 @@ class CGenerator {
         }
 
         class List(val elementType: EncodedType) : EncodedType {
-            override val identifier: kotlin.String = "list_${elementType.identifier}"
+            override val identifierPrefix: kotlin.String = "list_${elementType.identifierPrefix}"
 
             private val elementToString by lazy {
-                FunctionSnippet.listElementToStringFunction("_${elementType.identifier}_element_to_string", elementType.type) { expression -> elementType.toString(expression) }
+                FunctionSnippet.listElementToStringFunction("_${elementType.identifierPrefix}_element_to_string", elementType.cType) { expression -> elementType.toString(expression) }
             }
 
-            override val type: CType
+            override val cType: CType
                 get() = TypeSnippet.ListStruct
 
-            override val freeToStringResult: kotlin.Boolean
+            override val shouldFreeToStringResult: kotlin.Boolean
                 get() = true
 
             override fun toString(receiver: CExpression): CExpression {
                 return CFunctionCall(
                     FunctionSnippet.ListToString,
-                    listOf(CPointer(receiver), CBooleanLiteral.of(elementType.freeToStringResult), CFunctionPointer(elementToString))
+                    listOf(CPointer(receiver), CBooleanLiteral.of(elementType.shouldFreeToStringResult), CFunctionPointer(elementToString))
                 )
             }
         }
 
         object Any : EncodedType {
-            override val identifier: kotlin.String
+            override val identifierPrefix: kotlin.String
                 get() = "any"
 
-            override val type: CType
+            override val cType: CType
                 get() = CType.CVoidPointer
 
-            override val freeToStringResult: kotlin.Boolean
+            override val shouldFreeToStringResult: kotlin.Boolean
                 get() = false
 
             override fun toString(receiver: CExpression): CExpression {

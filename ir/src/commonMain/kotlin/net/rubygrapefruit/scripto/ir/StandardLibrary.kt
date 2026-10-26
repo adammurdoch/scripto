@@ -79,12 +79,7 @@ object StandardLibrary : Functions {
         }
     }
 
-    fun definitions(receiver: Type, name: String): List<FunctionKind> {
-        val functions = functionsFor(receiver)
-        return functions.definitions(name)
-    }
-
-    private fun functionsFor(receiver: Type): Functions {
+    fun functionsFor(receiver: Type): Functions {
         return when (receiver) {
             is Type.Any -> AnyFunctions
             is Type.String -> StringFunctions

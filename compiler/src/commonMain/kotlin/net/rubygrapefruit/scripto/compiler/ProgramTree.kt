@@ -1,6 +1,8 @@
 package net.rubygrapefruit.scripto.compiler
 
+import net.rubygrapefruit.parse.Position
 import net.rubygrapefruit.scripto.ir.*
+import net.rubygrapefruit.strings.capitalized
 
 internal class ProgramTree(val operations: List<OperationTree>) {
     fun resolve(library: StandardLibrary, target: TargetRuntime): ResolveResult<Program> {
@@ -42,7 +44,7 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         return zipping(resolved, arguments) { resolved, arguments ->
             target.inspect(resolved)
             if (resolved !is UnitFunctionDefinition) {
-                NotResolved.of(operation.position, "Return value ignored for function '${operation.name}'")
+                NotResolved.of(operation.position, "Return value ignored for ${resolved.displayName}'")
             } else {
                 Resolved(UnitFunctionCall(resolved, arguments))
             }
@@ -94,19 +96,7 @@ internal class ProgramTree(val operations: List<OperationTree>) {
             }
 
             is FunctionCallTree -> {
-                val arguments = resolveExpressions(expression.arguments, variables, library, target)
-                val definition = locateFunction(expression, library)
-                val resolved = zipping(definition, arguments) { definition, arguments ->
-                    resolveTypeParameters(definition, expression.arguments, arguments)
-                }
-                zipping(resolved, arguments) { resolved, arguments ->
-                    target.inspect(resolved)
-                    if (resolved !is TypedFunctionDefinition) {
-                        NotResolved.of(expression.position, "Function ${expression.name}() has no return value")
-                    } else {
-                        Resolved(FunctionCallExpression(resolved, arguments))
-                    }
-                }
+                resolveFunctionCall(expression, variables, target, FunctionResolveRequest.ExpressionRequest)
             }
 
             is ReceiverFunctionCallTree -> {
@@ -121,7 +111,7 @@ internal class ProgramTree(val operations: List<OperationTree>) {
                 zipping(receiver, resolved, arguments) { receiver, resolved, arguments ->
                     target.inspect(resolved)
                     if (resolved !is TypedFunctionDefinition) {
-                        NotResolved.of(expression.target.position, "Function ${receiver.type}.${expression.target.name}() has no return value")
+                        NotResolved.of(expression.target.position, "${displayName(receiver.type, expression.target).capitalized()} has no return value")
                     } else {
                         Resolved(ReceiverFunctionCallExpression(receiver, resolved, arguments))
                     }
@@ -152,6 +142,24 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         }
     }
 
+    private fun <T> resolveFunctionCall(
+        function: FunctionCallTree,
+        variables: Map<String, VariableDeclaration>,
+        target: TargetRuntime,
+        request: FunctionResolveRequest<T>
+    ): ResolveResult<T> {
+        val arguments = resolveExpressions(function.arguments, variables, StandardLibrary, target)
+        val scope = request.locateScope()
+        val definition = locateFunction(function, scope) { request.displayName(function.name) }
+        val resolved = zipping(definition, arguments) { definition, arguments ->
+            resolveTypeParameters(definition, function.arguments, arguments)
+        }
+        return zipping(resolved, arguments) { resolved, arguments ->
+            target.inspect(resolved)
+            request.create(function.position, resolved, arguments)
+        }
+    }
+
     private fun resolveVariableReference(
         variables: Map<String, VariableDeclaration>,
         expression: VariableReferenceTree
@@ -167,26 +175,25 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         }
     }
 
-    private fun locateFunction(operation: FunctionCallTree, library: StandardLibrary): ResolveResult<FunctionKind> {
-        val definitions = library.definitions(operation.name)
-        if (definitions.isEmpty()) {
-            return NotResolved.of(operation.position, "Unknown function ${operation.name}()")
-        }
-        val definition = selectFunction(definitions, operation.arguments.size)
-        if (definition == null) {
-            return NotResolved.of(operation.position, "Incorrect number of parameters for function ${operation.name}()")
-        }
-        return Resolved(definition)
+    private fun locateFunction(receiver: Type, operation: FunctionCallTree, library: StandardLibrary): ResolveResult<FunctionKind> {
+        val functions = library.functionsFor(receiver)
+        return locateFunction(operation, functions) { displayName(receiver, operation) }
     }
 
-    private fun locateFunction(receiver: Type, operation: FunctionCallTree, library: StandardLibrary): ResolveResult<FunctionKind> {
-        val definitions = library.definitions(receiver, operation.name)
+    private fun displayName(receiver: Type, operation: FunctionCallTree): String = "function ${receiver}.${operation.name}()"
+
+    private fun locateFunction(operation: FunctionCallTree, library: StandardLibrary): ResolveResult<FunctionKind> {
+        return locateFunction(operation, library) { "function ${operation.name}()" }
+    }
+
+    private fun locateFunction(operation: FunctionCallTree, scope: Functions, displayName: () -> String): ResolveResult<FunctionKind> {
+        val definitions = scope.definitions(operation.name)
         if (definitions.isEmpty()) {
-            return NotResolved.of(operation.position, "Unknown function ${receiver}.${operation.name}()")
+            return NotResolved.of(operation.position, "Unknown ${displayName()}")
         }
         val definition = selectFunction(definitions, operation.arguments.size)
         if (definition == null) {
-            return NotResolved.of(operation.position, "Incorrect number of parameters for function ${receiver}.${operation.name}()")
+            return NotResolved.of(operation.position, "Incorrect number of parameters for ${displayName()}")
         }
         return Resolved(definition)
     }
@@ -233,6 +240,32 @@ internal class ProgramTree(val operations: List<OperationTree>) {
                 NotResolved(problems)
             } else {
                 Resolved(FunctionCallExpression(function, listOf(left, right)))
+            }
+        }
+    }
+
+    private sealed interface FunctionResolveRequest<T> {
+        fun displayName(functionName: String): String
+
+        fun locateScope(): Functions
+
+        fun create(position: Position, definition: FunctionDefinition, arguments: List<Expression>): ResolveResult<T>
+
+        object ExpressionRequest : FunctionResolveRequest<FunctionCallExpression> {
+            override fun displayName(functionName: String): String {
+                return "function $functionName()"
+            }
+
+            override fun locateScope(): Functions {
+                return StandardLibrary
+            }
+
+            override fun create(position: Position, definition: FunctionDefinition, arguments: List<Expression>): ResolveResult<FunctionCallExpression> {
+                return if (definition !is TypedFunctionDefinition) {
+                    NotResolved.of(position, "${definition.displayName.capitalized()} has no return value")
+                } else {
+                    Resolved(FunctionCallExpression(definition, arguments))
+                }
             }
         }
     }
