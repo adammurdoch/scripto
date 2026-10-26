@@ -86,4 +86,32 @@ println(l)
             output("[[[a, b], [c]], [[d]]]\n")
         }
     }
+
+    @Test
+    fun `compiles variable initialized with list literal of string list literals and empty lists`() {
+        val sourceFile = workDir.file("app.scripto")
+        sourceFile.writeText(
+            """
+val l = [["a", "b"], [], ["c"]]
+println(l)
+        """
+        )
+        compileAndRun(sourceFile, features = listOf(Feature.ListOfList)) {
+            output("[[a, b], [], [c]]\n")
+        }
+    }
+
+    @Test
+    fun `compiles variable initialized with list literal of empty lists`() {
+        val sourceFile = workDir.file("app.scripto")
+        sourceFile.writeText(
+            """
+val l = [[], [], []]
+println(l)
+        """
+        )
+        compileAndRun(sourceFile, features = listOf(Feature.ListOfList)) {
+            output("[[], [], []]\n")
+        }
+    }
 }

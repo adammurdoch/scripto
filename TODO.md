@@ -1,10 +1,7 @@
 General
 
 - Lists
-  - Fail when list elements have different type (for now) 
-    - Handle a list of lists where some elements are empty, eg `[[1, 2], [], [3]]`
   - `toString()` delegates to correct implementation
-  - Add `args` parameter to main function 
   - Add `==`
   - Add `[]`
   - Add `+`
@@ -100,20 +97,22 @@ Performance
 
 New functions and types
 
-- `boolean && boolean` -> `boolean`
-- `boolean || boolean` -> `boolean`
-- `!boolean` -> `boolean`
-- `string.length()`
-- `string.contains(string)`
-- `string.replace(string, string)`
-- `boolean.toString()`
-- `int.toString()`
-- `[element*]` -> `list<T>`
-- `readText()` becomes `File(string)` -> `File` and `File.readText()` -> `result<string>`
-- `file.exists()` -> `boolean`
-- `file.writeText(string, string)` -> `result<unit>`
-- `homeDir()` -> `dir`
-- `dir.exists()` -> `boolean`
+- `Boolean && Boolean` -> `Boolean`
+- `Boolean || Boolean` -> `Boolean`
+- `!Boolean` -> `Boolean`
+- `String.length` -> `Int`
+- `String[Int]` -> `Char`
+- `String.contains(string)` -> `Boolean`
+- `String.replace(string, string)` -> `String`
+- `List<T>.length` -> `Int`
+- `List<T>[Int]` -> `T` or throws
+- `List<T> == List<T>` -> `Boolean`
+- `List<T> + List<T>` -> `List<T>`
+- `File.exists()` -> `Boolean` or throws
+- `File.writeText(String)` throws
+- `Dir(String)`
+- `userHomeDir()` -> `Dir` or throws
+- `Dir.exists()` -> `Boolean` or throws
 
 More features
 

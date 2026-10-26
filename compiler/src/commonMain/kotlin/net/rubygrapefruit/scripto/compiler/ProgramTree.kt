@@ -131,14 +131,23 @@ internal class ProgramTree(val operations: List<OperationTree>) {
     }
 
     private fun inferTypeParamFromArguments(argumentTrees: List<ExpressionTree>, arguments: List<Expression>): ResolveResult<Type> {
-        return if (arguments.isEmpty()) {
-            Resolved(Type.Any)
-        } else {
-            val type = arguments.first().type
-            if (arguments.all { it.type == type }) {
-                Resolved(type)
-            } else {
-                NotResolved.of(argumentTrees.first().position, "All arguments must have the same type")
+        return when (arguments.size) {
+            0 -> Resolved(Type.Any)
+            1 -> Resolved(arguments.first().type)
+            else -> {
+                val anyList = Type.List(Type.Any)
+                val index = arguments.indexOfFirst { it.type != anyList }
+                if (index < 0) {
+                    Resolved(anyList)
+                } else {
+                    val type = arguments[index].type
+                    val remaining = arguments.drop(index + 1)
+                    if (remaining.all { it.type == type || it.type == anyList }) {
+                        Resolved(type)
+                    } else {
+                        NotResolved.of(argumentTrees.first().position, "All arguments must have the same type, found: ${arguments.joinToString { it.type.toString() }}")
+                    }
+                }
             }
         }
     }

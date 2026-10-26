@@ -5,7 +5,7 @@ sealed interface Kind
 /**
  * A fully realized type with all parameters provided.
  */
-sealed interface Type: Kind {
+sealed interface Type : Kind {
     data object Any : Type
     data object String : Type
     data object Int : Type
@@ -22,7 +22,7 @@ sealed interface Type: Kind {
 /**
  * A type that produces another type from a parameter.
  */
-sealed interface TypeFunction: Kind {
+sealed interface TypeFunction : Kind {
     fun evaluate(arg: Type): Type
 
     object List : TypeFunction {
