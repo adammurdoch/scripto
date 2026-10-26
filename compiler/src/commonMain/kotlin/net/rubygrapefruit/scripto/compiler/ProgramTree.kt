@@ -36,8 +36,10 @@ internal class ProgramTree(val operations: List<OperationTree>) {
     ): ResolveResult<UnitFunctionCall> {
         val arguments = resolveExpressions(operation.arguments, variables, library, target)
         val definition = locateFunction(operation, library)
-        return zipping(definition, arguments) { definition, arguments ->
-            val resolved = resolve(definition, arguments)
+        val resolved = zipping(definition, arguments) { definition, arguments ->
+            resolveTypeParameters(definition, operation.arguments, arguments)
+        }
+        return zipping(resolved, arguments) { resolved, arguments ->
             target.inspect(resolved)
             if (resolved !is UnitFunctionDefinition) {
                 NotResolved.of(operation.position, "Return value ignored for function '${operation.name}'")
@@ -81,8 +83,10 @@ internal class ProgramTree(val operations: List<OperationTree>) {
             is InfixOperatorTree -> resolveInfixOperator(library, expression, variables, target)
             is ListLiteralTree -> {
                 val arguments = resolveExpressions(expression.elements, variables, library, target)
-                arguments.mapping { arguments ->
-                    val elementType = inferTypeParamFromArguments(arguments)
+                val elementType = arguments.mapping { arguments ->
+                    inferTypeParamFromArguments(expression.elements, arguments)
+                }
+                zipping(elementType, arguments) { elementType, arguments ->
                     val resolved = StandardLibrary.listConstructor.evaluate(elementType)
                     target.inspect(resolved)
                     Resolved(FunctionCallExpression(resolved, arguments))
@@ -92,8 +96,10 @@ internal class ProgramTree(val operations: List<OperationTree>) {
             is FunctionCallTree -> {
                 val arguments = resolveExpressions(expression.arguments, variables, library, target)
                 val definition = locateFunction(expression, library)
-                zipping(definition, arguments) { definition, arguments ->
-                    val resolved = resolve(definition, arguments)
+                val resolved = zipping(definition, arguments) { definition, arguments ->
+                    resolveTypeParameters(definition, expression.arguments, arguments)
+                }
+                zipping(resolved, arguments) { resolved, arguments ->
                     target.inspect(resolved)
                     if (resolved !is TypedFunctionDefinition) {
                         NotResolved.of(expression.position, "Function ${expression.name}() has no return value")
@@ -109,8 +115,10 @@ internal class ProgramTree(val operations: List<OperationTree>) {
                 val definition = receiver.mapping { receiver ->
                     locateFunction(receiver.type, expression.target, library)
                 }
-                zipping(receiver, definition, arguments) { receiver, definition, arguments ->
-                    val resolved = resolve(definition, arguments)
+                val resolved = zipping(definition, arguments) { definition, arguments ->
+                    resolveTypeParameters(definition, expression.target.arguments, arguments)
+                }
+                zipping(receiver, resolved, arguments) { receiver, resolved, arguments ->
                     target.inspect(resolved)
                     if (resolved !is TypedFunctionDefinition) {
                         NotResolved.of(expression.target.position, "Function ${receiver.type}.${expression.target.name}() has no return value")
@@ -122,13 +130,17 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         }
     }
 
-    private fun inferTypeParamFromArguments(arguments: List<Expression>): Type {
-        val elementType = if (arguments.isEmpty()) {
-            Type.Any
+    private fun inferTypeParamFromArguments(argumentTrees: List<ExpressionTree>, arguments: List<Expression>): ResolveResult<Type> {
+        return if (arguments.isEmpty()) {
+            Resolved(Type.Any)
         } else {
-            arguments.first().type
+            val type = arguments.first().type
+            if (arguments.all { it.type == type }) {
+                Resolved(type)
+            } else {
+                NotResolved.of(argumentTrees.first().position, "All arguments must have the same type")
+            }
         }
-        return elementType
     }
 
     private fun resolveVariableReference(
@@ -182,10 +194,10 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         return null
     }
 
-    private fun resolve(definition: FunctionKind, arguments: List<Expression>): FunctionDefinition {
+    private fun resolveTypeParameters(definition: FunctionKind, argumentTrees: List<ExpressionTree>, arguments: List<Expression>): ResolveResult<FunctionDefinition> {
         return when (definition) {
-            is FunctionDefinition -> definition
-            is NamedParameterizedFunctionDefinition -> definition.evaluate(inferTypeParamFromArguments(arguments))
+            is FunctionDefinition -> Resolved(definition)
+            is NamedParameterizedFunctionDefinition -> inferTypeParamFromArguments(argumentTrees, arguments).mappingValue { definition.evaluate(it) }
         }
     }
 

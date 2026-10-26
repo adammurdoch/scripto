@@ -73,3 +73,10 @@ internal fun <S, T> ResolveResult<T>.mapping(map: (T) -> ResolveResult<S>): Reso
         is Resolved -> map(result)
     }
 }
+
+internal fun <S, T> ResolveResult<T>.mappingValue(map: (T) -> S): ResolveResult<S> {
+    return when (this) {
+        is NotResolved -> this
+        is Resolved -> Resolved(map(result))
+    }
+}
