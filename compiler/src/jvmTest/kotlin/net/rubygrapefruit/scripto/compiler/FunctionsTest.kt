@@ -17,6 +17,16 @@ unknown()
             compileFails("Line 1: 1: Unknown function unknown()")
         }
 
+        test("fails when function result is ignored") {
+            sourceFile.writeText(
+                """
+List("a", "b")
+        """.trimIndent()
+            )
+
+            compileFails("Line 1: 1: Return value ignored for function List()")
+        }
+
         test("fails when incorrect number of arguments provided to function") {
             sourceFile.writeText(
                 """

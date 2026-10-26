@@ -36,19 +36,7 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         library: StandardLibrary,
         target: TargetRuntime
     ): ResolveResult<UnitFunctionCall> {
-        val arguments = resolveExpressions(operation.arguments, variables, library, target)
-        val definition = locateFunction(operation, library)
-        val resolved = zipping(definition, arguments) { definition, arguments ->
-            resolveTypeParameters(definition, operation.arguments, arguments)
-        }
-        return zipping(resolved, arguments) { resolved, arguments ->
-            target.inspect(resolved)
-            if (resolved !is UnitFunctionDefinition) {
-                NotResolved.of(operation.position, "Return value ignored for ${resolved.displayName}'")
-            } else {
-                Resolved(UnitFunctionCall(resolved, arguments))
-            }
-        }
+        return resolveFunctionCall(operation, Resolved(library), variables, target, FunctionResolveRequest.OperationRequest)
     }
 
     private fun resolveVariableDeclaration(
@@ -96,7 +84,7 @@ internal class ProgramTree(val operations: List<OperationTree>) {
             }
 
             is FunctionCallTree -> {
-                resolveFunctionCall(expression, Resolved(StandardLibrary), variables, target, FunctionResolveRequest.ExpressionRequest)
+                resolveFunctionCall(expression, Resolved(library), variables, target, FunctionResolveRequest.ExpressionRequest)
             }
 
             is ReceiverFunctionCallTree -> {
@@ -162,13 +150,6 @@ internal class ProgramTree(val operations: List<OperationTree>) {
             Resolved(VariableReference(declaration.type, declaration.name))
         }
     }
-
-    private fun locateFunction(receiver: Type, operation: FunctionCallTree, library: StandardLibrary): ResolveResult<FunctionKind> {
-        val functions = library.functionsFor(receiver)
-        return locateFunction(operation, functions) { displayName(receiver, operation) }
-    }
-
-    private fun displayName(receiver: Type, operation: FunctionCallTree): String = "function ${receiver}.${operation.name}()"
 
     private fun locateFunction(operation: FunctionCallTree, library: StandardLibrary): ResolveResult<FunctionKind> {
         return locateFunction(operation, library) { "function ${operation.name}()" }
@@ -238,6 +219,24 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         fun functionsFor(scope: S): Functions
 
         fun create(position: Position, scope: S, definition: FunctionDefinition, arguments: List<Expression>): ResolveResult<T>
+
+        object OperationRequest : FunctionResolveRequest<Functions, UnitFunctionCall> {
+            override fun displayName(scope: Functions, functionName: String): String {
+                return "function $functionName()"
+            }
+
+            override fun functionsFor(scope: Functions): Functions {
+                return scope
+            }
+
+            override fun create(position: Position, scope: Functions, definition: FunctionDefinition, arguments: List<Expression>): ResolveResult<UnitFunctionCall> {
+                return if (definition !is UnitFunctionDefinition) {
+                    NotResolved.of(position, "Return value ignored for ${definition.displayName}")
+                } else {
+                    Resolved(UnitFunctionCall(definition, arguments))
+                }
+            }
+        }
 
         object ExpressionRequest : FunctionResolveRequest<Functions, FunctionCallExpression> {
             override fun displayName(scope: Functions, functionName: String): String {
