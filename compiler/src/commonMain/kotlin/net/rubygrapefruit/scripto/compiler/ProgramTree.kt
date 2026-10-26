@@ -72,15 +72,13 @@ internal class ProgramTree(val operations: List<OperationTree>) {
             is VariableReferenceTree -> resolveVariableReference(variables, expression)
             is InfixOperatorTree -> resolveInfixOperator(library, expression, variables, target)
             is ListLiteralTree -> {
-                val arguments = resolveExpressions(expression.elements, variables, library, target)
-                val elementType = arguments.mapping { arguments ->
-                    inferTypeParamFromArguments(expression.elements, arguments)
-                }
-                zipping(elementType, arguments) { elementType, arguments ->
-                    val resolved = StandardLibrary.listConstructor.evaluate(elementType)
-                    target.inspect(resolved)
-                    Resolved(FunctionCallExpression(resolved, arguments))
-                }
+                resolveFunctionCall(
+                    expression.position,
+                    expression.elements,
+                    Resolved(library),
+                    Resolved(StandardLibrary.listConstructor),
+                    variables, target, FunctionResolveRequest.ExpressionRequest
+                )
             }
 
             is FunctionCallTree -> {
@@ -116,26 +114,6 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         }
     }
 
-    private fun <S, T> resolveFunctionCall(
-        function: FunctionCallTree,
-        scope: ResolveResult<S>,
-        variables: Map<String, VariableDeclaration>,
-        target: TargetRuntime,
-        request: FunctionResolveRequest<S, T>
-    ): ResolveResult<T> {
-        val arguments = resolveExpressions(function.arguments, variables, StandardLibrary, target)
-        val definition = scope.mapping { scope ->
-            locateFunction(function, request.functionsFor(scope)) { request.displayName(scope, function.name) }
-        }
-        val resolved = zipping(definition, arguments) { definition, arguments ->
-            resolveTypeParameters(definition, function.arguments, arguments)
-        }
-        return zipping(scope, resolved, arguments) { scope, resolved, arguments ->
-            target.inspect(resolved)
-            request.create(function.position, scope, resolved, arguments)
-        }
-    }
-
     private fun resolveVariableReference(
         variables: Map<String, VariableDeclaration>,
         expression: VariableReferenceTree
@@ -151,18 +129,46 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         }
     }
 
-    private fun locateFunction(operation: FunctionCallTree, library: StandardLibrary): ResolveResult<FunctionKind> {
-        return locateFunction(operation, library) { "function ${operation.name}()" }
+    private fun <S, T> resolveFunctionCall(
+        function: FunctionCallTree,
+        scope: ResolveResult<S>,
+        variables: Map<String, VariableDeclaration>,
+        target: TargetRuntime,
+        request: FunctionResolveRequest<S, T>
+    ): ResolveResult<T> {
+        val definition = scope.mapping { scope ->
+            locateFunction(function, request.functionsFor(scope), scope, request)
+        }
+        return resolveFunctionCall(function.position, function.arguments, scope, definition, variables, target, request)
     }
 
-    private fun locateFunction(operation: FunctionCallTree, scope: Functions, displayName: () -> String): ResolveResult<FunctionKind> {
-        val definitions = scope.definitions(operation.name)
+    private fun <S, T> resolveFunctionCall(
+        position: Position,
+        argumentTrees: List<ExpressionTree>,
+        scope: ResolveResult<S>,
+        definition: ResolveResult<FunctionKind>,
+        variables: Map<String, VariableDeclaration>,
+        target: TargetRuntime,
+        request: FunctionResolveRequest<S, T>
+    ): ResolveResult<T> {
+        val arguments = resolveExpressions(argumentTrees, variables, StandardLibrary, target)
+        val resolved = zipping(definition, arguments) { definition, arguments ->
+            resolveTypeParameters(definition, argumentTrees, arguments)
+        }
+        return zipping(scope, resolved, arguments) { scope, resolved, arguments ->
+            target.inspect(resolved)
+            request.create(position, scope, resolved, arguments)
+        }
+    }
+
+    private fun <S> locateFunction(operation: FunctionCallTree, functions: Functions, scope: S, request: FunctionResolveRequest<S, *>): ResolveResult<FunctionKind> {
+        val definitions = functions.definitions(operation.name)
         if (definitions.isEmpty()) {
-            return NotResolved.of(operation.position, "Unknown ${displayName()}")
+            return NotResolved.of(operation.position, "Unknown ${request.displayName(scope, operation.name)}")
         }
         val definition = selectFunction(definitions, operation.arguments.size)
         if (definition == null) {
-            return NotResolved.of(operation.position, "Incorrect number of parameters for ${displayName()}")
+            return NotResolved.of(operation.position, "Incorrect number of parameters for ${request.displayName(scope, operation.name)}")
         }
         return Resolved(definition)
     }
