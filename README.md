@@ -1,5 +1,23 @@
 
-A statically typed language with automatic memory management that compiles to native executables, C, JVM byte code, Bash and PowerShell.
+A statically typed language with automatic memory management that compiles to:
+
+- Native executables
+- C source
+- JVM byte code
+- Bash scripts
+- PowerShell scripts
+
+An interpreter is also provided.
+
+Motivation
+----
+
+This is an experiment to see how feasible it is to implement a simple, but useful, language that can run in many different environments.
+
+Status
+----
+
+Pre-experimental
 
 Language
 ----
@@ -50,11 +68,11 @@ Standard library
 - `println()`
 - `println(Any)`
 
-`String` type
+`String` type - an immutable sequence of characters
 - `"` quoted literal
 - `String.toString()`
 
-`Int` type (32-bit signed int)
+`Int` type - a 32-bit signed int
 - Int literal
 - `Int.toString()`
 
@@ -62,19 +80,19 @@ Standard library
 - `true` or `false` literal
 - `Boolean.toString()`
 
-`File` type
+`File` type - a reference to a regular file
 - `File(String)` constructor
 - `File.toString()`
-- `File.readText(): String`
+- `File.readText(): String` - reads the contents of the file as UTF-8 encoded text
 
-`List<T>` Type
+`List<T>` Type - an immutable list with elements of type `T`
 - `[T...]` literal
 - `List(T...)` constructor
 - `List.toString()`
 
 Operators
 - `Int + Int: Boolean`
-- `String + String: String`
+- `String + String: String` - concatenates the two strings
 - `String == String: Boolean`
 - `Int == Int: Boolean`
 - `Boolean == Boolean: Boolean`
