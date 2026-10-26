@@ -15,6 +15,6 @@ class JvmFixture(workDir: Directory) : AppFixture(workDir) {
         for (file in generatedClass.classFiles) {
             run(listOf("javap", "-v", "-p", file.absolutePath))
         }
-        return running(listOf("java", "-classpath", workDir.absolutePath, generatedClass.name))
+        return running("java", "-classpath", workDir.absolutePath, generatedClass.name)
     }
 }

@@ -3,8 +3,10 @@ plugins {
 }
 
 pluginBundle {
-    plugin("scripto.powershell", "net.rubygraperuit.scripto.plugins.PowerShellPlugin")
+    plugin("scripto.generator", "net.rubygraperuit.scripto.plugins.GeneratorPlugin")
     plugin("scripto.test-suite", "net.rubygraperuit.scripto.plugins.TestSuitePlugin")
+    plugin("scripto.powershell", "net.rubygraperuit.scripto.plugins.PowerShellPlugin")
+    plugin("scripto.node-js", "net.rubygraperuit.scripto.plugins.NodeJsPlugin")
 
     dependencies {
         implementation(versions.libs.coordinates("machine-info"))

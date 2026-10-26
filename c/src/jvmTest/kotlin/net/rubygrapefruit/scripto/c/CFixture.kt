@@ -18,6 +18,6 @@ class CFixture(workDir: Directory) : AppFixture(workDir) {
 
         val exe = workDir.file("app")
         CCompiler().compile(cSource, exe)
-        return running(listOf(exe.absolutePath))
+        return running(exe.absolutePath)
     }
 }

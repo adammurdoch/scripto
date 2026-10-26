@@ -86,6 +86,10 @@ PowerShell
 - Don't wrap '+' operators in `$()` or `()` when already in arithmetic mode
 - PowerShell scripts can declare named and positional command line parameters and their types, so provide some way to declare this 
 
+Node
+
+- Fix tests
+
 Webassembly
 
 - Component model: https://component-model.bytecodealliance.org

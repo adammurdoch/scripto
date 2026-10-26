@@ -14,6 +14,6 @@ class PowershellFixture(workDir: Directory) : AppFixture(workDir) {
             println(outputScript.readText())
         }
 
-        return running(listOf("build/powershell/pwsh", outputScript.absolutePath))
+        return running("build/powershell/pwsh", outputScript.absolutePath)
     }
 }

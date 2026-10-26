@@ -21,7 +21,7 @@ class BashFixture(workDir: Directory) : AppFixture(workDir) {
             println(outputScript.readText())
         }
 
-        return running(listOf(outputScript.absolutePath))
+        return running(outputScript.absolutePath)
     }
 
     override fun generationFails(program: Program) {

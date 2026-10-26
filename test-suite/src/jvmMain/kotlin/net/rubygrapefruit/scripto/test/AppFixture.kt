@@ -28,6 +28,10 @@ abstract class AppFixture(val workDir: Directory) {
         }
     }
 
+    protected fun running(vararg commandLine: String): App {
+        return running(commandLine.toList())
+    }
+
     protected fun running(commandLine: List<String>): App {
         return object : App {
             override fun execute(args: List<String>): String {
