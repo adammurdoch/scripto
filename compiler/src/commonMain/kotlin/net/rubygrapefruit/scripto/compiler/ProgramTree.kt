@@ -96,26 +96,12 @@ internal class ProgramTree(val operations: List<OperationTree>) {
             }
 
             is FunctionCallTree -> {
-                resolveFunctionCall(expression, variables, target, FunctionResolveRequest.ExpressionRequest)
+                resolveFunctionCall(expression, Resolved(StandardLibrary), variables, target, FunctionResolveRequest.ExpressionRequest)
             }
 
             is ReceiverFunctionCallTree -> {
                 val receiver = resolve(expression.receiver, variables, library, target)
-                val arguments = resolveExpressions(expression.target.arguments, variables, library, target)
-                val definition = receiver.mapping { receiver ->
-                    locateFunction(receiver.type, expression.target, library)
-                }
-                val resolved = zipping(definition, arguments) { definition, arguments ->
-                    resolveTypeParameters(definition, expression.target.arguments, arguments)
-                }
-                zipping(receiver, resolved, arguments) { receiver, resolved, arguments ->
-                    target.inspect(resolved)
-                    if (resolved !is TypedFunctionDefinition) {
-                        NotResolved.of(expression.target.position, "${displayName(receiver.type, expression.target).capitalized()} has no return value")
-                    } else {
-                        Resolved(ReceiverFunctionCallExpression(receiver, resolved, arguments))
-                    }
-                }
+                resolveFunctionCall(expression.target, receiver, variables, target, FunctionResolveRequest.ReceiverExpressionRequest)
             }
         }
     }
@@ -142,21 +128,23 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         }
     }
 
-    private fun <T> resolveFunctionCall(
+    private fun <S, T> resolveFunctionCall(
         function: FunctionCallTree,
+        scope: ResolveResult<S>,
         variables: Map<String, VariableDeclaration>,
         target: TargetRuntime,
-        request: FunctionResolveRequest<T>
+        request: FunctionResolveRequest<S, T>
     ): ResolveResult<T> {
         val arguments = resolveExpressions(function.arguments, variables, StandardLibrary, target)
-        val scope = request.locateScope()
-        val definition = locateFunction(function, scope) { request.displayName(function.name) }
+        val definition = scope.mapping { scope ->
+            locateFunction(function, request.functionsFor(scope)) { request.displayName(scope, function.name) }
+        }
         val resolved = zipping(definition, arguments) { definition, arguments ->
             resolveTypeParameters(definition, function.arguments, arguments)
         }
-        return zipping(resolved, arguments) { resolved, arguments ->
+        return zipping(scope, resolved, arguments) { scope, resolved, arguments ->
             target.inspect(resolved)
-            request.create(function.position, resolved, arguments)
+            request.create(function.position, scope, resolved, arguments)
         }
     }
 
@@ -244,27 +232,45 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         }
     }
 
-    private sealed interface FunctionResolveRequest<T> {
-        fun displayName(functionName: String): String
+    private sealed interface FunctionResolveRequest<S, T> {
+        fun displayName(scope: S, functionName: String): String
 
-        fun locateScope(): Functions
+        fun functionsFor(scope: S): Functions
 
-        fun create(position: Position, definition: FunctionDefinition, arguments: List<Expression>): ResolveResult<T>
+        fun create(position: Position, scope: S, definition: FunctionDefinition, arguments: List<Expression>): ResolveResult<T>
 
-        object ExpressionRequest : FunctionResolveRequest<FunctionCallExpression> {
-            override fun displayName(functionName: String): String {
+        object ExpressionRequest : FunctionResolveRequest<Functions, FunctionCallExpression> {
+            override fun displayName(scope: Functions, functionName: String): String {
                 return "function $functionName()"
             }
 
-            override fun locateScope(): Functions {
-                return StandardLibrary
+            override fun functionsFor(scope: Functions): Functions {
+                return scope
             }
 
-            override fun create(position: Position, definition: FunctionDefinition, arguments: List<Expression>): ResolveResult<FunctionCallExpression> {
+            override fun create(position: Position, scope: Functions, definition: FunctionDefinition, arguments: List<Expression>): ResolveResult<FunctionCallExpression> {
                 return if (definition !is TypedFunctionDefinition) {
                     NotResolved.of(position, "${definition.displayName.capitalized()} has no return value")
                 } else {
                     Resolved(FunctionCallExpression(definition, arguments))
+                }
+            }
+        }
+
+        object ReceiverExpressionRequest : FunctionResolveRequest<Expression, ReceiverFunctionCallExpression> {
+            override fun displayName(scope: Expression, functionName: String): String {
+                return "function ${scope.type}.$functionName()"
+            }
+
+            override fun functionsFor(scope: Expression): Functions {
+                return StandardLibrary.functionsFor(scope.type)
+            }
+
+            override fun create(position: Position, scope: Expression, definition: FunctionDefinition, arguments: List<Expression>): ResolveResult<ReceiverFunctionCallExpression> {
+                return if (definition !is TypedFunctionDefinition) {
+                    NotResolved.of(position, "${definition.displayName.capitalized()} has no return value")
+                } else {
+                    Resolved(ReceiverFunctionCallExpression(scope, definition, arguments))
                 }
             }
         }
