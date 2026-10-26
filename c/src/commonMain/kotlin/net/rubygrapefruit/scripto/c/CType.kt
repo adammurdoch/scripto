@@ -45,6 +45,11 @@ internal sealed interface CType {
         }
     }
 
+    object CVoidPointer: CType {
+        override val declaration: String
+            get() = "void*"
+    }
+
     class Pointer(val element: CType) : CType {
         override val declaration: String = "${element.declaration}*"
 

@@ -6,7 +6,6 @@ import net.rubygrapefruit.scripto.ir.*
 
 @OptIn(ExperimentalStdlibApi::class)
 class CGenerator {
-    private val listElementToString = mutableMapOf<Type, CGeneratedFunction>()
     private val encodedTypes = mutableMapOf<Type, EncodedType>()
 
     fun generate(program: Program, outputFile: RegularFile) {
@@ -207,29 +206,8 @@ class CGenerator {
     }
 
     private fun listToString(receiver: Expression, functionMapper: FunctionMapper<CExpression>): CExpression {
-        val elementType = (receiver.type as Type.List).param
         val list = toExpression(receiver, functionMapper)
-        return listToString(list, elementType)
-    }
-
-    private fun listToString(list: CExpression, elementType: Type): CExpression {
-        return when (elementType) {
-            is Type.String -> EncodedType.StringList.toString(list)
-            is Type.Int -> listToString(list, elementType, CType.Int32, true) { expression -> EncodedType.Int.toString(expression) }
-            is Type.Boolean -> listToString(list, elementType, CType.Bool, false) { expression -> EncodedType.Boolean.toString(expression) }
-            is Type.File -> listToString(list, elementType, CType.CString, false) { expression -> EncodedType.File.toString(expression) }
-            is Type.Any -> listToString(list, elementType, CType.Bool, false) { _ -> CString("??") }
-            is Type.List -> listToString(list, elementType, TypeSnippet.ListStruct, true) { expression ->
-                listToString(expression, elementType.param)
-            }
-        }
-    }
-
-    private fun listToString(receiver: CExpression, elementType: Type, elementCType: CType, freeMappedStrings: Boolean, toString: (CExpression) -> CExpression): CExpression {
-        val elementToString = listElementToString.getOrPutIfNull(elementType) {
-            FunctionSnippet.listElementToStringFunction("_${toEncodedType(elementType).identifier}_element_to_string", elementCType, toString)
-        }
-        return CFunctionCall(FunctionSnippet.ListToString, listOf(CPointer(receiver), CBooleanLiteral.of(freeMappedStrings), CFunctionPointer(elementToString)))
+        return toEncodedType(receiver.type).toString(list)
     }
 
     private fun toEncodedType(type: Type): EncodedType {
@@ -274,6 +252,8 @@ class CGenerator {
 
         val type: CType
 
+        val freeToStringResult: kotlin.Boolean
+
         fun toString(receiver: CExpression): CExpression
 
         object String : EncodedType {
@@ -282,6 +262,9 @@ class CGenerator {
 
             override val type: CType
                 get() = CType.CString
+
+            override val freeToStringResult: kotlin.Boolean
+                get() = false
 
             override fun toString(receiver: CExpression): CExpression {
                 return receiver
@@ -295,6 +278,9 @@ class CGenerator {
             override val type: CType
                 get() = TypeSnippet.ListStruct
 
+            override val freeToStringResult: kotlin.Boolean
+                get() = true
+
             override fun toString(receiver: CExpression): CExpression {
                 return CFunctionCall(FunctionSnippet.StringListToString, listOf(CPointer(receiver)))
             }
@@ -306,6 +292,9 @@ class CGenerator {
 
             override val type: CType
                 get() = CType.Int32
+
+            override val freeToStringResult: kotlin.Boolean
+                get() = true
 
             override fun toString(receiver: CExpression): CExpression {
                 return CFunctionCall(FunctionSnippet.IntToString, listOf(receiver))
@@ -319,6 +308,9 @@ class CGenerator {
             override val type: CType
                 get() = CType.Bool
 
+            override val freeToStringResult: kotlin.Boolean
+                get() = false
+
             override fun toString(receiver: CExpression): CExpression {
                 return CTernaryExpression(receiver, CString(BooleanLiteral.TRUE), CString(BooleanLiteral.FALSE))
             }
@@ -331,19 +323,32 @@ class CGenerator {
             override val type: CType
                 get() = CType.CString
 
+            override val freeToStringResult: kotlin.Boolean
+                get() = true
+
             override fun toString(receiver: CExpression): CExpression {
                 return concatString(CString("File("), concatString(receiver, CString(")")))
             }
         }
 
-        class List(elementType: EncodedType) : EncodedType {
+        class List(val elementType: EncodedType) : EncodedType {
             override val identifier: kotlin.String = "list_${elementType.identifier}"
+
+            private val elementToString by lazy {
+                FunctionSnippet.listElementToStringFunction("_${elementType.identifier}_element_to_string", elementType.type) { expression -> elementType.toString(expression) }
+            }
 
             override val type: CType
                 get() = TypeSnippet.ListStruct
 
+            override val freeToStringResult: kotlin.Boolean
+                get() = true
+
             override fun toString(receiver: CExpression): CExpression {
-                TODO("Not yet implemented")
+                return CFunctionCall(
+                    FunctionSnippet.ListToString,
+                    listOf(CPointer(receiver), CBooleanLiteral.of(elementType.freeToStringResult), CFunctionPointer(elementToString))
+                )
             }
         }
 
@@ -352,7 +357,10 @@ class CGenerator {
                 get() = "any"
 
             override val type: CType
-                get() = throw IllegalStateException()
+                get() = CType.CVoidPointer
+
+            override val freeToStringResult: kotlin.Boolean
+                get() = false
 
             override fun toString(receiver: CExpression): CExpression {
                 return CString("??")
