@@ -37,6 +37,29 @@ println("a", "b")
             compileFails("Line 1: 1: Incorrect number of parameters for function println()")
         }
 
+        test("reports multiple function problems") {
+            sourceFile.writeText(
+                """
+unknown("a", b)
+println(unknown(), println(1, 2))
+List(b, unknown())
+        """.trimIndent()
+            )
+
+            compileFails(
+                listOf(
+                    "Line 1: 1: Unknown function unknown()",
+                    "Line 1: 14: Unknown variable 'b'",
+                    "Line 2: 1: Incorrect number of parameters for function println()",
+                    "Line 2: 9: Unknown function unknown()",
+                    "Line 2: 20: Incorrect number of parameters for function println()",
+                    "Line 3: 6: Unknown variable 'b'",
+                    "Line 3: 9: Unknown function unknown()",
+                    // "Line 3: 1: Return value ignored for function List()"
+                )
+            )
+        }
+
         test("fails when unit function used in expression") {
             sourceFile.writeText(
                 """
@@ -45,6 +68,16 @@ val s = println("text")
             )
 
             compileFails("Line 1: 9: Function println() has no return value")
+        }
+
+        test("fails when unknown function called in expression") {
+            sourceFile.writeText(
+                """
+val v = unknown() + 12
+        """.trimIndent()
+            )
+
+            compileFails("Line 1: 9: Unknown function unknown()")
         }
 
         test("fails when unknown function called on receiver") {

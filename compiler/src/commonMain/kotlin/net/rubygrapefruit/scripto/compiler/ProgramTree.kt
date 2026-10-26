@@ -5,6 +5,8 @@ import net.rubygrapefruit.scripto.ir.*
 import net.rubygrapefruit.strings.capitalized
 
 internal class ProgramTree(val operations: List<OperationTree>) {
+    private val anyList = Type.List(Type.Any)
+
     fun resolve(library: StandardLibrary, target: TargetRuntime): ResolveResult<Program> {
         val variables = mutableMapOf<String, VariableDeclaration>()
 
@@ -97,7 +99,6 @@ internal class ProgramTree(val operations: List<OperationTree>) {
             0 -> Resolved(Type.Any)
             1 -> Resolved(arguments.first().type)
             else -> {
-                val anyList = Type.List(Type.Any)
                 val index = arguments.indexOfFirst { it.type != anyList }
                 if (index < 0) {
                     Resolved(anyList)
@@ -129,12 +130,12 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         }
     }
 
-    private fun <S, T> resolveFunctionCall(
+    private fun <S, D : FunctionDefinition, T> resolveFunctionCall(
         function: FunctionCallTree,
         scope: ResolveResult<S>,
         variables: Map<String, VariableDeclaration>,
         target: TargetRuntime,
-        request: FunctionResolveRequest<S, T>
+        request: FunctionResolveRequest<S, D, T>
     ): ResolveResult<T> {
         val definition = scope.mapping { scope ->
             locateFunction(function, request.functionsFor(scope), scope, request)
@@ -142,26 +143,39 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         return resolveFunctionCall(function.position, function.arguments, scope, definition, variables, target, request)
     }
 
-    private fun <S, T> resolveFunctionCall(
+    private fun <S, D : FunctionDefinition, T> resolveFunctionCall(
         position: Position,
         argumentTrees: List<ExpressionTree>,
         scope: ResolveResult<S>,
         definition: ResolveResult<FunctionKind>,
         variables: Map<String, VariableDeclaration>,
         target: TargetRuntime,
-        request: FunctionResolveRequest<S, T>
+        request: FunctionResolveRequest<S, D, T>
     ): ResolveResult<T> {
         val arguments = resolveExpressions(argumentTrees, variables, StandardLibrary, target)
         val resolved = zipping(definition, arguments) { definition, arguments ->
             resolveTypeParameters(definition, argumentTrees, arguments)
+        }.mapping { definition ->
+            request.check(position, definition)
         }
         return zipping(scope, resolved, arguments) { scope, resolved, arguments ->
+            val normalizedArguments = if (resolved is RealizedFunctionDefinition && resolved.argument is Type.List) {
+                // List<List<T>>, replace List<Any> elements with empty List<T>
+                arguments.map {
+                    if (it.type == anyList) FunctionCallExpression(
+                        StandardLibrary.listConstructor.evaluate((resolved.argument as Type.List).param),
+                        emptyList()
+                    ) else it
+                }
+            } else {
+                arguments
+            }
             target.inspect(resolved)
-            request.create(position, scope, resolved, arguments)
+            Resolved(request.create(scope, resolved, normalizedArguments))
         }
     }
 
-    private fun <S> locateFunction(operation: FunctionCallTree, functions: Functions, scope: S, request: FunctionResolveRequest<S, *>): ResolveResult<FunctionKind> {
+    private fun <S> locateFunction(operation: FunctionCallTree, functions: Functions, scope: S, request: FunctionResolveRequest<S, *, *>): ResolveResult<FunctionKind> {
         val definitions = functions.definitions(operation.name)
         if (definitions.isEmpty()) {
             return NotResolved.of(operation.position, "Unknown ${request.displayName(scope, operation.name)}")
@@ -219,14 +233,19 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         }
     }
 
-    private sealed interface FunctionResolveRequest<S, T> {
-        fun displayName(scope: S, functionName: String): String
+    /**
+     * Produces [RESULT] from [DEF] in [SCOPE].
+     */
+    private sealed interface FunctionResolveRequest<SCOPE, DEF, RESULT> {
+        fun displayName(scope: SCOPE, functionName: String): String
 
-        fun functionsFor(scope: S): Functions
+        fun functionsFor(scope: SCOPE): Functions
 
-        fun create(position: Position, scope: S, definition: FunctionDefinition, arguments: List<Expression>): ResolveResult<T>
+        fun check(position: Position, definition: FunctionDefinition): ResolveResult<DEF>
 
-        object OperationRequest : FunctionResolveRequest<Functions, UnitFunctionCall> {
+        fun create(scope: SCOPE, definition: DEF, arguments: List<Expression>): RESULT
+
+        object OperationRequest : FunctionResolveRequest<Functions, UnitFunctionDefinition, UnitFunctionCall> {
             override fun displayName(scope: Functions, functionName: String): String {
                 return "function $functionName()"
             }
@@ -235,16 +254,20 @@ internal class ProgramTree(val operations: List<OperationTree>) {
                 return scope
             }
 
-            override fun create(position: Position, scope: Functions, definition: FunctionDefinition, arguments: List<Expression>): ResolveResult<UnitFunctionCall> {
+            override fun check(position: Position, definition: FunctionDefinition): ResolveResult<UnitFunctionDefinition> {
                 return if (definition !is UnitFunctionDefinition) {
                     NotResolved.of(position, "Return value ignored for ${definition.displayName}")
                 } else {
-                    Resolved(UnitFunctionCall(definition, arguments))
+                    Resolved(definition)
                 }
+            }
+
+            override fun create(scope: Functions, definition: UnitFunctionDefinition, arguments: List<Expression>): UnitFunctionCall {
+                return UnitFunctionCall(definition, arguments)
             }
         }
 
-        object ExpressionRequest : FunctionResolveRequest<Functions, FunctionCallExpression> {
+        object ExpressionRequest : FunctionResolveRequest<Functions, TypedFunctionDefinition, FunctionCallExpression> {
             override fun displayName(scope: Functions, functionName: String): String {
                 return "function $functionName()"
             }
@@ -253,16 +276,20 @@ internal class ProgramTree(val operations: List<OperationTree>) {
                 return scope
             }
 
-            override fun create(position: Position, scope: Functions, definition: FunctionDefinition, arguments: List<Expression>): ResolveResult<FunctionCallExpression> {
+            override fun check(position: Position, definition: FunctionDefinition): ResolveResult<TypedFunctionDefinition> {
                 return if (definition !is TypedFunctionDefinition) {
                     NotResolved.of(position, "${definition.displayName.capitalized()} has no return value")
                 } else {
-                    Resolved(FunctionCallExpression(definition, arguments))
+                    Resolved(definition)
                 }
+            }
+
+            override fun create(scope: Functions, definition: TypedFunctionDefinition, arguments: List<Expression>): FunctionCallExpression {
+                return FunctionCallExpression(definition, arguments)
             }
         }
 
-        object ReceiverExpressionRequest : FunctionResolveRequest<Expression, ReceiverFunctionCallExpression> {
+        object ReceiverExpressionRequest : FunctionResolveRequest<Expression, TypedFunctionDefinition, ReceiverFunctionCallExpression> {
             override fun displayName(scope: Expression, functionName: String): String {
                 return "function ${scope.type}.$functionName()"
             }
@@ -271,12 +298,16 @@ internal class ProgramTree(val operations: List<OperationTree>) {
                 return StandardLibrary.functionsFor(scope.type)
             }
 
-            override fun create(position: Position, scope: Expression, definition: FunctionDefinition, arguments: List<Expression>): ResolveResult<ReceiverFunctionCallExpression> {
+            override fun check(position: Position, definition: FunctionDefinition): ResolveResult<TypedFunctionDefinition> {
                 return if (definition !is TypedFunctionDefinition) {
                     NotResolved.of(position, "${definition.displayName.capitalized()} has no return value")
                 } else {
-                    Resolved(ReceiverFunctionCallExpression(scope, definition, arguments))
+                    Resolved(definition)
                 }
+            }
+
+            override fun create(scope: Expression, definition: TypedFunctionDefinition, arguments: List<Expression>): ReceiverFunctionCallExpression {
+                return ReceiverFunctionCallExpression(scope, definition, arguments)
             }
         }
     }

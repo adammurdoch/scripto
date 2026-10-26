@@ -8,42 +8,55 @@ import kotlin.test.assertEquals
 
 val GenericFunctionsTest by testSuite {
     withCompiler {
-        test("fails when list literal arguments do not all have the same type") {
-            sourceFile.writeText(
-                """
-val l1 = ["string", 12, false, []]
-val l2 = List(4, "string")
-val l3 = [["string"], [["string"]]]
+        testSuite("fails when list literal arguments do not all have the same type") {
+            val candidates = listOf(
+                "\"string\", 12, false, []" to "String, Int, Boolean, List<Any>",
+                "4, \"string\"" to "Int, String",
+                "[\"string\"], [[\"string\"]]" to "List<String>, List<List<String>>"
+            )
+            for (candidate in candidates) {
+                test("elements ${candidate.first}") {
+                    sourceFile.writeText(
+                        """
+val l1 = [${candidate.first}]
+val l2 = List(${candidate.first})
         """.trimIndent()
-            )
+                    )
 
-            compileFails(
-                listOf(
-                    "Line 1: 11: All arguments must have the same type, found: String, Int, Boolean, List<Any>",
-                    "Line 2: 15: All arguments must have the same type, found: Int, String",
-                    "Line 3: 12: All arguments must have the same type, found: List<String>, List<List<String>>"
-                )
-            )
+                    compileFails(
+                        listOf(
+                            "Line 1: 11: All arguments must have the same type, found: ${candidate.second}",
+                            "Line 2: 15: All arguments must have the same type, found: ${candidate.second}"
+                        )
+                    )
+                }
+            }
         }
 
-        test("empty list has every list type") {
-            sourceFile.writeText(
-                """
-val l0 = [[1], [], [2]]
-val l1 = [[["a"]], [["b"]], []]
-val l2 = [[], [true]]
-val l3 = [[], []]
-val l4 = [[], [true], []]
-        """.trimIndent()
+        testSuite("empty list has every list type") {
+            val candidates = listOf(
+                "[1], [], [2]" to Type.List(Type.Int),
+                "[[\"a\"]], [[\"b\"]], []" to Type.List(Type.List(Type.String)),
+                "[], [true]" to Type.List(Type.Boolean),
+                "[], [true], []" to Type.List(Type.Boolean),
+                "[], []" to Type.List(Type.Any)
             )
-
-            val program = compile()
-            val typeForListLiteral = { index: Int -> ((program.operations[index] as VariableDeclaration).value as FunctionCallExpression).target.returnType }
-            assertEquals(Type.List(Type.List(Type.Int)), typeForListLiteral(0))
-            assertEquals(Type.List(Type.List(Type.List(Type.String))), typeForListLiteral(1))
-            assertEquals(Type.List(Type.List(Type.Boolean)), typeForListLiteral(2))
-            assertEquals(Type.List(Type.List(Type.Any)), typeForListLiteral(3))
-            assertEquals(Type.List(Type.List(Type.Boolean)), typeForListLiteral(4))
+            for (candidate in candidates) {
+                test("elements ${candidate.first}") {
+                    sourceFile.writeText(
+                        """
+val l0 = [${candidate.first}]
+        """.trimIndent()
+                    )
+                    val program = compile()
+                    val functionCall = (program.operations[0] as VariableDeclaration).value as FunctionCallExpression
+                    val listType = functionCall.target.returnType
+                    assertEquals(Type.List(candidate.second), listType)
+                    for (arg in functionCall.args) {
+                        assertEquals(candidate.second, arg.type)
+                    }
+                }
+            }
         }
     }
 }

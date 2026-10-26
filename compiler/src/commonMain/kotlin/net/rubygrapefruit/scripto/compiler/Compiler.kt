@@ -69,8 +69,8 @@ class Compiler {
         return sequence(parsers.map { discard(it) })
     }
 
-    fun <IN, A, B, OUT> surrounded(prefix: Parser<IN, *>, a: Parser<IN, A>, b: Parser<IN, B>, suffix: Parser<IN, *>, map: (A, B) -> OUT): Parser<IN, OUT> {
-        return surrounded(prefix, sequence(a, b, map), suffix)
+    fun <IN, A, B, OUT> separated(a: Parser<IN, A>, separator: Parser<IN, *>, b: Parser<IN, B>, suffix: Parser<IN, *>, map: (A, B) -> OUT): Parser<IN, OUT> {
+        return sequence(a, surrounded(separator, b, suffix), map)
     }
 
     private fun createParser(): Parser<TextInput, List<OperationTree>> {
@@ -85,7 +85,6 @@ class Compiler {
         val quote = literal('"')
         val stringBody = match(zeroOrMore(oneExcept(oneOf(endOfLine(), quote))))
         val string = surrounded(quote, stringBody, quote) { literal -> StringLiteral(literal) }
-//        val stringLiteral = surrounded(quote, position(), stringBody, quote) { position, literal -> LiteralTree(position, StringLiteral(literal)) }
 
         val zero = literal("0", 0)
         val firstDigit = discard(oneInRange('1'..'9'))
@@ -115,7 +114,7 @@ class Compiler {
 
         val listLiteralPrefix = sequence(literal('['), optionalWhitespace)
         val listLiteralSuffix = sequence(optionalWhitespace, literal(']'))
-        val listLiteral = surrounded(listLiteralPrefix, position(), zeroOrMore(expression, separator = argSeparator), listLiteralSuffix) { position, elements ->
+        val listLiteral = separated(position(), listLiteralPrefix, zeroOrMore(expression, separator = argSeparator), listLiteralSuffix) { position, elements ->
             ListLiteralTree(position, elements)
         }
 
