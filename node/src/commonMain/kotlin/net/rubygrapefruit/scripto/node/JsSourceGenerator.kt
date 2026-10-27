@@ -41,7 +41,16 @@ private fun SourceGenerator.append(expression: JsExpression, mapping: VariableMa
     when (expression) {
         is JsString -> {
             append("\"")
-            append(expression.value)
+            for (ch in expression.value) {
+                when (ch) {
+                    '\\' -> {
+                        append("\\")
+                        append("\\")
+                    }
+
+                    else -> append(ch)
+                }
+            }
             append("\"")
         }
 
