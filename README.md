@@ -58,9 +58,9 @@ identifier = (`a`-`z` | `A`-`Z`) (`a`-`z` | `A`-`Z` | `0`-`9`)*
 Terminology
 ----
 
-- Type
+- Type - a set of objects with similar characteristics
 - Function - top level
-- Receiver Function
+- Method - a function attached to a particular type
 
 Standard library
 ----

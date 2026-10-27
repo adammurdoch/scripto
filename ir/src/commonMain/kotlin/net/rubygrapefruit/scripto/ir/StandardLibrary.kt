@@ -62,10 +62,10 @@ object StandardLibrary : Functions {
         val arg = call.arguments.first()
         return when (arg.type) {
             is Type.String -> call
-            is Type.Boolean -> UnitFunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, BooleanFunctions.toString, emptyList())))
-            is Type.Int -> UnitFunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, IntFunctions.toString, emptyList())))
-            is Type.File -> UnitFunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, FileFunctions.toString, emptyList())))
-            is Type.List -> UnitFunctionCall(printlnOneArg, listOf(ReceiverFunctionCallExpression(arg, ListFunctions.toString, emptyList())))
+            is Type.Boolean -> UnitFunctionCall(printlnOneArg, listOf(MethodCallExpression(arg, BooleanFunctions.toString, emptyList())))
+            is Type.Int -> UnitFunctionCall(printlnOneArg, listOf(MethodCallExpression(arg, IntFunctions.toString, emptyList())))
+            is Type.File -> UnitFunctionCall(printlnOneArg, listOf(MethodCallExpression(arg, FileFunctions.toString, emptyList())))
+            is Type.List -> UnitFunctionCall(printlnOneArg, listOf(MethodCallExpression(arg, ListFunctions.toString, emptyList())))
             else -> throw IllegalArgumentException()
         }
     }

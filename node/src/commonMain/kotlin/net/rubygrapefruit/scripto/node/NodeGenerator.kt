@@ -126,7 +126,7 @@ class NodeGenerator {
             is BooleanLiteral -> JsBoolean(expression.value)
             is VariableReference -> JsVariableReference(expression.name)
             is FunctionCallExpression -> functionMapper.map(expression)
-            is ReceiverFunctionCallExpression -> functionMapper.map(expression)
+            is MethodCallExpression -> functionMapper.map(expression)
         }
     }
 

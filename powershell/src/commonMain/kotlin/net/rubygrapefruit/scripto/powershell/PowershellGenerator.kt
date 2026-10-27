@@ -135,11 +135,11 @@ class PowershellGenerator {
             is BooleanLiteral -> if (expression.value) PsTrue else PsFalse
             is VariableReference -> PsVariableReference(expression.name)
             is FunctionCallExpression -> functionMapper.map(expression)
-            is ReceiverFunctionCallExpression -> mapFunctionCall(expression, functionMapper)
+            is MethodCallExpression -> mapFunctionCall(expression, functionMapper)
         }
     }
 
-    private fun mapFunctionCall(expression: ReceiverFunctionCallExpression, functionMapper: FunctionMapper<PsExpression>): PsExpression {
+    private fun mapFunctionCall(expression: MethodCallExpression, functionMapper: FunctionMapper<PsExpression>): PsExpression {
         val target = expression.target
         return when (target) {
             StringFunctions.toString -> toExpression(expression.receiver, functionMapper)

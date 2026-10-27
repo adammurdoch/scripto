@@ -126,19 +126,17 @@ class Compiler {
         val functionReceiver = oneOf(literal, functionCall, variableReference, listLiteral)
 
         val receiverSeparator = sequence(optionalWhitespace, literal('.'), optionalWhitespace)
-        val receiverFunctionCall = sequence(functionReceiver, zeroOrMore(prefixed(receiverSeparator, functionCall))) { receiver, calls ->
-            calls.fold(receiver) { r, c -> ReceiverFunctionCallTree(r, c) }
+        val methodCall = sequence(functionReceiver, zeroOrMore(prefixed(receiverSeparator, functionCall))) { receiver, calls ->
+            calls.fold(receiver) { r, c -> MethodCallTree(r, c) }
         }
-
-        val infixArgument = receiverFunctionCall
 
         val operator = oneOf(
             literal("+", Operator.Plus),
             literal("==", Operator.Equality),
         )
         val infixOperator = surrounded(optionalWhitespace, operator, optionalWhitespace)
-        val infix = sequence(position(), infixOperator, infixArgument) { position, op, arg -> OperatorSuffix(position, op, arg) }
-        val infixFunctionCall = sequence(infixArgument, zeroOrMore(infix)) { first, calls ->
+        val infix = sequence(position(), infixOperator, methodCall) { position, op, arg -> OperatorSuffix(position, op, arg) }
+        val infixFunctionCall = sequence(methodCall, zeroOrMore(infix)) { first, calls ->
             calls.fold(first) { left, op -> InfixOperatorTree(left, op.position, op.operator, op.right) }
         }
 

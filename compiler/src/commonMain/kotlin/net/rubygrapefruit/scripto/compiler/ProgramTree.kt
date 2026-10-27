@@ -87,7 +87,7 @@ internal class ProgramTree(val name: String, val operations: List<OperationTree>
                 resolveFunctionCall(expression, Resolved(library), variables, target, FunctionResolveRequest.ExpressionRequest)
             }
 
-            is ReceiverFunctionCallTree -> {
+            is MethodCallTree -> {
                 val receiver = resolve(expression.receiver, variables, library, target)
                 resolveFunctionCall(expression.target, receiver, variables, target, FunctionResolveRequest.ReceiverExpressionRequest)
             }
@@ -289,7 +289,7 @@ internal class ProgramTree(val name: String, val operations: List<OperationTree>
             }
         }
 
-        object ReceiverExpressionRequest : FunctionResolveRequest<Expression, TypedFunctionDefinition, ReceiverFunctionCallExpression> {
+        object ReceiverExpressionRequest : FunctionResolveRequest<Expression, TypedFunctionDefinition, MethodCallExpression> {
             override fun displayName(scope: Expression, functionName: String): String {
                 return "function ${scope.type}.$functionName()"
             }
@@ -306,8 +306,8 @@ internal class ProgramTree(val name: String, val operations: List<OperationTree>
                 }
             }
 
-            override fun create(scope: Expression, definition: TypedFunctionDefinition, arguments: List<Expression>): ReceiverFunctionCallExpression {
-                return ReceiverFunctionCallExpression(scope, definition, arguments)
+            override fun create(scope: Expression, definition: TypedFunctionDefinition, arguments: List<Expression>): MethodCallExpression {
+                return MethodCallExpression(scope, definition, arguments)
             }
         }
     }

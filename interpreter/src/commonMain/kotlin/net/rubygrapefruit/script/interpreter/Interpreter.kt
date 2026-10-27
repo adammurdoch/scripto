@@ -63,7 +63,7 @@ class Interpreter {
                 }
             }
 
-            is ReceiverFunctionCallExpression -> {
+            is MethodCallExpression -> {
                 val receiver = calculate(expression.receiver, vars)
                 when (expression.target) {
                     StringFunctions.toString -> receiver.toString()

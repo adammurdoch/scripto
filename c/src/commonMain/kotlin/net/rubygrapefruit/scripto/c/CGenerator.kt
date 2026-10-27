@@ -185,7 +185,7 @@ class CGenerator {
             is BooleanLiteral -> if (expression.value) CTrue else CFalse
             is VariableReference -> CVariableReference(expression)
             is FunctionCallExpression -> functionMapper.map(expression)
-            is ReceiverFunctionCallExpression -> functionMapper.map(expression)
+            is MethodCallExpression -> functionMapper.map(expression)
         }
     }
 

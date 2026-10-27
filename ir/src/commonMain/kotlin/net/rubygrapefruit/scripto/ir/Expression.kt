@@ -11,7 +11,7 @@ class FunctionCallExpression(val target: TypedFunctionDefinition, val args: List
         get() = target.returnType
 }
 
-class ReceiverFunctionCallExpression(val receiver: Expression, val target: TypedFunctionDefinition, val args: List<Expression>) : Expression {
+class MethodCallExpression(val receiver: Expression, val target: TypedFunctionDefinition, val args: List<Expression>) : Expression {
     override val type: Type
         get() = target.returnType
 }

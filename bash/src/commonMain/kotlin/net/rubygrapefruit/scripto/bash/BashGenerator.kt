@@ -208,7 +208,7 @@ _file_list_to_string_r="$result"
             is BooleanLiteral -> BashWord(expression.value.toString())
             is VariableReference -> varReferenceToBash(expression)
             is FunctionCallExpression -> functionMapper.map(expression)
-            is ReceiverFunctionCallExpression -> functionMapper.map(expression)
+            is MethodCallExpression -> functionMapper.map(expression)
         }
     }
 

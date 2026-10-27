@@ -221,11 +221,11 @@ class JvmGenerator {
             is BooleanLiteral -> if (expression.value) JvmTrue else JvmFalse
             is VariableReference -> JvmVariableReference(expression.name, toEncodedType(expression.type).jvmType)
             is FunctionCallExpression -> functionMapper.map(expression)
-            is ReceiverFunctionCallExpression -> mapFunctionCall(expression, functionMapper)
+            is MethodCallExpression -> mapFunctionCall(expression, functionMapper)
         }
     }
 
-    private fun mapFunctionCall(expression: ReceiverFunctionCallExpression, functionMapper: FunctionMapper<JvmExpression>): JvmExpression {
+    private fun mapFunctionCall(expression: MethodCallExpression, functionMapper: FunctionMapper<JvmExpression>): JvmExpression {
         return when (expression.target) {
             StringFunctions.toString -> EncodedType.String.toString(toExpression(expression.receiver, functionMapper))
 
