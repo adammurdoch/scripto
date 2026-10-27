@@ -1,7 +1,6 @@
 General
 
 - Lists
-
   - Add `==`
   - Add `[]`
   - Add `+`
@@ -80,7 +79,6 @@ Bash
   - e.g. `val x = a == b` could generate an if statement that sets the value of `x` instead of a temporary variable 
 - Reuse temporary variables across statements
 - Unset variables that are no longer referenced
-- Add a helper function for `List.toString()`?
 - Don't wrap '+' operators in paren when already in arithmetic mode
 - Use `declare` for int and array variables?
 
@@ -95,6 +93,7 @@ PowerShell
 Node
 
 - Fix tests
+- Maybe use helper functions for `List<*>.toString()` and `File.toString()`
 - Mark output file as executable
 
 Webassembly

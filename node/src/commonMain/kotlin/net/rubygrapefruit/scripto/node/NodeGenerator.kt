@@ -19,8 +19,9 @@ class NodeGenerator {
 
         val outputFile = output.file("${program.snakeCaseName}.js")
         writeTo(outputFile, "//") {
+            val mapping = VariableMapping()
             for (statement in statements) {
-                append(statement)
+                append(statement, mapping)
             }
         }
         return outputFile
