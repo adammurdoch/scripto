@@ -1,10 +1,8 @@
 plugins {
-    id("net.rubygrapefruit.kmp.lib")
+    id("scripto.library")
 }
 
 library {
-    jvm()
-    nativeDesktop()
     common {
         api(project(":ir"))
         api(versions.libs.coordinates("file-io"))

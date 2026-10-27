@@ -9,7 +9,7 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 
 @OptIn(ExperimentalKotlinGradlePluginApi::class)
 @Suppress("unused")
-abstract class TestSuitePlugin : Plugin<Project> {
+abstract class GeneratorTestSuitePlugin : Plugin<Project> {
     override fun apply(target: Project) {
         target.run {
             val generateTests = tasks.register("generateTests", GenerateTests::class.java) {

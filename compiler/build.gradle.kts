@@ -1,5 +1,5 @@
 plugins {
-    id("net.rubygrapefruit.kmp.lib")
+    id("scripto.library")
     id("de.infix.testBalloon").version("1.1.0")
 }
 

@@ -80,7 +80,7 @@ val v = unknown() + 12
             compileFails("Line 1: 9: Unknown function unknown()")
         }
 
-        test("fails when unknown function called on receiver") {
+        test("fails when unknown method called on receiver") {
             sourceFile.writeText(
                 """
 val s = "text".unknown()
@@ -90,7 +90,7 @@ val s = "text".unknown()
             compileFails("Line 1: 16: Unknown function String.unknown()")
         }
 
-        test("fails when incorrect number of arguments provided to receiver function") {
+        test("fails when incorrect number of arguments provided to method") {
             sourceFile.writeText(
                 """
 val s = "text".toString(1, 2)

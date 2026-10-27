@@ -9,7 +9,7 @@ abstract class GeneratorPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         target.run {
             plugins.apply("net.rubygrapefruit.kmp.lib")
-            plugins.apply("scripto.test-suite")
+            plugins.apply("scripto.generator-test-suite")
 
             val library = project.extensions.getByType(MultiPlatformLibrary::class.java)
             library.jvm()

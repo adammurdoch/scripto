@@ -16,7 +16,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFails
 import kotlin.test.assertIs
 
-class SourceFileFixture(private val workDir: Directory, val sourceFile: RegularFile) : AutoCloseable {
+class CompilerFixture(private val workDir: Directory, val sourceFile: RegularFile) : AutoCloseable {
     override fun close() {
         workDir.deleteRecursively()
     }
@@ -48,19 +48,19 @@ class SourceFileFixture(private val workDir: Directory, val sourceFile: RegularF
     }
 
     companion object {
-        fun of(): SourceFileFixture {
+        fun of(): CompilerFixture {
             val tmpDir = Path("build/test files").absolute()
             tmpDir.createDirectories()
             val workDir = Files.createTempDirectory(tmpDir, "test").toDir()
             val sourceFile = workDir.file("app.scripto")
-            return SourceFileFixture(workDir, sourceFile)
+            return CompilerFixture(workDir, sourceFile)
         }
     }
 }
 
-fun TestSuite.withCompiler(content: Scope<suspend SourceFileFixture.(testExecutionScope: Test.ExecutionScope) -> Unit>.() -> Unit) {
+fun TestSuite.withCompiler(content: Scope<suspend CompilerFixture.(testExecutionScope: Test.ExecutionScope) -> Unit>.() -> Unit) {
     testFixture {
-        SourceFileFixture.of()
+        CompilerFixture.of()
     }.asContextForEach {
         content()
     }
