@@ -31,6 +31,9 @@ class NodeGenerator {
             map(StandardLibrary.fileConstructor) { expression, functionMapper ->
                 toExpression(expression.args[0], functionMapper)
             }
+            map(StandardLibrary.listConstructor) { expression, _, functionMapper ->
+                JsArrayLiteral(expression.args.map { toExpression(it, functionMapper) })
+            }
             mapReceiver(StringFunctions.toString) { expression, functionMapper ->
                 EncodedType.String.toString(toExpression(expression.receiver, functionMapper))
             }
@@ -42,6 +45,9 @@ class NodeGenerator {
             }
             mapReceiver(FileFunctions.toString) { expression, functionMapper ->
                 EncodedType.File.toString(toExpression(expression.receiver, functionMapper))
+            }
+            mapReceiver(ListFunctions.toString) { expression, functionMapper ->
+                EncodedType.List.toString(toExpression(expression.receiver, functionMapper))
             }
             mapOperator(StandardLibrary.stringEquality) { left, right ->
                 JsInfix(left, "==", right)
@@ -107,6 +113,7 @@ class NodeGenerator {
                 is Type.Int -> EncodedType.Int
                 is Type.Boolean -> EncodedType.Boolean
                 is Type.File -> EncodedType.File
+                is Type.List -> EncodedType.List
                 else -> TODO()
             }
         }
@@ -135,8 +142,18 @@ class NodeGenerator {
 
         object File : EncodedType {
             override fun toString(receiver: JsExpression): JsExpression {
-                return JsInfix(JsString("File("), "+", JsInfix(receiver, "+", JsString(")")))
+                return concat("File(", receiver, ")")
+            }
+        }
+
+        object List : EncodedType {
+            override fun toString(receiver: JsExpression): JsExpression {
+                return concat("[", JsFunctionCall(receiver, "join", listOf(JsString(", "))), "]")
             }
         }
     }
+}
+
+internal fun concat(prefix: String, expression: JsExpression, suffix: String): JsExpression {
+    return JsInfix(JsString(prefix), "+", JsInfix(expression, "+", JsString(suffix)))
 }

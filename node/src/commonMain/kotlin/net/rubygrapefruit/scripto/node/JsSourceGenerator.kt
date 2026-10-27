@@ -65,6 +65,14 @@ private fun SourceGenerator.append(expression: JsExpression) {
             append(expression.right)
         }
 
+        is JsArrayLiteral -> {
+            append("[")
+            append(expression.elements, ", ") { element ->
+                append(element)
+            }
+            append("]")
+        }
+
         is JsFunctionCall -> appendCall(expression)
     }
 }
