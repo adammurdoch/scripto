@@ -1,8 +1,9 @@
 package net.rubygrapefruit.scripto.bash
 
-import net.rubygrapefruit.scripto.generator.ExpressionWithDependencies
+internal sealed interface BashStatement {
+    fun visitDependencies(visitor: (BashStatement) -> Unit) {
+    }
 
-internal sealed interface BashStatement : ExpressionWithDependencies<BashStatement> {
     /**
      * Visit any expressions used by this statement.
      */

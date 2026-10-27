@@ -1,7 +1,7 @@
 package net.rubygrapefruit.scripto.generator
 
-import net.rubygrapefruit.scripto.ir.UnitFunctionCall
 import net.rubygrapefruit.scripto.ir.Operation
+import net.rubygrapefruit.scripto.ir.UnitFunctionCall
 import net.rubygrapefruit.scripto.ir.UnitFunctionDefinition
 import net.rubygrapefruit.scripto.ir.VariableDeclaration
 
@@ -41,24 +41,12 @@ class OperationMapper<T> private constructor(
 
     interface Context<T> {
         fun add(operation: T)
-
-        fun addDependencies(operation: ExpressionWithDependencies<T>)
-
-        fun addDependencies(operations: List<ExpressionWithDependencies<T>>)
     }
 
     private class DefaultContext<T>(val result: MutableList<T>, val collectDependencies: Context<T>.(T) -> Unit) : Context<T> {
         override fun add(operation: T) {
             collectDependencies(operation)
             result.add(operation)
-        }
-
-        override fun addDependencies(operation: ExpressionWithDependencies<T>) {
-            operation.visitDependencies(::add)
-        }
-
-        override fun addDependencies(operations: List<ExpressionWithDependencies<T>>) {
-            operations.forEach(::addDependencies)
         }
     }
 

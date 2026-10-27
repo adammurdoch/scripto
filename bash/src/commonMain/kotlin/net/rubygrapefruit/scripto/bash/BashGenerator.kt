@@ -68,13 +68,16 @@ _file_list_to_string_r="$result"
 
         val queue = Declaration.Queue<BashGeneratedFunction>()
         var index = 0
+        var argsDeclared = false
         while (index < statements.size) {
             val statement = statements[index]
             statement.visitExpressions { expression ->
                 expression.visitVariables { variable ->
                     if (variable is BashVariable.Temporary) {
                         variableState.assign(variable)
-                    } else if (variable is BashVariable.Named && variable.name == StandardLibrary.argsVariable.name) {
+                    } else if (variable is BashVariable.Named && variable.name == StandardLibrary.argsVariable.name && !argsDeclared) {
+                        // Should move this to a dependency
+                        argsDeclared = true
                         statements.add(index, BashVariableAssignment(variable, BashWord("(\"$@\")")))
                         index++
                     }
@@ -114,7 +117,9 @@ _file_list_to_string_r="$result"
                 BashVariableAssignment(BashVariable.Named(declaration.name), toExpression(value, functionMapper))
             }
             collectDependencies { statement: BashStatement ->
-                addDependencies(statement)
+                statement.visitDependencies { dependency ->
+                    add(dependency)
+                }
             }
         }
     }

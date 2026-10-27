@@ -6,6 +6,10 @@ class VariableState {
     private val expressions = mutableMapOf<TemporaryValue, String>()
 
     fun assign(expression: TemporaryValue): String {
+        val current = expressions[expression]
+        if (current != null) {
+            return current
+        }
         val varName = nameFor(expression.nameHint)
         expressions[expression] = varName
         return varName

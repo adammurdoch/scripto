@@ -1,9 +1,11 @@
 package net.rubygrapefruit.scripto.bash
 
-import net.rubygrapefruit.scripto.generator.ExpressionWithDependencies
 import net.rubygrapefruit.scripto.generator.TemporaryValue
 
-internal sealed interface BashExpression : ExpressionWithDependencies<BashStatement> {
+internal sealed interface BashExpression {
+    fun visitDependencies(visitor: (BashStatement) -> Unit) {
+    }
+
     fun visitDeclarations(visitor: (BashGeneratedFunction) -> Unit) {
     }
 
