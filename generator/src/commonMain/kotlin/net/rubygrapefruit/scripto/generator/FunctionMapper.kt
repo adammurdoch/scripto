@@ -11,19 +11,19 @@ class FunctionMapper<T>(
         val target = expression.target
         when (target) {
             is RealizedFunctionDefinition -> {
-                val mapping = parameterizedMappings[target.definition] ?: throw IllegalArgumentException("Unknown ${target.displayName}")
+                val mapping = parameterizedMappings[target.definition] ?: throw IllegalArgumentException("No mapping for ${target.displayName}")
                 return mapping(expression, target, this)
             }
 
             else -> {
-                val mapping = mappings[target] ?: throw IllegalArgumentException("Unknown ${target.displayName}")
+                val mapping = mappings[target] ?: throw IllegalArgumentException("No mapping for ${target.displayName}")
                 return mapping(expression, this)
             }
         }
     }
 
     fun map(expression: ReceiverFunctionCallExpression): T {
-        val mapping = receiverMappings[expression.target] ?: throw IllegalArgumentException("Unknown ${expression.target.displayName} for ${expression.receiver.type}")
+        val mapping = receiverMappings[expression.target] ?: throw IllegalArgumentException("No mapping for ${expression.target.displayName} of ${expression.receiver.type}")
         return mapping(expression, this)
     }
 

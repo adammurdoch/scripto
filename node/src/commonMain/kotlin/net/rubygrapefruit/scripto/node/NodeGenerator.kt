@@ -25,6 +25,9 @@ class NodeGenerator {
 
     private fun createFunctionMapper(): FunctionMapper<JsExpression> {
         return FunctionMapper.of {
+            map(StandardLibrary.fileConstructor) { expression, functionMapper ->
+                toExpression(expression.args[0], functionMapper)
+            }
             mapReceiver(StringFunctions.toString) { expression, functionMapper ->
                 toExpression(expression.receiver, functionMapper)
             }
@@ -36,25 +39,29 @@ class NodeGenerator {
                 val receiver = toExpression(expression.receiver, functionMapper)
                 JsFunctionCall(receiver, "toString", emptyList())
             }
-            mapOperation(StandardLibrary.stringEquality) { left, right ->
+            mapReceiver(FileFunctions.toString) { expression, functionMapper ->
+                val receiver = toExpression(expression.receiver, functionMapper)
+                fileToString(receiver)
+            }
+            mapOperator(StandardLibrary.stringEquality) { left, right ->
                 JsInfix(left, "==", right)
             }
-            mapOperation(StandardLibrary.stringConcatenation) { left, right ->
+            mapOperator(StandardLibrary.stringConcatenation) { left, right ->
                 JsInfix(left, "+", right)
             }
-            mapOperation(StandardLibrary.intEquality) { left, right ->
+            mapOperator(StandardLibrary.intEquality) { left, right ->
                 JsInfix(left, "==", right)
             }
-            mapOperation(StandardLibrary.intAddition) { left, right ->
+            mapOperator(StandardLibrary.intAddition) { left, right ->
                 JsInfix(left, "+", right)
             }
-            mapOperation(StandardLibrary.booleanEquality) { left, right ->
+            mapOperator(StandardLibrary.booleanEquality) { left, right ->
                 JsInfix(left, "==", right)
             }
         }
     }
 
-    private fun FunctionMapper.Builder<JsExpression>.mapOperation(operator: OperatorDefinition, map: (JsExpression, JsExpression) -> JsExpression) {
+    private fun FunctionMapper.Builder<JsExpression>.mapOperator(operator: OperatorDefinition, map: (JsExpression, JsExpression) -> JsExpression) {
         map(operator) { expression, functionMapper ->
             val left = toExpression(expression.args[0], functionMapper)
             val right = toExpression(expression.args[1], functionMapper)
@@ -68,13 +75,25 @@ class NodeGenerator {
                 JsFunctionCall(JsVariableReference("console"), "log", emptyList())
             }
             map(StandardLibrary.printlnOneArg) { operation ->
-                val arguments = operation.arguments.map { toExpression(it, functionMapper) }
+                val arguments = operation.arguments.map { toStringExpression(it, functionMapper) }
                 JsFunctionCall(JsVariableReference("console"), "log", arguments)
             }
             map { variable ->
                 JsVariableDeclaration(variable.name, toExpression(variable.value, functionMapper))
             }
         }
+    }
+
+    private fun toStringExpression(expression: Expression, functionMapper: FunctionMapper<JsExpression>): JsExpression {
+        val value = toExpression(expression, functionMapper)
+        return when (expression.type) {
+            is Type.File -> fileToString(value)
+            else -> value
+        }
+    }
+
+    private fun fileToString(value: JsExpression): JsExpression {
+        return JsInfix(JsString("File("), "+", JsInfix(value, "+", JsString(")")))
     }
 
     private fun toExpression(expression: Expression, functionMapper: FunctionMapper<JsExpression>): JsExpression {
