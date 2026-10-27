@@ -1,7 +1,7 @@
 General
 
 - Lists
-  - `toString()` delegates to correct implementation
+
   - Add `==`
   - Add `[]`
   - Add `+`
@@ -22,6 +22,12 @@ General
 Stdlib
 
 - `readText()` fails when file cannot be read
+- Normalize
+  - `<string-literal>.toString()`
+  - `<int-literal>.toString()`
+  - `<boolean-literal>.toString()`
+  - `<list-literal>.toString()`
+  - `println(ref.toString())` -> `println(ref)`
 
 Interpreter
 

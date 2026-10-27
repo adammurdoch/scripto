@@ -14,14 +14,27 @@ internal fun SourceGenerator.append(statement: JsStatement) {
         }
 
         is JsFunctionCall -> {
-            append(statement.name)
-            append("(")
-            append(statement.arguments, ", ") { argument ->
-                append(argument)
-            }
-            appendln(");")
+            appendCall(statement)
+            appendln(";")
         }
     }
+}
+
+private fun SourceGenerator.appendCall(statement: JsFunctionCall) {
+    if (statement.receiver is JsInt) {
+        append("(")
+        append(statement.receiver)
+        append(")")
+    } else {
+        append(statement.receiver)
+    }
+    append(".")
+    append(statement.name)
+    append("(")
+    append(statement.arguments, ", ") { argument ->
+        append(argument)
+    }
+    append(")")
 }
 
 private fun SourceGenerator.append(expression: JsExpression) {
@@ -45,5 +58,13 @@ private fun SourceGenerator.append(expression: JsExpression) {
         is JsVariableReference -> {
             append(expression.name)
         }
+
+        is JsInfix -> {
+            append(expression.left)
+            append(expression.operator)
+            append(expression.right)
+        }
+
+        is JsFunctionCall -> appendCall(expression)
     }
 }

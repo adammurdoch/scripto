@@ -68,7 +68,7 @@ println(123.toString())
     }
 
     @Test
-    fun `compiles function call with int literal argument`() {
+    fun `compiles call with int literal argument`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(
@@ -118,7 +118,23 @@ println(b.toString())
     }
 
     @Test
-    fun `compiles variable initialized with result of int toString()`() {
+    fun `compiles variable initialized with result of int literal toString()`() {
+        val sourceFile = workDir.file("app.scripto")
+
+        sourceFile.writeText(
+            """
+val a = -123.toString()
+println(a)
+        """
+        )
+
+        compileAndRun(sourceFile) {
+            output("-123\n")
+        }
+    }
+
+    @Test
+    fun `compiles variable initialized with result of int variable toString()`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(

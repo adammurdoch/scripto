@@ -9,17 +9,7 @@ import net.rubygrapefruit.scripto.ir.*
 
 class NodeGenerator {
     fun generate(program: Program, output: Directory): RegularFile {
-        val functionMapper = FunctionMapper.of {
-            mapReceiver(StringFunctions.toString) { expression, functionMapper ->
-                toExpression(expression.receiver, functionMapper)
-            }
-            mapReceiver(IntFunctions.toString) { expression, functionMapper ->
-                toExpression(expression.receiver, functionMapper)
-            }
-            mapReceiver(BooleanFunctions.toString) { expression, functionMapper ->
-                toExpression(expression.receiver, functionMapper)
-            }
-        }
+        val functionMapper = createFunctionMapper()
         val operationMapper = createOperationMapper(functionMapper)
 
         val statements = operationMapper.map(program.operations)
@@ -33,16 +23,57 @@ class NodeGenerator {
         return outputFile
     }
 
-    private fun createOperationMapper(functionMapper: FunctionMapper<JsExpression>): OperationMapper<JsStatement> = OperationMapper.of {
-        map(StandardLibrary.printlnNoArgs) {
-            JsFunctionCall("console.log", emptyList())
+    private fun createFunctionMapper(): FunctionMapper<JsExpression> {
+        return FunctionMapper.of {
+            mapReceiver(StringFunctions.toString) { expression, functionMapper ->
+                toExpression(expression.receiver, functionMapper)
+            }
+            mapReceiver(IntFunctions.toString) { expression, functionMapper ->
+                val receiver = toExpression(expression.receiver, functionMapper)
+                JsFunctionCall(receiver, "toString", emptyList())
+            }
+            mapReceiver(BooleanFunctions.toString) { expression, functionMapper ->
+                val receiver = toExpression(expression.receiver, functionMapper)
+                JsFunctionCall(receiver, "toString", emptyList())
+            }
+            mapOperation(StandardLibrary.stringEquality) { left, right ->
+                JsInfix(left, "==", right)
+            }
+            mapOperation(StandardLibrary.stringConcatenation) { left, right ->
+                JsInfix(left, "+", right)
+            }
+            mapOperation(StandardLibrary.intEquality) { left, right ->
+                JsInfix(left, "==", right)
+            }
+            mapOperation(StandardLibrary.intAddition) { left, right ->
+                JsInfix(left, "+", right)
+            }
+            mapOperation(StandardLibrary.booleanEquality) { left, right ->
+                JsInfix(left, "==", right)
+            }
         }
-        map(StandardLibrary.printlnOneArg) { operation ->
-            val arguments = operation.arguments.map { toExpression(it, functionMapper) }
-            JsFunctionCall("console.log", arguments)
+    }
+
+    private fun FunctionMapper.Builder<JsExpression>.mapOperation(operator: OperatorDefinition, map: (JsExpression, JsExpression) -> JsExpression) {
+        map(operator) { expression, functionMapper ->
+            val left = toExpression(expression.args[0], functionMapper)
+            val right = toExpression(expression.args[1], functionMapper)
+            map(left, right)
         }
-        map { variable ->
-            JsVariableDeclaration(variable.name, toExpression(variable.value, functionMapper))
+    }
+
+    private fun createOperationMapper(functionMapper: FunctionMapper<JsExpression>): OperationMapper<JsStatement> {
+        return OperationMapper.of {
+            map(StandardLibrary.printlnNoArgs) {
+                JsFunctionCall(JsVariableReference("console"), "log", emptyList())
+            }
+            map(StandardLibrary.printlnOneArg) { operation ->
+                val arguments = operation.arguments.map { toExpression(it, functionMapper) }
+                JsFunctionCall(JsVariableReference("console"), "log", arguments)
+            }
+            map { variable ->
+                JsVariableDeclaration(variable.name, toExpression(variable.value, functionMapper))
+            }
         }
     }
 

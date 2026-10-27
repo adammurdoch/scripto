@@ -21,7 +21,7 @@ println(b)
     }
 
     @Test
-    fun `compiles function call with boolean literal argument`() {
+    fun `compiles call with boolean literal argument`() {
         val sourceFile = workDir.file("app.scripto")
 
         sourceFile.writeText(
@@ -64,6 +64,22 @@ println(v.toString())
 
         compileAndRun(sourceFile) {
             output("true\n")
+        }
+    }
+
+    @Test
+    fun `compiles variable initialized with result of boolean literal toString()`() {
+        val sourceFile = workDir.file("app.scripto")
+
+        sourceFile.writeText(
+            """
+val a = false.toString()
+println(a)
+        """
+        )
+
+        compileAndRun(sourceFile) {
+            output("false\n")
         }
     }
 }
