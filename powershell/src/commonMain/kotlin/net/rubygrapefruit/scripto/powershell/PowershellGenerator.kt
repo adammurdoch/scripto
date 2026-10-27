@@ -1,22 +1,25 @@
 package net.rubygrapefruit.scripto.powershell
 
+import net.rubygrapefruit.file.Directory
 import net.rubygrapefruit.file.RegularFile
 import net.rubygrapefruit.scripto.generator.*
 import net.rubygrapefruit.scripto.ir.*
 
 class PowershellGenerator {
-    fun generate(program: Program, outputFile: RegularFile) {
+    fun generate(program: Program, output: Directory): RegularFile {
         val functionMapper = createFunctionMapper()
         val operationMapper = createOperationMapper(functionMapper)
 
         val statements = operationMapper.map(program.operations)
         val powershellProgram = PsProgram(statements)
 
+        val outputFile = output.file("${program.snakeCaseName}.ps")
         writeTo(outputFile, "#") {
             for (statement in powershellProgram.statements) {
                 append(statement)
             }
         }
+        return outputFile
     }
 
     private fun createOperationMapper(functionMapper: FunctionMapper<PsExpression>): OperationMapper<PsStatement> {

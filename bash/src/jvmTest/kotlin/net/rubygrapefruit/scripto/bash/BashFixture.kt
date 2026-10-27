@@ -14,8 +14,7 @@ class BashFixture(workDir: Directory) : AppFixture(workDir) {
 
     override fun generate(program: Program): App {
         val generator = BashGenerator()
-        val outputScript = workDir.file("app.bash")
-        generator.generate(program, outputScript)
+        val outputScript = generator.generate(program, workDir)
 
         section("Generated source") {
             println(outputScript.readText())
@@ -25,9 +24,7 @@ class BashFixture(workDir: Directory) : AppFixture(workDir) {
     }
 
     override fun generationFails(program: Program) {
-        val outputScript = workDir.file("app.bash")
-
-        targetRuntime.generate(program, outputScript)
+        val outputScript = targetRuntime.generate(program, workDir)
         assertTrue(outputScript.metadata().missing)
     }
 

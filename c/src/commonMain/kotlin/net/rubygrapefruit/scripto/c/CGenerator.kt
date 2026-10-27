@@ -1,5 +1,6 @@
 package net.rubygrapefruit.scripto.c
 
+import net.rubygrapefruit.file.Directory
 import net.rubygrapefruit.file.RegularFile
 import net.rubygrapefruit.scripto.generator.*
 import net.rubygrapefruit.scripto.ir.*
@@ -8,7 +9,7 @@ import net.rubygrapefruit.scripto.ir.*
 class CGenerator {
     private val encodedTypes = mutableMapOf<Type, EncodedType>()
 
-    fun generate(program: Program, outputFile: RegularFile) {
+    fun generate(program: Program, output: Directory): RegularFile {
         val functionMapper = createFunctionMapper()
         val operationMapper = createOperationMapper(functionMapper)
 
@@ -61,6 +62,7 @@ class CGenerator {
 
         val declarations = declarationQueue.getAll()
 
+        val outputFile = output.file("${program.snakeCaseName}.c")
         writeTo(outputFile, "//") {
             for (header in declarations.filterIsInstance<Header>()) {
                 append("#include ")
@@ -77,6 +79,7 @@ class CGenerator {
             val mainFunction = CGeneratedFunction("main", CType.CInt, listOf(Parameter("argc", CType.CInt), Parameter("argv", CType.CString.array())), statements)
             append(mainFunction, variableState)
         }
+        return outputFile
     }
 
     private fun createOperationMapper(functionMapper: FunctionMapper<CExpression>): OperationMapper<CStatement> {
@@ -335,7 +338,10 @@ class CGenerator {
             override val identifierPrefix: kotlin.String = "list_${elementType.identifierPrefix}"
 
             private val elementToString by lazy {
-                FunctionSnippet.listElementToStringFunction("_${elementType.identifierPrefix}_element_to_string", elementType.cType) { expression -> elementType.toString(expression) }
+                FunctionSnippet.listElementToStringFunction(
+                    "_${elementType.identifierPrefix}_element_to_string",
+                    elementType.cType
+                ) { expression -> elementType.toString(expression) }
             }
 
             override val cType: CType

@@ -32,7 +32,9 @@ class Compiler {
             return Result.Failure(listOf(Error(e.message!!)))
         }
 
-        val resolveResult = ProgramTree(trees).resolve(StandardLibrary, target)
+        val name = sourceFile.path.name.substringBeforeLast(".scripto")
+
+        val resolveResult = ProgramTree(name, trees).resolve(StandardLibrary, target)
         return when (resolveResult) {
             is NotResolved -> {
                 val errors = resolveResult.problems.distinct().map { problem ->

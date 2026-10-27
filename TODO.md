@@ -89,6 +89,7 @@ PowerShell
 Node
 
 - Fix tests
+- Mark output file as executable
 
 Webassembly
 

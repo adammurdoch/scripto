@@ -45,8 +45,6 @@ private val collectValue by lazy {
     )
 }
 
-private val mainClass = JvmGeneratedClass("App", TypeDescriptor.ofClass("App"), ClassVisibility.Public, true)
-
 private val listToString by lazy {
     val builder = JvmVariableReference("builder", TypeDescriptor.String)
     val length = JvmVariableReference("length", TypeDescriptor.Int)
@@ -54,7 +52,7 @@ private val listToString by lazy {
     val listArg = JvmParameterReference(0, objectArray)
     val collectorArg = JvmParameterReference(1, stringCollector.descriptor)
     JvmGeneratedMethod(
-        mainClass,
+        JvmGeneratedClass("ObjectList", TypeDescriptor.ofClass("ObjectList"), ClassVisibility.PackageProtected, true),
         "\$listToString",
         MethodDescriptor.of(TypeDescriptor.String, objectArray, stringCollector.descriptor),
         MethodVisibility.PackageProtected,
@@ -108,6 +106,8 @@ class JvmGenerator {
     private val encodedTypes = mutableMapOf<Type, EncodedType>()
 
     fun generate(program: Program, output: Directory): GeneratedClass {
+        val mainClass = JvmGeneratedClass(program.camelCaseName, TypeDescriptor.ofClass(program.camelCaseName), ClassVisibility.Public, true)
+
         val functionMapper = createFunctionMapper()
         val operationMapper = createOperationMapper(functionMapper)
 

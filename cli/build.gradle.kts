@@ -12,9 +12,10 @@ application {
         implementation(versions.libs.coordinates("cli-app"))
         implementation(project(":compiler"))
         implementation(project(":bash"))
-        implementation(project(":powershell"))
         implementation(project(":c"))
         implementation(project(":jvm"))
+        implementation(project(":node"))
+        implementation(project(":powershell"))
         implementation(project(":interpreter"))
     }
 }

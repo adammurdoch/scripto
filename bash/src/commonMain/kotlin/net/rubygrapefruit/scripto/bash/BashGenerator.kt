@@ -1,5 +1,6 @@
 package net.rubygrapefruit.scripto.bash
 
+import net.rubygrapefruit.file.Directory
 import net.rubygrapefruit.file.PosixPermissions
 import net.rubygrapefruit.file.RegularFile
 import net.rubygrapefruit.scripto.generator.*
@@ -50,10 +51,11 @@ _file_list_to_string_r="$result"
         }
     }
 
-    fun generate(program: Program, outputFile: RegularFile) {
+    fun generate(program: Program, output: Directory): RegularFile {
+        val outputFile = output.file("${program.snakeCaseName}.bash")
         if (!enabled) {
             outputFile.delete()
-            return
+            return outputFile
         }
 
         val functionMapper = createFunctionMapper()
@@ -94,6 +96,7 @@ _file_list_to_string_r="$result"
             }
         }
         outputFile.setPermissions(PosixPermissions.readWriteFile.executable())
+        return outputFile
     }
 
     private fun createOperationMapper(functionMapper: FunctionMapper<BashExpression>): OperationMapper<BashStatement> {

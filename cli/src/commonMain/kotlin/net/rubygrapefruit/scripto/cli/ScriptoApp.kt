@@ -10,6 +10,7 @@ import net.rubygrapefruit.scripto.c.compile.CCompiler
 import net.rubygrapefruit.scripto.compiler.Compiler
 import net.rubygrapefruit.scripto.ir.TargetRuntime
 import net.rubygrapefruit.scripto.jvm.JvmGenerator
+import net.rubygrapefruit.scripto.node.NodeGenerator
 import net.rubygrapefruit.scripto.powershell.PowershellGenerator
 
 class ScriptoApp : CliApp("scripto") {
@@ -32,18 +33,20 @@ class CompileAction : CliAction() {
         val powershellGenerator = PowershellGenerator()
         val cGenerator = CGenerator()
         val jvmGenerator = JvmGenerator()
+        val nodeGenerator = NodeGenerator()
 
         val compiler = Compiler()
         val program = compiler.compile(sourceFile, bashGenerator).get()
 
-        bashGenerator.generate(program, outputDir.file("app.bash"))
+        outputDir.createDirectories()
 
-        powershellGenerator.generate(program, outputDir.file("app.ps"))
+        bashGenerator.generate(program, outputDir)
+        powershellGenerator.generate(program, outputDir)
+        nodeGenerator.generate(program, outputDir)
 
-        val cSourceFile = outputDir.file("app.c")
-        cGenerator.generate(program, cSourceFile)
+        val cSourceFile = cGenerator.generate(program, outputDir)
         val cCompiler = CCompiler()
-        cCompiler.compile(cSourceFile, outputDir.file("app"))
+        cCompiler.compile(cSourceFile, outputDir.file(program.snakeCaseName))
 
         jvmGenerator.generate(program, outputDir)
     }

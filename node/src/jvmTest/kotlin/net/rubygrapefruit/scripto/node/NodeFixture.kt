@@ -6,10 +6,9 @@ import net.rubygrapefruit.scripto.test.AppFixture
 
 class NodeFixture(workDir: Directory) : AppFixture(workDir) {
     override fun generate(program: Program): App {
-        val output = workDir.file("app.js")
         val generator = NodeGenerator()
-        generator.generate(program, output)
+        val outputScript = generator.generate(program, workDir)
 
-        return running("build/node-js/bin/node", output.absolutePath)
+        return running("build/node-js/bin/node", outputScript.absolutePath)
     }
 }

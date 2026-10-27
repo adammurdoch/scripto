@@ -4,7 +4,7 @@ import net.rubygrapefruit.parse.Position
 import net.rubygrapefruit.scripto.ir.*
 import net.rubygrapefruit.strings.capitalized
 
-internal class ProgramTree(val operations: List<OperationTree>) {
+internal class ProgramTree(val name: String, val operations: List<OperationTree>) {
     private val anyList = Type.List(Type.Any)
 
     fun resolve(library: StandardLibrary, target: TargetRuntime): ResolveResult<Program> {
@@ -28,7 +28,7 @@ internal class ProgramTree(val operations: List<OperationTree>) {
         }
 
         return resolvedOperations.mapping { operations ->
-            Resolved(Program(operations))
+            Resolved(Program(name, operations))
         }
     }
 

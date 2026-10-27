@@ -4,6 +4,7 @@ import net.rubygrapefruit.plugins.app.MultiPlatformLibrary
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
+@Suppress("unused")
 abstract class GeneratorPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         target.run {

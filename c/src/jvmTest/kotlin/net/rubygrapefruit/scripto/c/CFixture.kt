@@ -9,8 +9,7 @@ class CFixture(workDir: Directory) : AppFixture(workDir) {
     override fun generate(program: Program): App {
         val generator = CGenerator()
 
-        val cSource = workDir.file("app.c")
-        generator.generate(program, cSource)
+        val cSource = generator.generate(program, workDir)
 
         section("Generated source") {
             println(cSource.readText())

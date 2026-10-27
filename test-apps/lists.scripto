@@ -1,14 +1,18 @@
 
+// Program arguments
+
+println("args: " + args.toString())
+
 // Using literals
 
 val ints = [123, 4+5]
-println(ints)
+println("List<Int>: " + ints.toString())
 
 val booleans = ["a"=="b", 1==4]
-println(booleans)
+println("List<Boolean>: " + booleans.toString())
 
 val strings = ["a", "b", ""+"c"]
-println(strings)
+println("List<String>: " + strings.toString())
 
 val lists = [[1], [2], [3]]
-println(lists)
+println("List<List<Int>>: " + lists.toString())
