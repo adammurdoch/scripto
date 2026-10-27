@@ -3,12 +3,24 @@ package net.rubygrapefruit.scripto.node
 import net.rubygrapefruit.scripto.generator.SourceGenerator
 import net.rubygrapefruit.scripto.generator.append
 
+internal fun SourceGenerator.append(declaration: JsDeclaration) {
+    when (declaration) {
+        is JsRequire -> {
+            append("const ")
+            append(declaration.name)
+            append(" = require(\"")
+            append(declaration.module)
+            appendln("\");")
+        }
+    }
+}
+
 internal fun SourceGenerator.append(statement: JsStatement, mapping: VariableMapping) {
     when (statement) {
         is JsVariableDeclaration -> {
-            append("const ")
+            append("let ")
             append(statement.name)
-            append("=")
+            append(" = ")
             append(statement.value, mapping)
             appendln(";")
         }
@@ -75,7 +87,9 @@ private fun SourceGenerator.append(expression: JsExpression, mapping: VariableMa
 
         is JsInfix -> {
             append(expression.left, mapping)
+            append(' ')
             append(expression.operator)
+            append(' ')
             append(expression.right, mapping)
         }
 

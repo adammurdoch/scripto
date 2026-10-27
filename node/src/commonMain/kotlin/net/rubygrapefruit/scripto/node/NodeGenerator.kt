@@ -2,6 +2,7 @@ package net.rubygrapefruit.scripto.node
 
 import net.rubygrapefruit.file.Directory
 import net.rubygrapefruit.file.RegularFile
+import net.rubygrapefruit.scripto.generator.Declaration
 import net.rubygrapefruit.scripto.generator.FunctionMapper
 import net.rubygrapefruit.scripto.generator.OperationMapper
 import net.rubygrapefruit.scripto.generator.writeTo
@@ -17,9 +18,22 @@ class NodeGenerator {
 
         val statements = operationMapper.map(program.operations)
 
+        val queue = Declaration.Queue<JsDeclaration>()
+        for (statement in statements) {
+            statement.visitExpressions { expression ->
+                expression.visitOwnDeclarations { declaration ->
+                    queue.add(declaration)
+                }
+            }
+        }
+        val declarations = queue.getAll()
+
         val outputFile = output.file("${program.snakeCaseName}.js")
         writeTo(outputFile, "//") {
             val mapping = VariableMapping()
+            for (declaration in declarations) {
+                append(declaration)
+            }
             for (statement in statements) {
                 append(statement, mapping)
             }
@@ -46,6 +60,15 @@ class NodeGenerator {
             }
             mapReceiver(FileFunctions.toString) { expression, functionMapper ->
                 EncodedType.File.toString(toExpression(expression.receiver, functionMapper))
+            }
+            mapReceiver(FileFunctions.readText) { expression, functionMapper ->
+                JsFunctionCall(
+                    JsVariableReference(JsRequire.Fs.name), "readFileSync", listOf(
+                        toExpression(expression.receiver, functionMapper),
+                        JsString("utf-8"),
+                    ),
+                    JsRequire.Fs
+                )
             }
             mapReceiver(ListFunctions.toString) { expression, functionMapper ->
                 EncodedType.List.toString(toExpression(expression.receiver, functionMapper))
