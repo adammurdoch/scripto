@@ -13,7 +13,7 @@ abstract class GeneratorPlugin : Plugin<Project> {
 
             val library = project.extensions.getByType(MultiPlatformLibrary::class.java)
             library.jvm()
-            library.macOS()
+            library.nativeDesktop()
 
             library.test {
                 implementation(project(":test-suite"))

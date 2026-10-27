@@ -3,14 +3,9 @@ plugins {
 }
 
 library {
-    macOS {
-        dependencies {
-            implementation(versions.libs.coordinates("process"))
-        }
-    }
-
     common {
         api(versions.libs.coordinates("file-io"))
+        implementation(versions.libs.coordinates("process"))
         api(project(":ir"))
         implementation(project(":generator"))
     }

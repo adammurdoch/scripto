@@ -4,5 +4,5 @@ plugins {
 
 library {
     jvm()
-    macOS()
+    nativeDesktop()
 }

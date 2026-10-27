@@ -8,7 +8,7 @@ library {
             api(versions.test.junit.coordinates)
         }
     }
-    macOS()
+    nativeDesktop()
 
     common {
         api(versions.libs.coordinates("file-io"))

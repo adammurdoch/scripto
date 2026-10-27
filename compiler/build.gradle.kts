@@ -9,7 +9,7 @@ library {
             implementation("org.jetbrains.kotlin:kotlin-test-junit5:${versions.kotlin.version}")
         }
     }
-    macOS()
+    nativeDesktop()
     common {
         api(project(":ir"))
         api(versions.libs.coordinates("file-io"))

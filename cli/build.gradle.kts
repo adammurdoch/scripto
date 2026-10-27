@@ -5,7 +5,7 @@ plugins {
 application {
     appName = "scripto"
 
-    macOS()
+    nativeDesktop()
 
     common {
         implementation(versions.libs.coordinates("file-io"))

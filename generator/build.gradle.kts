@@ -4,7 +4,7 @@ plugins {
 
 library {
     jvm()
-    macOS()
+    nativeDesktop()
     common {
         api(project(":ir"))
         api(versions.libs.coordinates("file-io"))
