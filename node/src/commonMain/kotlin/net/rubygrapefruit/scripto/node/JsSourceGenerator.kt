@@ -21,7 +21,7 @@ internal fun SourceGenerator.append(statement: JsStatement) {
 }
 
 private fun SourceGenerator.appendCall(statement: JsFunctionCall) {
-    if (statement.receiver is JsInt) {
+    if (statement.receiver is JsInt || statement.receiver is JsInfix) {
         append("(")
         append(statement.receiver)
         append(")")

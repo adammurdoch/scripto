@@ -7,7 +7,10 @@ import net.rubygrapefruit.scripto.generator.OperationMapper
 import net.rubygrapefruit.scripto.generator.writeTo
 import net.rubygrapefruit.scripto.ir.*
 
+@OptIn(ExperimentalStdlibApi::class)
 class NodeGenerator {
+    private val encodedTypes = mutableMapOf<Type, EncodedType>()
+
     fun generate(program: Program, output: Directory): RegularFile {
         val functionMapper = createFunctionMapper()
         val operationMapper = createOperationMapper(functionMapper)
@@ -29,19 +32,16 @@ class NodeGenerator {
                 toExpression(expression.args[0], functionMapper)
             }
             mapReceiver(StringFunctions.toString) { expression, functionMapper ->
-                toExpression(expression.receiver, functionMapper)
+                EncodedType.String.toString(toExpression(expression.receiver, functionMapper))
             }
             mapReceiver(IntFunctions.toString) { expression, functionMapper ->
-                val receiver = toExpression(expression.receiver, functionMapper)
-                JsFunctionCall(receiver, "toString", emptyList())
+                EncodedType.Int.toString(toExpression(expression.receiver, functionMapper))
             }
             mapReceiver(BooleanFunctions.toString) { expression, functionMapper ->
-                val receiver = toExpression(expression.receiver, functionMapper)
-                JsFunctionCall(receiver, "toString", emptyList())
+                EncodedType.Boolean.toString(toExpression(expression.receiver, functionMapper))
             }
             mapReceiver(FileFunctions.toString) { expression, functionMapper ->
-                val receiver = toExpression(expression.receiver, functionMapper)
-                fileToString(receiver)
+                EncodedType.File.toString(toExpression(expression.receiver, functionMapper))
             }
             mapOperator(StandardLibrary.stringEquality) { left, right ->
                 JsInfix(left, "==", right)
@@ -86,14 +86,7 @@ class NodeGenerator {
 
     private fun toStringExpression(expression: Expression, functionMapper: FunctionMapper<JsExpression>): JsExpression {
         val value = toExpression(expression, functionMapper)
-        return when (expression.type) {
-            is Type.File -> fileToString(value)
-            else -> value
-        }
-    }
-
-    private fun fileToString(value: JsExpression): JsExpression {
-        return JsInfix(JsString("File("), "+", JsInfix(value, "+", JsString(")")))
+        return toEncodedType(expression.type).toString(value)
     }
 
     private fun toExpression(expression: Expression, functionMapper: FunctionMapper<JsExpression>): JsExpression {
@@ -104,6 +97,46 @@ class NodeGenerator {
             is VariableReference -> JsVariableReference(expression.name)
             is FunctionCallExpression -> functionMapper.map(expression)
             is ReceiverFunctionCallExpression -> functionMapper.map(expression)
+        }
+    }
+
+    private fun toEncodedType(type: Type): EncodedType {
+        return encodedTypes.getOrPutIfNull(type) {
+            when (type) {
+                is Type.String -> EncodedType.String
+                is Type.Int -> EncodedType.Int
+                is Type.Boolean -> EncodedType.Boolean
+                is Type.File -> EncodedType.File
+                else -> TODO()
+            }
+        }
+    }
+
+    private sealed interface EncodedType {
+        fun toString(receiver: JsExpression): JsExpression
+
+        object String : EncodedType {
+            override fun toString(receiver: JsExpression): JsExpression {
+                return receiver
+            }
+        }
+
+        object Int : EncodedType {
+            override fun toString(receiver: JsExpression): JsExpression {
+                return JsFunctionCall(receiver, "toString", emptyList())
+            }
+        }
+
+        object Boolean : EncodedType {
+            override fun toString(receiver: JsExpression): JsExpression {
+                return JsFunctionCall(receiver, "toString", emptyList())
+            }
+        }
+
+        object File : EncodedType {
+            override fun toString(receiver: JsExpression): JsExpression {
+                return JsInfix(JsString("File("), "+", JsInfix(receiver, "+", JsString(")")))
+            }
         }
     }
 }
