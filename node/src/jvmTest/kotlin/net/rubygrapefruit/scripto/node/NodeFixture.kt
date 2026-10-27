@@ -9,6 +9,10 @@ class NodeFixture(workDir: Directory) : AppFixture(workDir) {
         val generator = NodeGenerator()
         val outputScript = generator.generate(program, workDir)
 
+        section("Generated source") {
+            println(outputScript.readText())
+        }
+
         return running("build/node-js/bin/node", outputScript.absolutePath)
     }
 }
