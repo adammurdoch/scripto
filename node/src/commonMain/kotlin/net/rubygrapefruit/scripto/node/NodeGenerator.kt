@@ -13,6 +13,12 @@ class NodeGenerator {
             mapReceiver(StringFunctions.toString) { expression, functionMapper ->
                 toExpression(expression.receiver, functionMapper)
             }
+            mapReceiver(IntFunctions.toString) { expression, functionMapper ->
+                toExpression(expression.receiver, functionMapper)
+            }
+            mapReceiver(BooleanFunctions.toString) { expression, functionMapper ->
+                toExpression(expression.receiver, functionMapper)
+            }
         }
         val operationMapper = createOperationMapper(functionMapper)
 
@@ -43,10 +49,11 @@ class NodeGenerator {
     private fun toExpression(expression: Expression, functionMapper: FunctionMapper<JsExpression>): JsExpression {
         return when (expression) {
             is StringLiteral -> JsString(expression.value)
+            is IntLiteral -> JsInt(expression.value)
+            is BooleanLiteral -> JsBoolean(expression.value)
             is VariableReference -> JsVariableReference(expression.name)
             is FunctionCallExpression -> functionMapper.map(expression)
             is ReceiverFunctionCallExpression -> functionMapper.map(expression)
-            else -> JsString("??")
         }
     }
 }

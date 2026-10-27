@@ -20,7 +20,7 @@ Status
 
 Pre-experimental
 
-Language
+Language Grammar
 ----
 
 program = statement*

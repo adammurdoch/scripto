@@ -32,6 +32,16 @@ private fun SourceGenerator.append(expression: JsExpression) {
             append("\"")
         }
 
+        is JsInt -> append(expression.value.toString())
+
+        is JsBoolean -> {
+            if (expression.value) {
+                append("true")
+            } else {
+                append("false")
+            }
+        }
+
         is JsVariableReference -> {
             append(expression.name)
         }
