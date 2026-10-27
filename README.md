@@ -1,14 +1,15 @@
 
 A statically typed language with automatic memory management that compiles to:
 
-- Native executables
+- Native executables (macOS)
 - C source
 - JVM byte code
+- Node.js scripts
 - Bash scripts
 - PowerShell scripts
 
-An interpreter is also provided.
-
+The compiler runs on macOS. It is also able to run a source file without compiling it to an output file
+ 
 Motivation
 ----
 

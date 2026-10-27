@@ -2,24 +2,19 @@ package net.rubygrapefruit.scripto.node
 
 import net.rubygrapefruit.file.Directory
 import net.rubygrapefruit.file.RegularFile
+import net.rubygrapefruit.scripto.generator.FunctionMapper
 import net.rubygrapefruit.scripto.generator.OperationMapper
 import net.rubygrapefruit.scripto.generator.writeTo
-import net.rubygrapefruit.scripto.ir.Expression
-import net.rubygrapefruit.scripto.ir.Program
-import net.rubygrapefruit.scripto.ir.StandardLibrary
-import net.rubygrapefruit.scripto.ir.StringLiteral
+import net.rubygrapefruit.scripto.ir.*
 
 class NodeGenerator {
     fun generate(program: Program, output: Directory): RegularFile {
-        val operationMapper = OperationMapper.of {
-            map(StandardLibrary.printlnNoArgs) {
-                JsFunctionCall("console.log", emptyList())
-            }
-            map(StandardLibrary.printlnOneArg) { operation ->
-                val arguments = operation.arguments.map { toExpression(it) }
-                JsFunctionCall("console.log", arguments)
+        val functionMapper = FunctionMapper.of {
+            mapReceiver(StringFunctions.toString) { expression, functionMapper ->
+                toExpression(expression.receiver, functionMapper)
             }
         }
+        val operationMapper = createOperationMapper(functionMapper)
 
         val statements = operationMapper.map(program.operations)
 
@@ -32,9 +27,25 @@ class NodeGenerator {
         return outputFile
     }
 
-    private fun toExpression(expression: Expression): JsExpression {
+    private fun createOperationMapper(functionMapper: FunctionMapper<JsExpression>): OperationMapper<JsStatement> = OperationMapper.of {
+        map(StandardLibrary.printlnNoArgs) {
+            JsFunctionCall("console.log", emptyList())
+        }
+        map(StandardLibrary.printlnOneArg) { operation ->
+            val arguments = operation.arguments.map { toExpression(it, functionMapper) }
+            JsFunctionCall("console.log", arguments)
+        }
+        map { variable ->
+            JsVariableDeclaration(variable.name, toExpression(variable.value, functionMapper))
+        }
+    }
+
+    private fun toExpression(expression: Expression, functionMapper: FunctionMapper<JsExpression>): JsExpression {
         return when (expression) {
             is StringLiteral -> JsString(expression.value)
+            is VariableReference -> JsVariableReference(expression.name)
+            is FunctionCallExpression -> functionMapper.map(expression)
+            is ReceiverFunctionCallExpression -> functionMapper.map(expression)
             else -> JsString("??")
         }
     }
