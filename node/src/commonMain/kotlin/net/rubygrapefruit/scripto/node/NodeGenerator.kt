@@ -71,7 +71,7 @@ class NodeGenerator {
                 )
             }
             mapReceiver(ListFunctions.toString) { expression, functionMapper ->
-                EncodedType.List.toString(toExpression(expression.receiver, functionMapper))
+                EncodedType.PlainList.toString(toExpression(expression.receiver, functionMapper))
             }
             mapOperator(StandardLibrary.stringEquality) { left, right ->
                 JsInfix(left, "==", right)
@@ -137,8 +137,12 @@ class NodeGenerator {
                 is Type.Int -> EncodedType.Int
                 is Type.Boolean -> EncodedType.Boolean
                 is Type.File -> EncodedType.File
-                is Type.List -> EncodedType.List
-                else -> TODO()
+                is Type.List -> when (type.param) {
+                    is Type.String, Type.Int, Type.Boolean -> EncodedType.PlainList
+                    else -> EncodedType.List(toEncodedType(type.param))
+                }
+
+                is Type.Any -> EncodedType.Any
             }
         }
     }
@@ -170,9 +174,26 @@ class NodeGenerator {
             }
         }
 
-        object List : EncodedType {
+        object PlainList : EncodedType {
             override fun toString(receiver: JsExpression): JsExpression {
                 return concat("[", JsFunctionCall(receiver, "join", listOf(JsString(", "))), "]")
+            }
+        }
+
+        /**
+         * List with encoded elements.
+         */
+        class List(val elementType: EncodedType) : EncodedType {
+            override fun toString(receiver: JsExpression): JsExpression {
+                val mappedList = JsFunctionCall(receiver, "map", listOf(JsLambda("element", elementType.toString(JsVariableReference("element")))))
+                val joinedList = JsFunctionCall(mappedList, "join", listOf(JsString(", ")))
+                return concat("[", joinedList, "]")
+            }
+        }
+
+        object Any : EncodedType {
+            override fun toString(receiver: JsExpression): JsExpression {
+                return JsString("??")
             }
         }
     }

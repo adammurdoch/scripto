@@ -206,7 +206,7 @@ class JvmGenerator {
                     is Type.String -> EncodedType.StringList
                     is Type.Int -> EncodedType.IntList
                     is Type.Boolean -> EncodedType.BooleanList
-                    else -> EncodedType.ObjectList(toEncodedType(type.param) as EncodedType.ReferenceType)
+                    else -> EncodedType.List(toEncodedType(type.param) as EncodedType.ReferenceType)
                 }
 
                 is Type.Any -> EncodedType.Any
@@ -357,7 +357,7 @@ private sealed interface EncodedType {
         }
     }
 
-    class ObjectList(val elementType: ReferenceType) : ReferenceType {
+    class List(val elementType: ReferenceType) : ReferenceType {
         val collector by lazy { collector(elementType) }
 
         override val typeNamePrefix: kotlin.String = "List${elementType.typeNamePrefix}"

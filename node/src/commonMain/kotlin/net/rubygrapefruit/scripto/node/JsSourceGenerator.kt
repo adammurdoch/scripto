@@ -101,6 +101,13 @@ private fun SourceGenerator.append(expression: JsExpression, mapping: VariableMa
             append("]")
         }
 
+        is JsLambda -> {
+            append("(")
+            append(expression.argName)
+            append(") => ")
+            append(expression.value, mapping)
+        }
+
         is JsFunctionCall -> appendCall(expression, mapping)
     }
 }

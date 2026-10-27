@@ -9,6 +9,17 @@ internal sealed interface JsExpression {
     }
 }
 
+internal sealed class JsCompositeExpression : JsExpression {
+    override fun visitExpressions(visitor: (JsExpression) -> Unit) {
+        visitChildren { child ->
+            child.visitExpressions(visitor)
+        }
+        visitor(this)
+    }
+
+    protected abstract fun visitChildren(visitor: (JsExpression) -> Unit)
+}
+
 internal class JsString(val value: String) : JsExpression
 
 internal class JsInt(val value: Int) : JsExpression
@@ -17,19 +28,21 @@ internal class JsBoolean(val value: Boolean) : JsExpression
 
 internal class JsVariableReference(val name: String) : JsExpression
 
-internal class JsInfix(val left: JsExpression, val operator: String, val right: JsExpression) : JsExpression {
-    override fun visitExpressions(visitor: (JsExpression) -> Unit) {
-        left.visitExpressions(visitor)
-        right.visitExpressions(visitor)
-        visitor(this)
+internal class JsInfix(val left: JsExpression, val operator: String, val right: JsExpression) : JsCompositeExpression() {
+    override fun visitChildren(visitor: (JsExpression) -> Unit) {
+        visitor(left)
+        visitor(right)
     }
 }
 
-internal class JsArrayLiteral(val elements: List<JsExpression>) : JsExpression {
-    override fun visitExpressions(visitor: (JsExpression) -> Unit) {
-        for (element in elements) {
-            element.visitExpressions(visitor)
-        }
-        visitor(this)
+internal class JsArrayLiteral(val elements: List<JsExpression>) : JsCompositeExpression() {
+    override fun visitChildren(visitor: (JsExpression) -> Unit) {
+        elements.forEach(visitor)
+    }
+}
+
+internal class JsLambda(val argName: String, val value: JsExpression) : JsCompositeExpression() {
+    override fun visitChildren(visitor: (JsExpression) -> Unit) {
+        visitor(value)
     }
 }

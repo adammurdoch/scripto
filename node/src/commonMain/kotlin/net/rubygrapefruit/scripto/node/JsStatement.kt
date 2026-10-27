@@ -10,18 +10,16 @@ internal class JsVariableDeclaration(val name: String, val value: JsExpression) 
     }
 }
 
-internal class JsFunctionCall(val receiver: JsExpression, val name: String, val arguments: List<JsExpression>, val declaredBy: JsDeclaration? = null) : JsStatement, JsExpression {
+internal class JsFunctionCall(val receiver: JsExpression, val name: String, val arguments: List<JsExpression>, val declaredBy: JsDeclaration? = null) :
+    JsCompositeExpression(), JsStatement {
     override fun visitOwnDeclarations(visitor: (JsDeclaration) -> Unit) {
         if (declaredBy != null) {
             visitor(declaredBy)
         }
     }
 
-    override fun visitExpressions(visitor: (JsExpression) -> Unit) {
-        receiver.visitExpressions(visitor)
-        for (argument in arguments) {
-            argument.visitExpressions(visitor)
-        }
-        visitor(this)
+    override fun visitChildren(visitor: (JsExpression) -> Unit) {
+        visitor(receiver)
+        arguments.forEach(visitor)
     }
 }
