@@ -20,7 +20,7 @@ class BashFixture(workDir: Directory) : AppFixture(workDir) {
             println(outputScript.readText())
         }
 
-        return running(outputScript.absolutePath)
+        return running("bash", outputScript.absolutePath)
     }
 
     override fun generationFails(program: Program) {
