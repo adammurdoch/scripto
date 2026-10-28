@@ -16,6 +16,18 @@ jobs:
           distribution: 'temurin'
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
+      - name: Setup Kotlin native
+        uses: actions/cache@v3
+        with:
+            path: |
+              ~/.konan
+            key: kotlin-konan-${{ runner.os }}
+      - name: Setup tools
+        uses: actions/cache@v3
+        with:
+            path: |
+              ~/bin/downloads
+            key: tools-${{ runner.os }}
       - name: Execute Gradle build
         run: ./gradlew build dist --continue
         timeout-minutes: 30
@@ -34,7 +46,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
       - name: Execute Gradle build
         run: ./gradlew compiler:build jvm:build dist --continue --info
-        timeout-minutes: 30
+        timeout-minutes: 60
   macos-check:
     runs-on: macos-latest
     steps:
