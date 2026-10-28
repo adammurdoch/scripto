@@ -2,6 +2,7 @@ package net.rubygrapefruit.scripto.test
 
 import net.rubygrapefruit.file.RegularFile
 import net.rubygrapefruit.file.toDir
+import net.rubygrapefruit.machine.info.Machine
 import net.rubygrapefruit.scripto.compiler.Compiler
 import net.rubygrapefruit.scripto.ir.Program
 import org.junit.Rule
@@ -73,7 +74,7 @@ abstract class AbstractIntegrationTest {
 
         override fun execute(vararg args: String, config: ExecutionResultFixture.() -> Unit) {
             val output = app.execute(args.toList())
-            DefaultExecutionResultFixture(output).config()
+            DefaultExecutionResultFixture(output, Machine.thisMachine.isWindows).config()
         }
     }
 
@@ -81,9 +82,14 @@ abstract class AbstractIntegrationTest {
         fun output(expected: String)
     }
 
-    private class DefaultExecutionResultFixture(val output: String) : ExecutionResultFixture {
+    private class DefaultExecutionResultFixture(val output: String, val windowsLineEndings: Boolean) : ExecutionResultFixture {
         override fun output(expected: String) {
-            assertEquals(expected, output)
+            val normalizedExpected = if (windowsLineEndings) {
+                expected.replace("\n", "\r\n")
+            } else {
+                expected
+            }
+            assertEquals(normalizedExpected, output)
         }
     }
 }

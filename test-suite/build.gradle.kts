@@ -6,6 +6,7 @@ library {
     jvm {
         dependencies {
             api(versions.test.junit.coordinates)
+            implementation(versions.libs.coordinates("machine-info"))
         }
     }
     nativeDesktop()
