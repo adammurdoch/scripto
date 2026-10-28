@@ -17,7 +17,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
       - name: Execute Gradle build
-        run: ./gradlew build dist --continue --stacktrace --info
+        run: ./gradlew build dist --continue
         timeout-minutes: 30
   windows-check:
     runs-on: windows-latest
@@ -33,7 +33,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
       - name: Execute Gradle build
-        run: ./gradlew build dist --continue --stacktrace
+        run: ./gradlew compiler:build jvm:build dist --continue --info
         timeout-minutes: 30
   macos-check:
     runs-on: macos-latest
@@ -49,5 +49,5 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
       - name: Execute Gradle build
-        run: ./gradlew build dist --continue --stacktrace
+        run: ./gradlew build dist --continue
         timeout-minutes: 45
