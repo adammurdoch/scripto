@@ -2,6 +2,9 @@ package net.rubygrapefruit.scripto.test
 
 import kotlin.test.Test
 
+/**
+ * `println(someVar)` is mostly covered by the type specific integration tests.
+ */
 abstract class AbstractStdoutIoIntegrationTest : AbstractIntegrationTest() {
     @Test
     fun `compiles call to println function`() {
@@ -60,23 +63,6 @@ println(s)
     }
 
     @Test
-    fun `compiles call to println function with string variable argument`() {
-        val sourceFile = workDir.file("app.scripto")
-
-        sourceFile.writeText(
-            """
-val s = "value"
-println(s)
-        """
-        )
-
-        compileAndRun(sourceFile) {
-            statements(2)
-            output("value\n")
-        }
-    }
-
-    @Test
     fun `compiles call to println function with int literal argument`() {
         val sourceFile = workDir.file("app.scripto")
 
@@ -106,23 +92,6 @@ ${Int.MIN_VALUE}
     }
 
     @Test
-    fun `compiles call to println function with int variable argument`() {
-        val sourceFile = workDir.file("app.scripto")
-
-        sourceFile.writeText(
-            """
-val s = 12
-println(s)
-        """
-        )
-
-        compileAndRun(sourceFile) {
-            statements(2)
-            output("12\n")
-        }
-    }
-
-    @Test
     fun `compiles call to println function with boolean literal argument`() {
         val sourceFile = workDir.file("app.scripto")
 
@@ -135,25 +104,6 @@ println(false)
 
         compileAndRun(sourceFile) {
             statements(2)
-            output("true\nfalse\n")
-        }
-    }
-
-    @Test
-    fun `compiles call to println function with boolean variable argument`() {
-        val sourceFile = workDir.file("app.scripto")
-
-        sourceFile.writeText(
-            """
-val t = true
-val f = false
-println(t)
-println(f)
-        """
-        )
-
-        compileAndRun(sourceFile) {
-            statements(4)
             output("true\nfalse\n")
         }
     }
