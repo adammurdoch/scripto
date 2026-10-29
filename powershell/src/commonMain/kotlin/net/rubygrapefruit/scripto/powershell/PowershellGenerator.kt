@@ -15,7 +15,7 @@ class PowershellGenerator {
         val statements = operationMapper.map(program.operations)
         val powershellProgram = PsProgram(statements)
 
-        val outputFile = output.file("${program.snakeCaseName}.ps")
+        val outputFile = output.file("${program.snakeCaseName}.ps1")
         writeTo(outputFile, "#") {
             for (statement in powershellProgram.statements) {
                 append(statement)
