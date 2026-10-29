@@ -45,7 +45,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
       - name: Execute Gradle build
-        run: ./gradlew compiler:build --continue --info
+        run: ./gradlew compiler:build powershell:build --continue --info
         timeout-minutes: 60
   macos-check:
     runs-on: macos-latest
