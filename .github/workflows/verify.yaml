@@ -57,7 +57,7 @@ jobs:
             ~/bin/downloads
           key: tools-1-windows-x64
       - name: Execute Gradle build
-        run: ./gradlew compiler:build powershell:build jvm:build --continue
+        run: ./gradlew compiler:build powershell:build jvm:build --continue --info
         timeout-minutes: 60
       - name: Test results
         if: failure()
