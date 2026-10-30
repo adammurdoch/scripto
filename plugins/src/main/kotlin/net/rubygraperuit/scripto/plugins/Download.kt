@@ -29,6 +29,8 @@ abstract class Download : DefaultTask() {
         }
 
         sourceDir.copyToRecursively(installDir, followLinks = false, overwrite = false)
+
+        println("-> DOWNLOADED $url to $installDir")
     }
 
     protected abstract fun url(): String

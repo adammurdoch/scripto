@@ -14,13 +14,12 @@ class NodeFixture(workDir: Directory) : AppFixture(workDir) {
             println(outputScript.readText())
         }
 
-        val nodeInstall = File("build/node-js/bin")
+        val nodeInstall = File("build/node-js/bin").absoluteFile
         println("NODE")
         println("install: $nodeInstall (${nodeInstall.isDirectory})")
+
         nodeInstall.listFiles()?.forEach {
-            if (it.name.contains("node")) {
-                println(it)
-            }
+            println(it)
         }
 
         return running("build/node-js/bin/node", outputScript.absolutePath)
