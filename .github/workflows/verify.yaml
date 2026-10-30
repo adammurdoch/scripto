@@ -57,8 +57,8 @@ jobs:
             ~/bin/downloads
           key: tools-1-windows-x64
       - name: Execute Gradle build
-        run: ./gradlew compiler:build powershell:build jvm:build --continue --info
-        timeout-minutes: 60
+        run: ./gradlew compiler:build powershell:build node:build --continue --info
+        timeout-minutes: 30
       - name: Test results
         if: failure()
         uses: actions/upload-artifact@v7
