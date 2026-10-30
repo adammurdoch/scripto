@@ -14,7 +14,7 @@ class NodeFixture(workDir: Directory) : AppFixture(workDir) {
             println(outputScript.readText())
         }
 
-        val nodeInstall = File("build/node-js/bin").absoluteFile
+        val nodeInstall = File("build/node-js").absoluteFile
         println("NODE")
         println("install: $nodeInstall (${nodeInstall.isDirectory})")
 
