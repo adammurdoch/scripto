@@ -3,6 +3,7 @@ package net.rubygrapefruit.scripto.node
 import net.rubygrapefruit.file.Directory
 import net.rubygrapefruit.scripto.ir.Program
 import net.rubygrapefruit.scripto.test.AppFixture
+import java.io.File
 
 class NodeFixture(workDir: Directory) : AppFixture(workDir) {
     override fun generate(program: Program): App {
@@ -11,6 +12,15 @@ class NodeFixture(workDir: Directory) : AppFixture(workDir) {
 
         section("Generated source") {
             println(outputScript.readText())
+        }
+
+        val nodeInstall = File("build/node-js/bin")
+        println("NODE")
+        println("install: $nodeInstall (${nodeInstall.isDirectory})")
+        nodeInstall.listFiles()?.forEach {
+            if (it.name.contains("node")) {
+                println(it)
+            }
         }
 
         return running("build/node-js/bin/node", outputScript.absolutePath)
