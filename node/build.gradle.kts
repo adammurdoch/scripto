@@ -4,6 +4,11 @@ plugins {
 }
 
 library {
+    jvm {
+        test {
+            implementation(versions.libs.coordinates("machine-info"))
+        }
+    }
     common {
         api(versions.libs.coordinates("file-io"))
         api(project(":ir"))

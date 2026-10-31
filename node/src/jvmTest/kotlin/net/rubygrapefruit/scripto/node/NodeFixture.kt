@@ -1,9 +1,9 @@
 package net.rubygrapefruit.scripto.node
 
 import net.rubygrapefruit.file.Directory
+import net.rubygrapefruit.machine.info.Machine
 import net.rubygrapefruit.scripto.ir.Program
 import net.rubygrapefruit.scripto.test.AppFixture
-import java.io.File
 
 class NodeFixture(workDir: Directory) : AppFixture(workDir) {
     override fun generate(program: Program): App {
@@ -14,14 +14,12 @@ class NodeFixture(workDir: Directory) : AppFixture(workDir) {
             println(outputScript.readText())
         }
 
-        val nodeInstall = File("build/node-js").absoluteFile
-        println("NODE")
-        println("install: $nodeInstall (${nodeInstall.isDirectory})")
-
-        nodeInstall.listFiles()?.forEach {
-            println(it)
+        val nodeExe = if (Machine.thisMachine.isWindows) {
+            "build/node-js/node.exe"
+        } else {
+            "build/node-js/bin/node"
         }
 
-        return running("build/node-js/bin/node", outputScript.absolutePath)
+        return running(nodeExe, outputScript.absolutePath)
     }
 }
