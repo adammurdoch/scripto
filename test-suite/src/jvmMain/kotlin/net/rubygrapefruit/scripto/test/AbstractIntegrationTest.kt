@@ -37,7 +37,7 @@ abstract class AbstractIntegrationTest {
             fixture.generationFails(program)
         } else {
             val app = fixture.generate(program)
-            DefaultCompilationResultFixture(program, app).config()
+            DefaultCompilationResultFixture(program, app, Machine.thisMachine.isWindows && fixture.windowsLineEndings).config()
         }
     }
 
@@ -67,14 +67,14 @@ abstract class AbstractIntegrationTest {
         }
     }
 
-    private class DefaultCompilationResultFixture(val program: Program, val app: AppFixture.App) : CompilationResultFixture {
+    private class DefaultCompilationResultFixture(val program: Program, val app: AppFixture.App, val windowsLineEndings: Boolean) : CompilationResultFixture {
         override fun statements(expectedCount: Int) {
             assertEquals(expectedCount, program.operations.size)
         }
 
         override fun execute(vararg args: String, config: ExecutionResultFixture.() -> Unit) {
             val output = app.execute(args.toList())
-            DefaultExecutionResultFixture(output, Machine.thisMachine.isWindows).config()
+            DefaultExecutionResultFixture(output, windowsLineEndings).config()
         }
     }
 

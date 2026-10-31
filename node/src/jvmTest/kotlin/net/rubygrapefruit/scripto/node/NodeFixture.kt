@@ -6,6 +6,9 @@ import net.rubygrapefruit.scripto.ir.Program
 import net.rubygrapefruit.scripto.test.AppFixture
 
 class NodeFixture(workDir: Directory) : AppFixture(workDir) {
+    override val windowsLineEndings: Boolean
+        get() = false
+
     override fun generate(program: Program): App {
         val generator = NodeGenerator()
         val outputScript = generator.generate(program, workDir)

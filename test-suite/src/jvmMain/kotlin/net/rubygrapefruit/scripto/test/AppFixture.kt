@@ -9,6 +9,9 @@ abstract class AppFixture(val workDir: Directory) {
     open val targetRuntime: TargetRuntime
         get() = TargetRuntime.NoOp
 
+    open val windowsLineEndings: Boolean
+        get() = true
+
     abstract fun generate(program: Program): App
 
     open fun generationFails(program: Program) {
